@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# User data (campaigns, backups, exports, QR cards) — never ship or commit
+userdata/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.log

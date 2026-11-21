@@ -1,0 +1,613 @@
+{
+  "id": "living_shore",
+  "name": "The Living Shore",
+  "version": "1.0.0",
+  "summary": "A persistent beach between universes. Walk the tideline, gather at the campfire, and step through a door on the Beam into whatever waits on the other side.",
+  "genre_tags": ["dark fantasy", "supernatural horror", "dimensional travel"],
+  "theme": {
+    "bg": "#0b0e14",
+    "deep": "#141126",
+    "purple": "#7c5cff",
+    "glow": "#9b8cff",
+    "teal": "#43e8d8",
+    "gold": "#e8b46b",
+    "text": "#e9e4f2"
+  },
+  "gm_style": "Dread like deep water: quiet, patient, melancholy rather than cruel. Concrete sensory detail, sparse dialogue, the sea as a slow witness. Wonders are real and costs are real.",
+  "lore_file": "lore.md",
+  "hub_location": "tidegate",
+  "intro_facts": [
+    "You woke on the Living Shore with sand in your boots and a door-shaped ache behind your eyes.",
+    "The Beam runs above the tideline at dusk, and doors stand in the surf beneath it.",
+    "Open flame is sacred here: a lit lantern marks you as a person, not a hunger."
+  ],
+  "intro_quests": [
+    { "id": "find_your_door", "title": "Choose a portal on the Beam" }
+  ],
+  "fallback_flavor": [
+    "The shore holds its breath around you.",
+    "Far out, something crosses the water without disturbing it.",
+    "The Beam hums at the edge of hearing, like a struck glass deciding.",
+    "Gulls wheel once, land, and watch you with too much patience."
+  ],
+  "weather": [
+    { "key": "mist", "weight": 4, "desc": "Low sea mist that swallows the horizon." },
+    { "key": "clear", "weight": 3, "desc": "A rare clean night, stars doubled in the wet sand." },
+    { "key": "drizzle", "weight": 2, "desc": "Fine cold rain, more felt than heard." },
+    { "key": "storm", "weight": 1, "desc": "A storm walking the horizon line, looking for a way in." },
+    { "key": "fogbank", "weight": 2, "desc": "A solid fogbank moored offshore like a second, darker sea." }
+  ],
+  "locations": [
+    {
+      "id": "tidegate",
+      "name": "The Tide Gate",
+      "short": "The Beam touches the shore; the doors stand in the shallows.",
+      "desc": "Where the pale Beam comes down to touch the water, doors stand free in the shallows — worn, patient, older than the idea of doors. A weathered signpost leans here: Dada Chunk, Da Dachink — Open a Door Before You Sink.",
+      "known": true,
+      "vignette": "tidegate",
+      "flavor": [
+        "The doors do not reflect the Beam, which is the wrong way around for glass.",
+        "One of the doors has a brass knock shaped like a hand. It is warm.",
+        "Sand keeps trying to bury the signpost. Something keeps digging it out."
+      ],
+      "hotspots": [
+        { "id": "signpost", "label": "the leaning signpost", "x": 18, "y": 62, "text": "DADA CHUNK, DA DACHINK — OPEN A DOOR BEFORE YOU SINK. Beneath, in smaller letters, barely legible: 'the doors always let you out. what they let out may not be what walked in.'" },
+        { "id": "beam", "label": "the Beam overhead", "x": 50, "y": 12, "text": "Up close the Beam is not light at all but a slow procession of luminous script, traveling left to right, never repeating." }
+      ]
+    },
+    {
+      "id": "camp",
+      "name": "Driftwood Camp",
+      "short": "A fire that never drowns, and Old Cardo, the last door-tender.",
+      "desc": "A ring of whale-rib posts and driftwood seats around a fire that burns low, orange, and absolutely certain. Old Cardo tends it with a fisherman's patience and a nurse's timing.",
+      "known": true,
+      "vignette": "camp",
+      "rest": { "vigor": 3, "nerve": 2 },
+      "rest_text": "You sit where the smoke leans. The fire takes your tiredness as fuel and gives back a little steadiness. Cardo nods like a man paid in full.",
+      "flavor": [
+        "Cardo feeds the fire one stick at a time, like a man counting money he can't keep.",
+        "The fire never pops. It crackles once, thinks about it, and settles.",
+        "Someone has nailed dozens of tiny brass doors to the driftwood, each no bigger than a thumb."
+      ],
+      "hotspots": [
+        { "id": "brass_doors", "label": "the tiny brass doors", "x": 68, "y": 58, "text": "Each little door is different: one riveted, one fused shut, one warm to the touch, one with a hairline of light beneath it. Cardo says they are 'doorlets — retired.' When you ask what they retired from, he just adds a stick to the fire." }
+      ],
+      "on_enter": [
+        { "npc_rel": { "npc_id": "old_cardo", "delta": 0 } }
+      ]
+    },
+    {
+      "id": "tavern",
+      "name": "The Salt & Lantern",
+      "short": "A travelers' refuge, warm from the inside. Maren pours.",
+      "desc": "Inside, the Salt & Lantern is low-ceilinged and amber, smelling of lamp oil, tar, and stew. Maren, the glass-eyed tavernkeeper, pours something dark and answers most questions sideways.",
+      "known": true,
+      "vignette": "tavern",
+      "rest": { "vigor": 4, "nerve": 4 },
+      "rest_text": "Maren takes your glass without asking, pours two fingers of something that tastes like plum smoke, and rolls you a hammock by the stove. The room hums. You sleep like cargo.",
+      "flavor": [
+        "The mirror behind the bar shows the room a half-second late.",
+        "A shelf of unpaired tankards, each labeled with a name in chalk. Some names are fresh.",
+        "Maren's left eye is green glass. It tracks the door, not the customers."
+      ],
+      "hotspots": [
+        { "id": "rumor_board", "label": "the rumor board", "x": 74, "y": 34, "text": "Cards pinned in Maren's careful hand: 'THE LIGHTHOUSE KEEPS ITS OWN WEATHER.' — 'LOW TIDE SHOWS THE BELL WRECK. BRASS STILL GOOD.' — 'THE CAVE WEST OF THE POINT: BRING LIGHT, LEAVE A NAIL.' Rumors like these put places on your map." },
+        { "id": "maren_rumor", "label": "ask Maren for the truth", "x": 40, "y": 40, "text": "You ask Maren what the light is in the lighthouse, if the lamp room is empty. She wipes a glass that is already clean. 'The Skyless Light doesn't cast light,' she says. 'It casts looking. People go to see what it sees. Mostly they come back.' She pours you the dark drink. 'Mostly.' (You have heard enough to find the lighthouse and the cave west of the point.)" }
+      ],
+      "on_enter": [
+        { "discover": "lighthouse" },
+        { "discover": "seacave" }
+      ]
+    },
+    {
+      "id": "lighthouse",
+      "name": "The Skyless Light",
+      "short": "The abandoned lighthouse on the point. Its beam casts no shadow.",
+      "desc": "The lighthouse stands on black rock at the point, whitewash gone grey, windows like closed eyes. Its lamp room is empty — and yet on storm nights it sweeps the water with a beam that casts no shadow.",
+      "known": false,
+      "requires": { "discovered": true },
+      "vignette": "lighthouse",
+      "flavor": [
+        "The stairwell whispers back a half-beat after your footsteps stop.",
+        "A keeper's log lies open on the desk, the last entry unfinished mid-word.",
+        "Salt crusts the glass in patterns like fingerprints — dozens of sets."
+      ],
+      "hotspots": [
+        { "id": "keepers_log", "label": "the keeper's log", "x": 46, "y": 52, "text": "The last page: 'Signal from the drowned bay again. Nine lamps lit. It is asking for the name I promised I would never say. If anyone reads this, the lantern is in the rack — take it. A lit lantern is a promise you are a person. — K.' (You take the keeper's lantern. And a fact: someone was answering a signal across the water.)" }
+      ],
+      "on_enter": [
+        { "fact": "The lighthouse's last keeper wrote of a signal from a drowned bay, nine lamps lit, asking for a name." }
+      ]
+    },
+    {
+      "id": "seacave",
+      "name": "The Cave West of the Point",
+      "short": "Low tide only. Bring light; leave a nail.",
+      "desc": "At low tide a cave opens in the bluff west of the point, its ceiling strung with old nails hammered in by travelers who followed Maren's advice. Deep in, a tide pool glows faintly green.",
+      "known": false,
+      "requires": { "tide": "low", "discovered": true },
+      "vignette": "seacave",
+      "flavor": [
+        "The nails in the ceiling are all heads-out, as if hammered from inside the rock.",
+        "The tide pool glows brighter when you don't look at it directly.",
+        "Water drips upward, once, apologetically."
+      ],
+      "hotspots": [
+        { "id": "tide_pool", "label": "the glowing tide pool", "x": 55, "y": 60, "text": "In the pool: a salt-charm braided from kelp and wire, still warm, and the sense of being handed something across a great distance. You take the charm. (At low tide, the wreck of the Marrow Bell becomes visible past the point.)" }
+      ],
+      "on_enter": [
+        { "item_give": [ { "item_id": "salt_charm", "qty": 1 } ] },
+        { "discover": "wreck" }
+      ]
+    },
+    {
+      "id": "wreck",
+      "name": "The Marrow Bell",
+      "short": "A salvage sloop aground at low tide. Her brass is still good.",
+      "desc": "The Marrow Bell lies keeled in the sand like a beached leviathan, hull green with weed. Her bronze bell hangs silent in the bow, and below decks the dark keeps a careful, hold-your-breath order.",
+      "known": false,
+      "requires": { "tide": "low", "discovered": true },
+      "vignette": "wreck",
+      "flavor": [
+        "The bell's clapper is missing. Cut, not rusted.",
+        "Manifests in the hold list cargo of 'one door, packed in salt.'",
+        "Your footprints arrive before you do, by a step or two, in the wet sand."
+      ],
+      "hotspots": [
+        { "id": "captain_chest", "label": "the captain's chest", "x": 42, "y": 55, "text": "The chest is unlocked because it does not need to be locked. Inside: a brass key stamped with nine lamps, and a manifest that ends mid-sentence. (You take the brass key. Something in the drowned bay may want it back.)" }
+      ],
+      "on_enter": [
+        { "item_give": [ { "item_id": "brass_key", "qty": 1 } ] }
+      ]
+    },
+    {
+      "id": "saltgrave_gate",
+      "name": "The Drowned Bay",
+      "short": "Through the Door of Salt: a bay that was drowned on purpose.",
+      "desc": "Through the Door of Salt: a bay under a colorless sky, terraces of a drowned town stepping down into black water. Nine cold lanterns burn in a row on the far shore, and something at their heart is very carefully saying a name.",
+      "known": false,
+      "adventure": "salt_grave_signal",
+      "vignette": "saltgrave",
+      "flavor": [
+        "The water here does not ripple. It listens.",
+        "Every third wave smells of lamp oil.",
+        "The lanterns never flicker, which is somehow worse than if they howled."
+      ]
+    },
+    {
+      "id": "umbral_reach",
+      "name": "The Umbral Reach",
+      "short": "Through the Door of Ash: a lawless dark-fantasy night country.",
+      "desc": "Through the Door of Ash: an endless moor under a sky of drifting embers. Ruined waystones point in directions that do not agree. Somewhere ahead, a market of little lights is open for business — the kind of business that happens after midnight, forever.",
+      "known": false,
+      "vignette": "umbral",
+      "flavor": [
+        "The embers drift upward, which is the wrong direction for falling stars.",
+        "A waystone flips its pointing finger when it thinks you aren't watching.",
+        "Distant music from the market stops between one step and the next."
+      ]
+    }
+  ],
+  "portals": [
+    {
+      "id": "door_salt",
+      "label": "Door of Salt",
+      "target_location": "saltgrave_gate",
+      "door_index": 0,
+      "hint": "Supernatural horror — The Salt-Grave Signal"
+    },
+    {
+      "id": "door_ash",
+      "label": "Door of Ash",
+      "target_location": "umbral_reach",
+      "door_index": 1,
+      "hint": "Dark fantasy freeplay — the Umbral Reach"
+    },
+    {
+      "id": "door_roots",
+      "label": "Door of Roots",
+      "sealed": true,
+      "door_index": 2,
+      "seal_note": "Sealed for now — new universes arrive with the world-pack system (Milestone 2)."
+    }
+  ],
+  "npcs": [
+    {
+      "id": "old_cardo",
+      "name": "Old Cardo",
+      "role": "door-tender of Driftwood Camp",
+      "location": "camp",
+      "desc": "A retired door-tender: rope-belted, pipe-patient, eyes like tide pools. He remembers every door that ever opened and charges only stories.",
+      "greeting": "\"Sit, if you're sitting.\" Cardo tips his pipe at the fire. \"The doors don't chase. But they don't wait long, either.\"",
+      "rumors": [
+        "\"The Salt door's been breathing slow tonight. That means the far side is awake.\"",
+        "\"You lose a lantern, you find a door. You lose a name —\" he shrugs, \"— you find everything.\""
+      ]
+    },
+    {
+      "id": "maren",
+      "name": "Maren",
+      "role": "keeper of the Salt & Lantern",
+      "location": "tavern",
+      "desc": "The tavernkeeper, one green glass eye, one storm-grey one. Pours something dark. Answers sideways. Her rumors are better currency than her beer.",
+      "greeting": "\"You're new,\" Maren says, not looking up from the glass she is drying. \"New people drink free the first night. It's an old rule and I'm the only one left who enforces it.\"",
+      "rumors": [
+        "\"The lighthouse doesn't cast light. It casts looking.\"",
+        "\"Low tide shows the Bell wreck. Brass still good. Take a friend.\"",
+        "\"The cave west of the point: bring light, leave a nail. Everyone leaves a nail.\""
+      ]
+    },
+    {
+      "id": "drowned_lampkeeper",
+      "name": "The Drowned Lampkeeper",
+      "role": "what remains of the keeper who answered the signal",
+      "location": "saltgrave_gate",
+      "desc": "Soaked wool, a keeper's coat grown with weed, a face like wet paper holding the memory of a face. It carries a lamp that burns underwater.",
+      "greeting": "\"You came,\" it says, in a voice like water finding stairs. \"Nobody comes. The lamps lit and lit, and nobody comes.\""
+    }
+  ],
+  "archetypes": [
+    {
+      "id": "sensitive",
+      "name": "Sensitive",
+      "blurb": "You feel names the way others feel weather. The shore shows you its seams.",
+      "stats": { "wits": 1, "might": -1, "mettle": 0, "bind": 2 },
+      "palette": "violet",
+      "kit": ["salt_charm", "grandmothers_journal", "chalk"]
+    },
+    {
+      "id": "warden",
+      "name": "Warden",
+      "blurb": "You have put yourself between the dark and someone smaller before. The habit holds.",
+      "stats": { "wits": 0, "might": 2, "mettle": 1, "bind": -1 },
+      "palette": "iron",
+      "kit": ["tide_iron_cudgel", "storm_lantern", "rations"]
+    },
+    {
+      "id": "deepwright",
+      "name": "Deepwright",
+      "blurb": "Salvage, snares, clockwork patience. You fix what the sea gives back.",
+      "stats": { "wits": 2, "might": 0, "mettle": -1, "bind": 0 },
+      "palette": "brass",
+      "kit": ["tool_roll", "brass_fittings", "lamp_oil"]
+    },
+    {
+      "id": "lanternist",
+      "name": "Lanternist",
+      "blurb": "You took the Lantern Law as a vow, not a convenience. Doors respect that.",
+      "stats": { "wits": 0, "might": -1, "mettle": 2, "bind": 1 },
+      "palette": "ember",
+      "kit": ["keepers_lantern", "oil_flask", "ward_paper"]
+    }
+  ],
+  "items": [
+    { "id": "salt_charm", "name": "Salt-charm", "kind": "charm", "desc": "Braided kelp and wire, warm to the touch.", "use": { "text": "The charm tightens like a held hand, then relaxes.", "heal": { "nerve": 1 }, "consume": true } },
+    { "id": "grandmothers_journal", "name": "Grandmother's journal", "kind": "lore", "desc": "Water-stained pages of names, each one crossed out carefully, lovingly.", "use": { "text": "You read a page. One of the names in it is shorter than it was yesterday.", "fact": "Grandmother's journal lists true names, carefully crossed out — one is fresh." } },
+    { "id": "chalk", "name": "Chalk", "kind": "tool", "desc": "For marking doors that should stay shut.", "use": { "text": "You draw a clean line on the ground. The dark on the other side of it considers, and does not cross.", "flag": "chalk_line" } },
+    { "id": "tide_iron_cudgel", "name": "Tide-iron cudgel", "kind": "weapon", "desc": "Heavy, salt-pitted, honest.", "use": { "text": "You roll your wrist. The cudgel settles like it remembers." } },
+    { "id": "storm_lantern", "name": "Storm lantern", "kind": "light", "desc": "Glass-shielded flame, steady in wind.", "use": { "text": "You trim the wick. The dark steps back a polite distance.", "flag": "light_lit" } },
+    { "id": "rations", "name": "Rations", "kind": "provision", "desc": "Dense, dry, absolutely dependable.", "use": { "text": "You eat. Simple, human, good.", "heal": { "vigor": 2 }, "consume": true } },
+    { "id": "tool_roll", "name": "Tool roll", "kind": "tool", "desc": "Wrenches, picks, and a tiny hammer for tiny doors.", "use": { "text": "You lay the tools out. Everything has a place, and for a moment the world does too." } },
+    { "id": "brass_fittings", "name": "Brass fittings", "kind": "tool", "desc": "Assorted hinges and hasps, some from doors you don't recognize.", "use": { "text": "One fitting is warm. You set it back gently, the way you'd return a sleeping cat." } },
+    { "id": "lamp_oil", "name": "Lamp oil", "kind": "light", "desc": "One refill, sealed against the wet.", "use": { "text": "You top up a lantern. The flame stands up straighter.", "flag": "light_lit" } },
+    { "id": "keepers_lantern", "name": "Keeper's lantern", "kind": "light", "desc": "The lighthouse keeper's own: burnished, heavy, alive with a steady flame.", "use": { "text": "The flame leans toward whatever you face, like a compass made of promise.", "flag": "light_lit" } },
+    { "id": "oil_flask", "name": "Oil flask", "kind": "light", "desc": "Sanctified lamp oil. It burns even underwater, once.", "use": { "text": "You crack the seal. The smell is incense and harbors.", "flag": "oil_blessed" } },
+    { "id": "ward_paper", "name": "Ward-paper", "kind": "charm", "desc": "Folded paper inked with the Lantern Law, in a keeper's hand.", "use": { "text": "You unfold the words. For a breath, you can hear which way the nearest hunger is leaning.", "fact": "Ward-paper lets you feel hungers leaning nearby.", "consume": true } },
+    { "id": "brass_key", "name": "Brass key, nine lamps", "kind": "key", "desc": "Stamped with nine lamps in a ring. Salvaged from the Marrow Bell.", "use": { "text": "The key is heavier than brass should be. Somewhere far off, nine lamps flicker in greeting." } },
+    { "id": "dried_kelp", "name": "Dried kelp ribbon", "kind": "provision", "desc": "Chewy, mineral, better than it sounds.", "use": { "text": "You chew. The sea consents to feed you.", "heal": { "vigor": 1 }, "consume": true } },
+    { "id": "callers_name", "name": "The Caller's Name", "kind": "relic", "desc": "Small as a coin, heavy as an anchor. The true name of what speaks from the drowned bay — and its leash.", "use": { "text": "You turn it over in your palm. Far away, something enormous rolls over in its sleep and dreams of your voice." } },
+    { "id": "marrow_bell_shard", "name": "Marrow Bell shard", "kind": "relic", "desc": "A broken wedge of bronze from the drowned bay's beacon bell, still humming one stubborn note.", "use": { "text": "You hold it to your ear. The note is patient. It will hum as long as you do." } }
+  ],
+  "omens": [
+    { "id": "om001", "kind": "edge", "title": "Knotluck", "text": "A fisherman's knot you tied in childhood remembers its business.", "boost": "endure" },
+    { "id": "om002", "kind": "edge", "title": "Third-Eye Weather", "text": "The air tells you what it is hiding before you ask.", "boost": "notice" },
+    { "id": "om003", "kind": "edge", "title": "The Kind Word", "text": "Something in you is easy to trust tonight, and knows it.", "boost": "persuade" },
+    { "id": "om004", "kind": "edge", "title": "Name on the Tongue", "text": "You wake with someone's true name halfway formed in your mouth.", "boost": "bind" },
+    { "id": "om005", "kind": "edge", "title": "Sea Legs", "text": "The ground pretends to be a deck, and your body approves.", "boost": "fight" },
+    { "id": "om006", "kind": "edge", "title": "Lamplight Memory", "text": "You recall exactly how the old keepers trimmed their wicks.", "boost": "lore" },
+    { "id": "om007", "kind": "edge", "title": "Salt in the Blood", "text": "The sea briefly mistakes you for one of its own and lets you pass.", "boost": "endure" },
+    { "id": "om008", "kind": "edge", "title": "Pocket Gale", "text": "A helpful wind lives in your cuff until you need it.", "boost": "any" },
+    { "id": "om009", "kind": "complication", "title": "The Ebb Pulls", "text": "Everything you set down drifts a little further from hand.", "boost": "any" },
+    { "id": "om010", "kind": "complication", "title": "Cold Check", "text": "Someone counts your footsteps behind you, badly, on purpose.", "boost": "any" },
+    { "id": "om011", "kind": "complication", "title": "Wet Wicks", "text": "Every flame you carry shrinks to a thought and stays there.", "boost": "any" },
+    { "id": "om012", "kind": "complication", "title": "The Wrong Gull", "text": "A gull follows you, mocking your voice in your voice.", "boost": "any" },
+    { "id": "om013", "kind": "complication", "title": "Slow Doors", "text": "Hinges everywhere groan with held-back meaning.", "boost": "any" },
+    { "id": "om014", "kind": "complication", "title": "Salt in the Wound", "text": "An old ache picks tonight to file a complaint.", "boost": "any" },
+    { "id": "om015", "kind": "complication", "title": "Interference", "text": "The Beam crackles, and every name you try to say arrives wrong.", "boost": "any" },
+    { "id": "om016", "kind": "complication", "title": "Unquiet Rigging", "text": "Ropes and wires tighten somewhere out of sight.", "boost": "any" },
+    { "id": "om017", "kind": "turn", "title": "A Gull's Shadow", "text": "A gull crosses the moon and its shadow arrives first, wearing a hat." },
+    { "id": "om018", "kind": "turn", "title": "The Second Tide", "text": "A tide comes in from the wrong direction, gently, and goes back." },
+    { "id": "om019", "kind": "turn", "title": "Doors at Dusk", "text": "Every door you pass sighs as you go by, like ushers at the end of a play." },
+    { "id": "om020", "kind": "turn", "title": "The Patient Bell", "text": "Somewhere, a bell rings once. No wind explains it. You decide not to." },
+    { "id": "om021", "kind": "turn", "title": "Fellow Travelers", "text": "Two strangers nod to you like colleagues. You have no memory of the shared job." },
+    { "id": "om022", "kind": "turn", "title": "The Offering", "text": "A perfect unbroken crab shell sits in your path, empty, polished, deliberate." },
+    { "id": "om023", "kind": "turn", "title": "Low Thunder", "text": "Thunder with no storm. The horizon apologizes without explaining." },
+    { "id": "om024", "kind": "turn", "title": "The Name in the Foam", "text": "For one wave, the foam spells a word you almost read before it dissolves." }
+  ],
+  "adventures": [
+    {
+      "id": "salt_grave_signal",
+      "title": "The Salt-Grave Signal",
+      "genre": "supernatural horror",
+      "portal_id": "door_salt",
+      "entry": "sg_arrival",
+      "summary": "A drowned bay is broadcasting a name in lamplight. Someone has to answer, answer for, or end the signal.",
+      "on_enter": [
+        { "quest_update": { "quest_id": "salt_grave", "title": "The Salt-Grave Signal", "status": "open", "note": "Something in the drowned bay is saying a name in lamplight." } },
+        { "fact": "Through the Door of Salt lies a drowned bay with nine cold lanterns on the far shore." }
+      ],
+      "scenes": {
+        "sg_arrival": {
+          "title": "The Nine Lanterns",
+          "brief": "Arrival in the drowned bay. The nine lanterns are saying a name. The player must decide how to approach: along the shore, by calling out, or by studying the signal.",
+          "gm_directive": "Establish dread slowly. The name is not the player's — yet. Do not reveal the Lampkeeper until the stair scene.",
+          "intro": "The Door of Salt closes behind you with the sound of a wave finishing. You stand on the lowest terrace of a town that drowned on purpose — stairways under your feet lead down into black water and up into nothing. Across the bay, nine lanterns burn in a careful row. They do not flicker. Between their flames, at the pace of breathing, something is saying a name. It is not your name. Not yet.",
+          "flavor": [
+            "The name being said has a weight of about four syllables and one regret.",
+            "The water between you and the lanterns is the exact temperature of held breath.",
+            "A lamp swings somewhere behind the town's terraces, above the waterline."
+          ],
+          "hotspots": [
+            { "id": "lanterns", "label": "the nine lanterns", "x": 62, "y": 46, "text": "Nine lamps in a row, burning underwater without bubbling. Count them twice: the second time there is a tenth, dark, waiting to be earned." },
+            { "id": "drowned_town", "label": "the drowned terraces", "x": 30, "y": 50, "text": "Doors and windows underfoot, all standing open. Kelp hangs from lintels like curtains drawn courteously aside." }
+          ],
+          "choices": [
+            {
+              "id": "follow_shore",
+              "label": "Follow the shoreline toward the lanterns",
+              "hint": "The long way, on land.",
+              "goto": "sg_shoreline",
+              "effects": { "journal": "Circled the drowned bay along the shoreline, toward the nine lanterns." }
+            },
+            {
+              "id": "call_out",
+              "label": "Call out across the water",
+              "hint": "Bind — answer the signal directly.",
+              "check": { "skill": "bind", "hard": false, "riptide_counts_pass": true },
+              "on_pass": {
+                "goto": "sg_stair",
+                "effects": { "fact": "The signal answered you back, once, in your own voice, politely.", "journal": "Called across the water. Something answered in my own voice, politely." }
+              },
+              "on_fail": {
+                "goto": "sg_shoreline",
+                "effects": { "harm": { "type": "nerve", "amount": 2 }, "journal": "Called across the water. The water called back with too many voices, and something of me stayed in the echo." }
+              }
+            },
+            {
+              "id": "study_signal",
+              "label": "Study the lantern rhythm first",
+              "hint": "Lore — read the signal before touching it.",
+              "check": { "skill": "lore", "hard": false },
+              "on_pass": {
+                "goto": "sg_shoreline",
+                "effects": { "fact": "The lantern rhythm is a keeper's distress code: 'light lost, keeper holding, name requested.'", "journal": "Read the lantern rhythm: a keeper's distress code. 'Light lost, keeper holding, name requested.'" }
+              },
+              "on_fail": {
+                "goto": "sg_shoreline",
+                "effects": { "fact": "The lantern rhythm almost reads as a keeper's code — but one beat is wrong, deliberately.", "journal": "Tried to read the lantern rhythm. One beat is wrong. Deliberately." }
+              }
+            }
+          ]
+        },
+        "sg_shoreline": {
+          "title": "The Wreckline",
+          "brief": "The shore path around the bay: wrecked boats, the Lampkeeper's stair down into the flooded signal-house, and the tower room above. The player needs light and, ideally, the nine-lamp key.",
+          "gm_directive": "Offer the stair and the tower. If the player has no light, make the stair dangerous but not forbidden. Never force a path.",
+          "intro": "The shoreline is paved with wrecked hulls laid bow to stern, as if the bay collects them. Ahead, a stone stair descends beneath the waterline into a flooded signal-house, green-lit from within. Above and behind it, a squat tower rises — the signal room — its door banded in brass, keyhole stamped with nine lamps.",
+          "flavor": [
+            "The wrecked hulls are all missing the same plank, from the same place.",
+            "The stair's upper steps are dry. The stair's lower steps are not water.",
+            "The tower keyhole breathes warm air out, in, out."
+          ],
+          "hotspots": [
+            { "id": "flooded_stair", "label": "the flooded stair", "x": 48, "y": 58, "text": "Green light below, rising and falling like a sleeping pulse. Wet footprints lead down — none come up." }
+          ],
+          "choices": [
+            {
+              "id": "descend_stair",
+              "label": "Descend the Lampkeeper's stair",
+              "hint": "Down into the flooded signal-house.",
+              "check": { "skill": "endure", "hard": false },
+              "on_pass": { "goto": "sg_stair", "effects": { "journal": "Descended the stair into the flooded signal-house." } },
+              "on_fail": { "goto": "sg_stair", "effects": { "harm": { "type": "vigor", "amount": 1 }, "fact": "Something in the flooded dark took one careful taste on the way down.", "journal": "Descended the stair. Something in the dark took one careful taste." } }
+            },
+            {
+              "id": "climb_tower",
+              "label": "Climb to the signal room",
+              "hint": "Locked with nine lamps — unless you hold the key.",
+              "requires_item": "brass_key",
+              "locked_hint": "The brass-banded door needs a key stamped with nine lamps. The wreckline whispers of a salvage sloop named Marrow Bell, far away at low tide.",
+              "goto": "sg_signal_room",
+              "effects": { "journal": "Unlocked the signal room with the nine-lamp key from the Marrow Bell." }
+            },
+            {
+              "id": "force_tower",
+              "label": "Force the signal room door",
+              "hint": "Might — the brass is old, the door is not.",
+              "check": { "skill": "fight", "hard": true },
+              "on_pass": { "goto": "sg_signal_room", "effects": { "journal": "Shoulder through the signal room door, brass and all." } },
+              "on_fail": { "goto": "sg_shoreline", "effects": { "harm": { "type": "vigor", "amount": 2 }, "fact": "The door took the blow and kept the sound. Everything in the bay heard it.", "journal": "The signal room door refused me, loudly. The whole bay heard." } }
+            },
+            {
+              "id": "leave_bay",
+              "label": "Return to the Door of Salt",
+              "hint": "The door always lets you out.",
+              "goto": "sg_door",
+              "effects": { "journal": "Walked back to the Door of Salt without answering the signal. It kept saying the name, patiently." }
+            }
+          ]
+        },
+        "sg_stair": {
+          "title": "The Lampkeeper's Stair",
+          "brief": "Meet the Drowned Lampkeeper in the flooded signal-house. Dialogue and Bind determine what it gives: its lamp, its name, or its grudge.",
+          "gm_directive": "The Lampkeeper is sorrowful, not hostile. It wants the signal answered by a person, not a hunger. Reward kindness; punish mockery.",
+          "intro": "The flooded signal-house breathes green. At a switchboard rising out of the water sits the Lampkeeper — soaked wool, weed-grown coat, a face like wet paper holding the memory of a face. Its lamp burns underwater. \"You came,\" it says. \"Nobody comes. The lamps lit and lit, and nobody comes.\"",
+          "flavor": [
+            "The switchboard's keys are labeled with names. Half the labels are blank.",
+            "The Lampkeeper's lamp flames bend toward you the way iron bends to lodestones.",
+            "When it blinks, the whole room blinks."
+          ],
+          "hotspots": [
+            { "id": "switchboard", "label": "the name-switchboard", "x": 52, "y": 48, "text": "Rows of brass switches, each stamped with a name. One is stamped with nine lamps, worn bright by use. The Lampkeeper keeps its hand an inch from it, always." }
+          ],
+          "choices": [
+            {
+              "id": "ask_signal",
+              "label": "Ask it about the signal",
+              "hint": "What is being said, and to whom.",
+              "goto": "sg_signal_room",
+              "effects": { "fact": "The Lampkeeper confessed: the signal asks for the keeper's true name. It gave its own long ago and has been holding the line since.", "journal": "The Lampkeeper told me: the signal asks for a true name. It has been holding the line with its own." }
+            },
+            {
+              "id": "share_warmth",
+              "label": "Share your light with it",
+              "hint": "Bind — the Lantern Law, honored.",
+              "check": { "skill": "bind", "hard": false },
+              "on_pass": {
+                "goto": "sg_signal_room",
+                "effects": { "item_give": [ { "item_id": "keepers_lantern", "qty": 1 } ], "npc_rel": { "npc_id": "drowned_lampkeeper", "delta": 1 }, "fact": "The Drowned Lampkeeper owes me a light and a favor.", "journal": "Shared my light with the Lampkeeper. It gave me the keeper's lantern and its thanks." }
+              },
+              "on_fail": {
+                "goto": "sg_signal_room",
+                "effects": { "harm": { "type": "nerve", "amount": 1 }, "journal": "Offered my light to the Lampkeeper. It wept seawater and could not take it. Something in me went cold." }
+              }
+            },
+            {
+              "id": "demand_name",
+              "label": "Demand it give you the name",
+              "hint": "Mettle — take the leash in hand.",
+              "check": { "skill": "persuade", "hard": true },
+              "on_pass": {
+                "goto": "sg_signal_room",
+                "effects": { "fact": "I pried the Lampkeeper's true name out of it. The name tastes like a hook.", "journal": "Made the Lampkeeper give up its true name. It obeys now. I am not sure that was mercy." }
+              },
+              "on_fail": {
+                "goto": "sg_shoreline",
+                "effects": { "harm": { "type": "nerve", "amount": 2 }, "npc_rel": { "npc_id": "drowned_lampkeeper", "delta": -1 }, "journal": "Demanded the Lampkeeper's name. It receded like a tide going out, and the stair behind me was suddenly longer." }
+              }
+            }
+          ]
+        },
+        "sg_signal_room": {
+          "title": "The Signal Room",
+          "brief": "The climactic choice: light the beacon (end the signal, free the keeper), answer the call (take the pact, gain the Caller's Name), or sink the tower (silence the bay forever).",
+          "gm_directive": "This is the moment of the title. Let the player feel the weight of all three doors. Consequences are permanent.",
+          "intro": "The signal room overlooks the bay through one tall salt-fogged window. The beacon mechanism waits under a brass cage stamped with nine lamps; the switchboard hums with a single unanswered line; below the floor grating, the bay presses up like a listener. Three things can happen here. One of them is already holding its breath.",
+          "flavor": [
+            "The beacon's brass cage is warm, like an animal's flank.",
+            "The unanswered line whispers your name, testing the shape of it.",
+            "Salt fog crawls up the window from outside, as if the sea wants to see this too."
+          ],
+          "hotspots": [
+            { "id": "beacon_cage", "label": "the beacon mechanism", "x": 44, "y": 36, "text": "A lever, a lamp housing, and a socket stamped with nine lamps. The mechanism is not broken. It is waiting." }
+          ],
+          "choices": [
+            {
+              "id": "light_beacon",
+              "label": "Light the beacon",
+              "hint": "End the signal. Free the keeper. The bay goes quiet forever.",
+              "goto": "sg_signal_room",
+              "effects": {
+                "ending": "beacon_lit",
+                "quest_update": { "quest_id": "salt_grave", "status": "done", "note": "Lit the beacon. The signal ended; the Lampkeeper stood down, at last, in peace." },
+                "fact": "I lit the beacon in the drowned bay. The signal is over; the Lampkeeper is free.",
+                "journal": "Lit the beacon. Nine lamps went out like a held breath released. Somewhere above, a gull — an ordinary gull — cried once."
+              }
+            },
+            {
+              "id": "answer_call",
+              "label": "Answer the call",
+              "hint": "Bind, hard — take the Caller's Name and its leash.",
+              "check": { "skill": "bind", "hard": true },
+              "on_pass": {
+                "effects": {
+                  "ending": "pact",
+                  "quest_update": { "quest_id": "salt_grave", "status": "done", "note": "Answered the signal. The Caller's Name is mine now, and its leash is in my hand." },
+                  "item_give": [ { "item_id": "callers_name", "qty": 1 } ],
+                  "hidden_fact": "The Caller that offered the pact was the bay itself. It has wanted out for a hundred years. It will remember the hand that let it hold the leash.",
+                  "fact": "I answered the signal and took the Caller's Name.",
+                  "journal": "Answered the call. The bay exhaled, and something enormous and grateful knows my voice now."
+                }
+              },
+              "on_fail": {
+                "effects": {
+                  "ending": "taken",
+                  "quest_update": { "quest_id": "salt_grave", "status": "failed", "note": "Answered the signal unready. The bay took my name and left me my shadow." },
+                  "hidden_fact": "The bay now holds the player's name. Things from the drowned bay may one day come to collect it politely.",
+                  "harm": { "type": "nerve", "amount": 3 },
+                  "journal": "Answered the call. My name went out of me like warmth, and something vast said 'thank you' with my own voice."
+                }
+              }
+            },
+            {
+              "id": "sink_tower",
+              "label": "Sink the tower",
+              "hint": "Might, hard — break the mechanism, silence the bay, keep the shard.",
+              "check": { "skill": "fight", "hard": true },
+              "on_pass": {
+                "effects": {
+                  "ending": "sunk",
+                  "quest_update": { "quest_id": "salt_grave", "status": "done", "note": "Broke the beacon. The bay went dark and stays dark. I kept a shard of the bell." },
+                  "item_give": [ { "item_id": "marrow_bell_shard", "qty": 1 } ],
+                  "fact": "I sank the signal tower. The drowned bay is silent now, and something in it is grateful or furious — I chose not to learn which.",
+                  "journal": "Wrecked the mechanism. The bay went out like a lamp pinched between wet fingers. I kept a shard."
+                }
+              },
+              "on_fail": {
+                "effects": {
+                  "harm": { "type": "vigor", "amount": 2 },
+                  "journal": "Swung at the mechanism and missed what mattered. The cage sang like a struck bell, and everything in the bay now knows exactly where I stand.",
+                  "fact": "The signal room mechanism survived my blow, and the bay knows where I am."
+                }
+              }
+            }
+          ]
+        },
+        "sg_door": {
+          "title": "The Door of Salt, From Behind",
+          "brief": "The exit scene. The player may leave, and the adventure state persists for the next visit.",
+          "gm_directive": "Let the player leave with dignity. The signal will wait. It is patient as water.",
+          "intro": "The Door of Salt stands on a terrace of its own, warm-knobbed, letting out sea-scented light. Behind you, the nine lanterns keep their row and their rhythm. The signal can wait. It is patient as water.",
+          "flavor": [
+            "The door's brass knock is shaped like a hand, and dry on this side.",
+            "Through the gap, the Living Shore's dusk is the color of mercy."
+          ],
+          "hotspots": [],
+          "choices": [
+            {
+              "id": "step_through",
+              "label": "Step through the door, home to the shore",
+              "hint": "Return to the Living Shore. The adventure keeps its state.",
+              "effects": { "return_shore": true, "journal": "Returned through the Door of Salt to the Living Shore." }
+            }
+          ]
+        }
+      },
+      "endings": {
+        "beacon_lit": {
+          "text": "The beacon takes your flame like a first breath after drowning. Across the bay the nine lanterns go out — not snuffed, but finished. The water settles. On the lowest stair of the signal-house, the Lampkeeper stands up straight for the first time in a hundred years, steps into the water, and does not come back out. The Door of Salt is already open. The Shore is bright with dusk, and Old Cardo says you look taller. You are not taller. You are lighter.",
+          "return_location": "tidegate"
+        },
+        "pact": {
+          "text": "You say the name into the unanswered line, and the line says yours back — correctly, once, like a handshake. The bay's water rises an inch, all of it, everywhere, in one courteous bow. Something enormous now knows your voice the way sailors know a harbor. It gives you what it promised: the Caller's Name, small as a coin and heavy as an anchor, folded into your palm. The door lets you out. The door is very careful about doors.",
+          "return_location": "tidegate"
+        },
+        "taken": {
+          "text": "You answer before you are ready, and the bay can tell. The name it wanted was not the Lampkeeper's after all — it was any name, freely given, and yours will do. It takes the sound of you and leaves the rest. You walk out of the signal room with your shadow walking slightly wrong, and the Door of Salt, kind old thing, shuts the water out behind you. On the shore, Cardo looks at you twice before he recognizes you. You will have to be reintroduced to yourself. Slowly, it can be done.",
+          "return_location": "tidegate"
+        },
+        "sunk": {
+          "text": "The mechanism breaks the way old brass breaks: with dignity and one loud note. The beacon cage cracks. The nine lanterns gutter out mid-syllable, and the bay goes dark all at once, like a held eye finally allowed to close. In the ringing quiet afterward, you find a shard of the bell in the wreckage — bronze, still humming faintly, keeping one stubborn note of its own. The Door of Salt lets you out without comment. Some silences are mercy. You hope this is one.",
+          "return_location": "tidegate"
+        }
+      }
+    }
+  ],
+  "qr_lore": [
+    { "id": "cardo_song", "title": "Cardo's door-song", "text": "Old Cardo hums it while tending the fire: 'Open a chunk and a dachink, let the traveler in, let the hunger think — the lantern's law is a thin bright skin, and the sea outside has never been in.'" }
+  ],
+  "qr_events": [
+    { "id": "firefly_hour", "title": "The Firefly Hour", "text": "For one hour, harmless lights visit the shore and sit on open palms. You feel rested.", "effects": { "heal": { "vigor": 1, "nerve": 1 }, "journal": "Sat in the Firefly Hour. Harmless lights, open palms, a little rest." } },
+    { "id": "whisper_tide", "title": "The Whisper Tide", "text": "A wave arrives with a whisper folded in it and leaves without the whisper.", "effects": { "fact": "A whisper-tide brought a message I did not catch and cannot forget catching.", "journal": "A whisper-tide came and went. The message dissolved; the catching did not." } }
+  ]
+}

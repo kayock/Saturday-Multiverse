@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saturday Multiverse — Which Portal on the Beam?</title>
+<meta name="description" content="A self-hosted AI tabletop adventure. Walk the Living Shore, choose a portal, disappear into an adventure worth remembering.">
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<div id="app" data-theme="shore">
+
+  <!-- ===================== TITLE SCREEN ===================== -->
+  <section id="screen-title" class="screen active">
+    <canvas id="title-canvas" aria-hidden="true"></canvas>
+    <div class="title-inner">
+      <div class="title-eyebrow">a self-hosted roleplaying adventure</div>
+      <h1 class="game-title">SATURDAY<span class="game-title-accent">MULTIVERSE</span></h1>
+      <div class="title-question">Which Portal on the Beam?</div>
+      <div class="title-tagline">Dada Chunk, Da Dachink — Open a Door Before You Sink!</div>
+      <div class="title-buttons">
+        <button id="btn-new-voyage" class="btn btn-primary">New Voyage</button>
+        <button id="btn-continue" class="btn">Continue</button>
+        <button id="btn-title-settings" class="btn btn-ghost">Model &amp; Settings</button>
+      </div>
+      <div id="title-campaigns" class="title-campaigns" hidden></div>
+      <div class="title-footer">
+        <span id="title-ai-badge" class="badge badge-dim">AI Game Master: not configured</span>
+        <span class="badge badge-dim">runs entirely on your machine</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== CHARACTER CREATION ===================== -->
+  <section id="screen-create" class="screen">
+    <div class="create-inner">
+      <h2 class="screen-heading">Step out of the sea-foam</h2>
+      <p class="screen-sub">Who wakes on the Living Shore tonight? Pick a road — the shore will do the rest.</p>
+
+      <div class="create-grid">
+        <div class="create-col">
+          <label class="field-label" for="create-name">Name</label>
+          <input id="create-name" class="input" maxlength="40" placeholder="What does the sea call you?" autocomplete="off">
+          <label class="field-label" for="create-seed">Face-seed <span class="hint">(any word — shapes your portrait)</span></label>
+          <input id="create-seed" class="input" maxlength="40" placeholder="e.g. brine-and-copper" autocomplete="off">
+          <label class="field-label">Specialty — one skill starts ahead</label>
+          <div id="create-specialty" class="chip-row"></div>
+        </div>
+        <div class="create-col">
+          <div id="portrait-preview" class="portrait-frame" aria-label="portrait preview"></div>
+        </div>
+      </div>
+
+      <label class="field-label">Choose your road (archetype)</label>
+      <div id="create-archetypes" class="archetype-row"></div>
+
+      <label class="field-label">One extra point of self <span class="hint">(the shore gives everyone one gift)</span></label>
+      <div id="create-stat-boost" class="chip-row"></div>
+
+      <div class="create-actions">
+        <button id="btn-create-back" class="btn btn-ghost">Back to the shore</button>
+        <button id="btn-create-begin" class="btn btn-primary">Step through the foam</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== GAME SCREEN ===================== -->
+  <section id="screen-game" class="screen">
+    <div id="scene-stage">
+      <canvas id="shore-canvas"></canvas>
+      <div id="vignette-layer"></div>
+      <div id="scene-tooltip" class="scene-tooltip" hidden></div>
+    </div>
+
+    <!-- HUD top bar -->
+    <header id="hud-top">
+      <button id="hud-char" class="hud-char" title="Character">
+        <span id="hud-portrait" class="hud-portrait"></span>
+        <span class="hud-char-meta">
+          <strong id="hud-name">—</strong>
+          <span class="bars">
+            <span class="bar bar-vigor"><i id="hud-vigor"></i></span>
+            <span class="bar bar-nerve"><i id="hud-nerve"></i></span>
+          </span>
+        </span>
+      </button>
+      <div id="hud-conditions" class="hud-conditions">
+        <span id="hud-tide" class="chip">tide —</span>
+        <span id="hud-weather" class="chip">weather —</span>
+        <span id="hud-turn" class="chip">turn 0</span>
+        <span id="hud-ai" class="chip chip-ai">GM offline</span>
+      </div>
+      <nav id="hud-nav">
+        <button class="btn btn-small" data-panel="map">Map</button>
+        <button class="btn btn-small" data-panel="journal">Journal</button>
+        <button class="btn btn-small" data-panel="inventory">Pack</button>
+        <button class="btn btn-small" data-panel="quests">Quests</button>
+        <button class="btn btn-small" data-panel="dice">Dice</button>
+        <button class="btn btn-small" data-panel="settings">Settings</button>
+      </nav>
+    </header>
+
+    <!-- Narration / interaction dock -->
+    <div id="narration-dock">
+      <div id="dock-omen" class="omen-card" hidden></div>
+      <div class="dock-head">
+        <span id="dock-title">The Living Shore</span>
+        <span id="dock-scene-hint" class="dock-hint"></span>
+      </div>
+      <div id="dock-narration" class="dock-narration">…</div>
+      <div id="dock-dice" class="dock-dice" hidden></div>
+      <div id="dock-changes" class="dock-changes"></div>
+      <div id="dock-choices" class="dock-choices"></div>
+      <form id="composer">
+        <input id="composer-input" class="input" maxlength="600"
+               placeholder="What do you do? (say anything — the Game Master is listening)"
+               autocomplete="off">
+        <button class="btn btn-primary" type="submit">Act</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ===================== SIDE PANELS (drawers) ===================== -->
+  <aside id="panel-root" class="panel-root" hidden>
+    <div class="panel-scrim" data-close-panel></div>
+    <div class="panel" role="dialog" aria-modal="true">
+      <header class="panel-head">
+        <h3 id="panel-title">Panel</h3>
+        <button class="btn btn-small btn-ghost" data-close-panel>Close</button>
+      </header>
+      <div id="panel-body" class="panel-body"></div>
+    </div>
+  </aside>
+
+  <!-- ===================== SETTINGS modal ===================== -->
+  <aside id="settings-root" class="panel-root" hidden>
+    <div class="panel-scrim" data-close-settings></div>
+    <div class="panel panel-wide" role="dialog" aria-modal="true">
+      <header class="panel-head">
+        <h3>Model &amp; Settings</h3>
+        <button class="btn btn-small btn-ghost" data-close-settings>Close</button>
+      </header>
+      <div id="settings-body" class="panel-body"></div>
+    </div>
+  </aside>
+
+  <div id="toast-root" class="toast-root" aria-live="polite"></div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
