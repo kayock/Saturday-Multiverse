@@ -18,7 +18,7 @@ const LAYOUT = {
   shorelineHigh: 0.66,
   shorelineLow: 0.74,
   doors: [{ x: 0.41 }, { x: 0.505 }, { x: 0.60 }],
-  doorBase: 0.56,
+  doorBase: 0.50,
   camp: { x: 0.155, y: 0.72 },
   tavern: { x: 0.24, y: 0.70 },
   lighthouse: { x: 0.875, y: 0.58 },
@@ -70,6 +70,11 @@ export class ShoreScene {
     this._resize();
   }
 
+  setCalm(calm) {
+    this.calm = !!calm;
+    if (this.canvas) this.canvas.dataset.calm = this.calm ? "1" : "0";
+  }
+
   start() { if (!this.raf) { const loop = (ts) => { this.t = ts / 1000; this.draw(); this.raf = requestAnimationFrame(loop); }; this.raf = requestAnimationFrame(loop); } }
   stop() { if (this.raf) { cancelAnimationFrame(this.raf); this.raf = null; } }
 
@@ -82,11 +87,17 @@ export class ShoreScene {
     const out = [];
     v.portals?.forEach((p, i) => {
       out.push({
-        id: p.id, kind: p.sealed ? "sealed" : "travel", label: p.label,
+        id: p.id, kind: p.sealed ? "sealed" : p.unstable ? "seed" : "travel", label: p.label,
         hint: p.sealed ? p.seal_note : (p.hint || "step through"),
-        target: p.target_location, x: LAYOUT.doors[i].x, y: LAYOUT.doorBase - 0.045, w: 0.058, h: 0.13,
+        target: p.target_location, x: LAYOUT.doors[i] ? LAYOUT.doors[i].x : 0.665,
+        y: LAYOUT.doorBase - 0.045, w: 0.058, h: 0.13,
       });
     });
+    // something washed ashore?
+    if (this.view?.washashore) {
+      out.push({ id: "washashore", kind: "wash", label: this.view.washashore.label,
+        hint: "the tide brought it — pick it up", x: 0.62, y: 0.66, w: 0.045, h: 0.045 });
+    }
     out.push({ id: "camp", kind: "travel", label: "Driftwood Camp", hint: "fire, rest, Old Cardo", target: "camp", x: LAYOUT.camp.x, y: LAYOUT.camp.y - 0.05, w: 0.11, h: 0.12 });
     out.push({ id: "tavern", kind: "travel", label: "The Salt & Lantern", hint: "travelers' refuge — Maren pours", target: "tavern", x: LAYOUT.tavern.x, y: LAYOUT.tavern.y - 0.05, w: 0.10, h: 0.11 });
     if (disc.lighthouse) {
@@ -125,6 +136,8 @@ export class ShoreScene {
     const hit = this._hitAt(this._locate(e));
     if (!hit) return;
     if (hit.kind === "travel") this.handlers.onTravel?.(hit.target);
+    else if (hit.kind === "seed") this.handlers.onSeed?.();
+    else if (hit.kind === "wash") this.handlers.onWash?.();
     else if (hit.kind === "sealed") this.handlers.onSealed?.(hit);
     else if (hit.kind === "hotspot") this.handlers.onHotspot?.(hit.hotspotId);
   }
@@ -143,7 +156,7 @@ export class ShoreScene {
     const v = this.view;
     const weather = v?.weather?.key || "mist";
     const tide = v?.tide || "high";
-    const t = this.t;
+    const t = this.t * (this.calm ? 0.45 : 1);
     const px = this.pointer.inside ? (this.pointer.x - 0.5) : 0;
     const py = this.pointer.inside ? (this.pointer.y - 0.5) : 0;
 
@@ -249,6 +262,7 @@ export class ShoreScene {
     this._drawTavern(c, W, H, t);
     this._drawCampfire(c, W, H, t);
     this._drawSignpost(c, W, H);
+    if (v?.washashore && !v.world) this._drawWashashore(c, W, H, t);
     if (v?.discovered?.seacave && tide === "low") this._drawSeacave(c, W, H, t);
     if (v?.discovered?.wreck && tide === "low") this._drawWreck(c, W, H, t);
 
@@ -281,7 +295,9 @@ export class ShoreScene {
     const v = this.view;
     v?.portals?.forEach((p, i) => {
       if (p.sealed) return;
-      const dx = LAYOUT.doors[i].x * W + px * W * 0.004;
+      const slot = LAYOUT.doors[i];
+      if (!slot) return;
+      const dx = slot.x * W + px * W * 0.004;
       const rg = c.createRadialGradient(dx, H * (shore + 0.03), 1, dx, H * (shore + 0.03), W * 0.03);
       rg.addColorStop(0, "rgba(124,92,255,0.35)");
       rg.addColorStop(1, "rgba(124,92,255,0)");
@@ -316,15 +332,16 @@ export class ShoreScene {
 
   _drawDoors(c, W, H, t, v) {
     v?.portals?.forEach((p, i) => {
-      const x = LAYOUT.doors[i].x * W;
+      const x = (LAYOUT.doors[i] ? LAYOUT.doors[i].x : 0.665) * W;
       const base = H * LAYOUT.doorBase;
       const dh = H * 0.125, dw = H * 0.075;
       const pulse = p.sealed ? 0 : (0.6 + 0.4 * Math.sin(t * 1.6 + i * 2.1));
-      const col = i === 0 ? "124,92,255" : i === 1 ? "67,232,216" : "90,80,110";
+      const col = i === 0 ? "124,92,255" : i === 1 ? "67,232,216"
+        : p.unstable ? "255,92,200" : "90,80,110";
       // door frame
       c.save();
       c.shadowColor = `rgba(${col},${p.sealed ? 0.25 : 0.85})`;
-      c.shadowBlur = (p.sealed ? 8 : 26) * this.dpr;
+      c.shadowBlur = (p.sealed ? 8 : p.unstable ? 34 : 26) * this.dpr;
       c.strokeStyle = `rgba(${col},${p.sealed ? 0.5 : 0.95})`;
       c.lineWidth = 2.6 * this.dpr;
       c.beginPath();
@@ -334,7 +351,29 @@ export class ShoreScene {
       c.lineTo(x + dw / 2, base);
       c.stroke();
       // portal interior
-      if (!p.sealed) {
+      if (p.unstable) {
+        // iridescent shimmer: magenta field with teal interference bands
+        const pg = c.createLinearGradient(x - dw / 2, base - dh, x + dw / 2, base);
+        pg.addColorStop(0, `rgba(255,92,200,${0.4 * pulse + 0.12})`);
+        pg.addColorStop(0.5, `rgba(124,92,255,${0.3 * pulse + 0.1})`);
+        pg.addColorStop(1, `rgba(67,232,216,${0.22 * pulse + 0.06})`);
+        c.fillStyle = pg;
+        c.beginPath();
+        c.moveTo(x - dw / 2 + 2 * this.dpr, base);
+        c.lineTo(x - dw / 2 + 2 * this.dpr, base - dh * 0.62);
+        c.quadraticCurveTo(x, base - dh * 1.18, x + dw / 2 - 2 * this.dpr, base - dh * 0.62);
+        c.lineTo(x + dw / 2 - 2 * this.dpr, base);
+        c.closePath(); c.fill();
+        for (let m = 0; m < 6; m++) {
+          const my2 = base - ((t * (0.05 + 0.014 * m) + m * 0.27) % 1) * dh;
+          c.globalAlpha = 0.7 * pulse;
+          c.fillStyle = m % 2 ? "#ffd0f0" : "#b0f0ff";
+          c.beginPath();
+          c.arc(x + Math.sin(t * 1.4 + m * 2.6) * dw * 0.26, my2, 1.4 * this.dpr, 0, 6.283);
+          c.fill();
+        }
+        c.globalAlpha = 1;
+      } else if (!p.sealed) {
         const pg = c.createLinearGradient(0, base - dh, 0, base);
         pg.addColorStop(0, `rgba(${col},${0.5 * pulse + 0.1})`);
         pg.addColorStop(1, `rgba(${col},0.08)`);
@@ -368,12 +407,27 @@ export class ShoreScene {
       }
       c.restore();
       // label
-      c.fillStyle = `rgba(233,228,242,${p.sealed ? 0.45 : 0.85})`;
+      c.fillStyle = `rgba(233,228,242,${p.sealed ? 0.45 : p.unstable ? 0.95 : 0.85})`;
       c.font = `${Math.max(11, Math.round(H * 0.014))}px Georgia, serif`;
       c.textAlign = "center";
       c.fillText(p.label, x, base + H * 0.026);
     });
     c.textAlign = "left";
+  }
+
+  _drawWashashore(c, W, H, t) {
+    // a glinting find on the wet sand, west of the doors
+    const wx = 0.62 * W, wy = 0.66 * H;
+    const glint = 0.5 + 0.5 * Math.sin(t * 2.2);
+    const rg = c.createRadialGradient(wx, wy, 1, wx, wy, 12 * this.dpr);
+    rg.addColorStop(0, `rgba(255,236,190,${0.5 + 0.4 * glint})`);
+    rg.addColorStop(1, "rgba(232,180,107,0)");
+    c.fillStyle = rg;
+    c.beginPath(); c.arc(wx, wy, 12 * this.dpr, 0, 6.283); c.fill();
+    c.fillStyle = "#e8b46b";
+    c.beginPath();
+    c.ellipse(wx, wy, 3.4 * this.dpr, 2.2 * this.dpr, 0.4 + 0.1 * Math.sin(t), 0, 6.283);
+    c.fill();
   }
 
   _drawCampfire(c, W, H, t) {
@@ -406,7 +460,7 @@ export class ShoreScene {
       c.fillStyle = f === 0 ? "rgba(255,157,92,0.95)" : f === 1 ? "rgba(232,180,107,0.85)" : "rgba(255,236,190,0.9)";
       c.fill();
     }
-    // smoke
+    // smoke (kettle steam joins when the camp kettle is built)
     for (let s = 0; s < 4; s++) {
       const sp = ((t * 0.05 + s * 0.25) % 1);
       c.globalAlpha = 0.16 * (1 - sp);
@@ -414,6 +468,30 @@ export class ShoreScene {
       c.beginPath();
       c.arc(fx + Math.sin(t + s * 1.7 + sp * 5) * 10 * this.dpr, fy - 14 * this.dpr - sp * H * 0.08, (2.5 + sp * 5) * this.dpr, 0, 6.283);
       c.fill();
+    }
+    if (this.view?.upgrades_owned?.includes("camp_kettle")) {
+      // a dented kettle on a flat stone, breathing steam
+      c.fillStyle = "rgba(70,62,100,0.95)";
+      c.beginPath();
+      c.ellipse(fx - 16 * this.dpr, fy - 2 * this.dpr, 6 * this.dpr, 4.6 * this.dpr, 0, Math.PI, 0);
+      c.fill();
+      c.fillRect(fx - 22 * this.dpr, fy - 2 * this.dpr, 12 * this.dpr, 1.6 * this.dpr);
+      for (let s = 0; s < 3; s++) {
+        const sp = ((t * 0.07 + s * 0.33) % 1);
+        c.globalAlpha = 0.2 * (1 - sp);
+        c.fillStyle = "#cfd0ff";
+        c.beginPath();
+        c.arc(fx - 16 * this.dpr + Math.sin(t + s) * 3 * this.dpr, fy - 8 * this.dpr - sp * 22 * this.dpr, (1.6 + sp * 2.6) * this.dpr, 0, 6.283);
+        c.fill();
+      }
+      c.globalAlpha = 1;
+    }
+    if (this.view?.upgrades_owned?.includes("camp_guestbook")) {
+      c.fillStyle = "rgba(201,184,160,0.8)";
+      c.fillRect(fx + 18 * this.dpr, fy - 4 * this.dpr, 7 * this.dpr, 2.4 * this.dpr);
+      c.strokeStyle = "rgba(120,112,140,0.9)";
+      c.lineWidth = 0.8 * this.dpr;
+      c.beginPath(); c.moveTo(fx + 21.5 * this.dpr, fy - 4 * this.dpr); c.lineTo(fx + 21.5 * this.dpr, fy - 1.6 * this.dpr); c.stroke();
     }
     c.globalAlpha = 1;
   }
@@ -443,6 +521,18 @@ export class ShoreScene {
       c.beginPath(); c.arc(wxx, wyy, 9 * this.dpr, 0, 6.283); c.fill();
       c.fillStyle = "#e8b46b";
       c.fillRect(wxx - 3 * this.dpr, wyy - 3.5 * this.dpr, 6 * this.dpr, 7 * this.dpr);
+    }
+    // Maren's map wall glows warm through the right window once built
+    if (this.view?.upgrades_owned?.includes("tavern_mapwall")) {
+      const wxx = tx + tw * 0.3, wyy = ty - th * 0.35;
+      const mg = c.createRadialGradient(wxx, wyy, 1, wxx, wyy, 12 * this.dpr);
+      mg.addColorStop(0, "rgba(67,232,216,0.55)");
+      mg.addColorStop(1, "rgba(67,232,216,0)");
+      c.fillStyle = mg;
+      c.beginPath(); c.arc(wxx, wyy, 12 * this.dpr, 0, 6.283); c.fill();
+      c.strokeStyle = "rgba(67,232,216,0.7)";
+      c.lineWidth = 1 * this.dpr;
+      c.strokeRect(wxx - 5 * this.dpr, wyy - 4 * this.dpr, 10 * this.dpr, 8 * this.dpr);
     }
     // lantern by the door
     const lx = tx - tw / 2 - 6 * this.dpr, ly = ty - th * 0.35;
@@ -497,7 +587,8 @@ export class ShoreScene {
       c.fillStyle = "rgba(155,140,255,0.5)";
       c.fillRect(lx - lw * 0.14, baseY - lh * wy, lw * 0.28, lh * 0.035);
     }
-    // sweeping beam (casts no shadow)
+    // sweeping beam (casts no shadow); teal once the light is relamped
+    const relit = this.view?.upgrades_owned?.includes("light_relamp");
     const sweep = Math.sin(t * 0.5);
     const beamLen = W * 0.30;
     const bx = lx, by = baseY - lh;
@@ -505,8 +596,13 @@ export class ShoreScene {
     c.translate(bx, by);
     c.rotate(sweep * 0.55 - 0.35);
     const bg = c.createLinearGradient(0, 0, beamLen, 0);
-    bg.addColorStop(0, "rgba(233,228,242,0.5)");
-    bg.addColorStop(1, "rgba(233,228,242,0)");
+    if (relit) {
+      bg.addColorStop(0, "rgba(67,232,216,0.55)");
+      bg.addColorStop(1, "rgba(67,232,216,0)");
+    } else {
+      bg.addColorStop(0, "rgba(233,228,242,0.5)");
+      bg.addColorStop(1, "rgba(233,228,242,0)");
+    }
     c.fillStyle = bg;
     c.beginPath();
     c.moveTo(0, -3 * this.dpr); c.lineTo(beamLen, -14 * this.dpr);
@@ -603,24 +699,31 @@ export class ShoreScene {
       }
     }
     if (weather === "drizzle" || weather === "storm") {
-      const n = weather === "storm" ? 130 : 60;
-      if (this.rain.length !== n) {
-        this.rain = Array.from({ length: n }, () => ({ x: Math.random(), y: Math.random(), v: 0.35 + Math.random() * 0.4 }));
-      }
-      c.strokeStyle = weather === "storm" ? "rgba(180,190,230,0.4)" : "rgba(160,170,210,0.28)";
-      c.lineWidth = 1 * this.dpr;
-      for (const r of this.rain) {
-        r.y += r.v * 0.016; r.x -= r.v * 0.004;
-        if (r.y > 1) { r.y = -0.05; r.x = Math.random(); }
-        if (r.x < -0.05) r.x = 1.05;
-        c.beginPath();
-        c.moveTo(r.x * W, r.y * H);
-        c.lineTo((r.x - 0.008) * W, (r.y - 0.02) * H);
-        c.stroke();
-      }
-      if (weather === "storm" && Math.sin(t * 0.31) > 0.996) {
-        c.fillStyle = "rgba(210,205,255,0.14)";
-        c.fillRect(0, 0, W, H);
+      if (this.calm) {  // reduced motion: no falling particles
+        if (weather === "storm") {
+          c.fillStyle = "rgba(180,190,230,0.06)";
+          c.fillRect(0, 0, W, H);
+        }
+      } else {
+        const n = weather === "storm" ? 130 : 60;
+        if (this.rain.length !== n) {
+          this.rain = Array.from({ length: n }, () => ({ x: Math.random(), y: Math.random(), v: 0.35 + Math.random() * 0.4 }));
+        }
+        c.strokeStyle = weather === "storm" ? "rgba(180,190,230,0.4)" : "rgba(160,170,210,0.28)";
+        c.lineWidth = 1 * this.dpr;
+        for (const r of this.rain) {
+          r.y += r.v * 0.016; r.x -= r.v * 0.004;
+          if (r.y > 1) { r.y = -0.05; r.x = Math.random(); }
+          if (r.x < -0.05) r.x = 1.05;
+          c.beginPath();
+          c.moveTo(r.x * W, r.y * H);
+          c.lineTo((r.x - 0.008) * W, (r.y - 0.02) * H);
+          c.stroke();
+        }
+        if (weather === "storm" && Math.sin(t * 0.31) > 0.996) {
+          c.fillStyle = "rgba(210,205,255,0.14)";
+          c.fillRect(0, 0, W, H);
+        }
       }
     }
     if (weather === "clear") {

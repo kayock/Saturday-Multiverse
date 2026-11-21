@@ -88,8 +88,9 @@ events. Scans are data-only and strictly allowlisted.
 
 ---
 
-## What is implemented (Milestone 1)
+## What is implemented (Milestones 1 + 1.5 + 2.0 + 2.5)
 
+**Milestone 1 — playable solo foundation**
 - Title screen, explorable animated Living Shore (canvas: sky, Beam, moon, sea, surf,
   doors, campfire, tavern, lighthouse with a beam that casts no shadow, weather, tides)
 - Six shore locations + two portal destinations; discovery, tide gating, rumors
@@ -100,23 +101,67 @@ events. Scans are data-only and strictly allowlisted.
   strict JSON contract, hidden-information separation, retry, honest fallback)
 - Deterministic rules engine (the Undertow System: 2d6, bands, Vigor/Nerve harm,
   crypto RNG, full dice log) — the model never rolls
-- Agent-managed **Omen Deck** (24 original cards, drawn every third turn)
-- Campaign persistence: SQLite + WAL, atomic-ish writes, append-only event log,
-  FTS5 search over journal/transcript/facts, export/import, whole-DB backups + restore
-- Procedural audio engine (surf, wind, campfire, generative music, SFX) with
-  three independent volume buses — no audio files, nothing to license
-- QR/scanner input with allowlist; rate limiting; optional host token
-- 50 pytest tests including a full AI turn against a mock model server
+- Campaign persistence: SQLite + WAL, append-only event log, FTS5 search,
+  export/import, whole-DB backups + restore
+- Procedural audio engine (surf, wind, campfire, generative music, SFX) — nothing
+  to license; QR/scanner input with allowlist; rate limiting; optional host token
 
-See [docs/TESTING.md](docs/TESTING.md) for the honest list of what was tested,
-what works, and what is deliberately not finished.
+**Milestone 1.5 — The Living Shore Awakens**
+- Tide clock with predictable progression; wash-ashore finds (reproducible,
+  tide-scheduled, picked up from the dock)
+- Living NPC gossip: structured, scoped memories grounded in recorded events —
+  Maren and Cardo know different things, and what they know actually happened
+- Seven selectable **GM personalities** (Classic Fantasy, Grimdark, Cosmic Horror,
+  Noir, Whimsical, Mythic, Custom) that persist per campaign — tone only, never
+  rules authority
+- Cinematic dice reactions: the engine resolves, the GM narrates the moment
+- Storm/rain visuals, richer campfire and tavern atmosphere, calm mode
+  (reduced-motion support) and full audio controls
+
+**Milestone 2.0 — Worlds Beyond the Beam**
+- **Seeded portal generation**: whisper a seed at the Unstable Door and a
+  deterministic, versioned generator produces a named world — locations, NPCs,
+  mysteries, a unique relic, and a playable signature scenario. Same seed → same
+  world, forever; worlds persist between visits
+- Two more handcrafted adventures: **The Umbral Market** (dark fantasy, the
+  glassbead economy as currency of hours) and **The Skyless Light** (mystery at
+  the lighthouse, with an upgrade-gated best ending)
+- Tactical depth: **Risk** (pre-roll), **Push** (1 Vigor, raise the band),
+  **Resist** (1 Nerve, halve harm) — engine-owned, AI can't touch costs
+- Player-controlled **Omen hand**: draw (1 Nerve) and play held omens under
+  strict caps
+- **Shore improvements**: earn glassbeads from adventures and builds — six
+  upgrades that visibly change the shore (kettle steam, teal lighthouse beam,
+  map-wall glow) and mechanically change rest, rumors and endings
+
+**Milestone 2.5 — The Echo System**
+- **Echoes**: eligible endings offer legacy (items, traits, achievements,
+  reputations, portal knowledge); up to two weave into a *new* voyage at
+  character creation; each echo weaves once, ever
+- **Cross-world consequences**: defined triggers record durable consequences
+  that surface in tavern gossip, other worlds' hooks, and the Ledger
+- **Foreshadowing**: clue threads (*The Ninth Wave*, *The Wrong Gull*) gather
+  clues from adventures, omens and wash-ashore finds — at threshold they pay
+  off through the engine (a hidden shore location; a gull companion perk)
+- **The Memory Ledger**: a visual journal — world cards, people, mystery
+  threads, consequences, echo shelf, and the chronological log
+- Evolving NPC relationships with reputation that precedes you across campaigns
+
+Every save from Milestone 1 migrates automatically and losslessly — see
+[docs/MIGRATION.md](docs/MIGRATION.md).
+
+See [docs/VERIFICATION.md](docs/VERIFICATION.md) for exactly what was tested,
+what passed, and what remains unfinished, and [docs/RULES.md](docs/RULES.md)
+for the complete rules reference.
 
 ## Roadmap
 
 | Milestone | Scope | Status |
 |---|---|---|
-| 1 — Playable solo foundation | this release | **done** |
-| 2 — World system | pack installer, universe-specific mechanics, document imports, better companions | architecture ready (`docs/WORLDPACKS.md`) |
+| 1 — Playable solo foundation | shore, adventures, AI GM, persistence | **done** |
+| 1.5 — The Living Shore Awakens | tide clock, gossip, GM personas, cinematic dice | **done** |
+| 2.0 — Worlds Beyond the Beam | seeded worlds, 3 adventures, tactics, omen hand, shore building | **done** |
+| 2.5 — The Echo System | echoes, cross-world consequences, Memory Ledger, foreshadowing | **done** |
 | 3 — Friends multiplayer | self-hosted sessions, invitations, sync, host-controlled AI | schema + API contract in place (`docs/MULTIPLAYER.md`) |
 | 4 — Public worlds & guest portals | public hosting, moderation, cross-server visits | contract drafted (`docs/MULTIPLAYER.md`) |
 

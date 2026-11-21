@@ -328,6 +328,33 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 600; letter-spacing: 0.02em
 .toast.good { border-color: rgba(67,232,216,0.5); }
 @keyframes toastin { from { opacity: 0; transform: translateY(-8px); } }
 
+/* ---------- M1.5 / 2.0 / 2.5 additions ---------- */
+.chip-tide svg { vertical-align: -2px; margin-right: 0.3em; }
+.chip-beads { color: var(--gold); border-color: rgba(232,180,107,0.45); }
+.dock-talk { margin-left: auto; }
+.wash-strip {
+  display: flex; align-items: center; gap: 0.8em;
+  border: 1px dashed rgba(232,180,107,0.5); border-radius: 10px;
+  padding: 0.45em 0.9em; font-size: 0.88em; color: var(--gold);
+}
+.pending-row { display: flex; gap: 0.5em; flex-wrap: wrap; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 0.7em; }
+.ledger-card {
+  border: 1px solid var(--line-soft); border-radius: 12px;
+  background: rgba(18, 15, 34, 0.75); padding: 0.8em 1em; margin-bottom: 0.6em;
+  transition: border-color 0.15s;
+}
+.ledger-card:hover { border-color: var(--line); }
+.ledger-card.card-paid { border-color: rgba(67, 232, 216, 0.4); }
+.ledger-card.card-used { opacity: 0.55; border-style: dashed; }
+.ledger-card.selected { border-color: var(--glow); box-shadow: var(--shadow-glow); }
+.lc-kind { text-transform: uppercase; letter-spacing: 0.16em; font-size: 0.68em; color: var(--faint); margin-bottom: 0.25em; }
+.echo-pick { cursor: pointer; }
+body.calm * { animation-duration: 0.01s !important; }
+@media (prefers-reduced-motion: reduce) {
+  .scene-tooltip, .toast, .choice-btn { animation: none; }
+}
+
 /* scrollbars */
 ::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-thumb { background: rgba(124,92,255,0.35); border-radius: 6px; }

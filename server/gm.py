@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 import secrets
 
-from . import ai, config, db, rules, worldpacks
+from . import ai, config, db, gen, legacy, rules, worldpacks
 from .db import jdumps, jloads, new_id, utcnow
 
 VALID_SKILLS = ["notice", "lore", "persuade", "fight", "endure", "bind"]
@@ -154,6 +154,12 @@ def create_campaign(name: str, pack_id: str, character_spec: dict) -> str:
     db.add_journal(cid, f"The voyage begins at {loc.get('name', hub)}. {loc.get('desc', '')}", "auto")
     db.log_event(cid, "campaign_created", {"name": name, "pack": pack_id, "archetype": archetype_id})
     db.add_transcript(cid, "system", f"Campaign '{name}' forged on {ts}.")
+    legacy.remember(cid, "tavern", "visitor", f"A newcomer named {char_name} arrived on the shore.")
+    echo_ids = character_spec.get("echo_ids") or []
+    if echo_ids:
+        for c in legacy.weave_echoes(cid, pack, echo_ids):
+            db.add_journal(cid, c, "echo")
+            db.add_transcript(cid, "system", c)
     return cid
 
 
@@ -193,8 +199,17 @@ def archive_campaign(cid: str) -> None:
 # Inventory
 # ==========================================================================
 
+def _world_item(cid: str, item_id: str) -> dict | None:
+    """Generated worlds carry their own (engine-created) item catalogs."""
+    for r in db.query("SELECT identity_json FROM worlds WHERE campaign_id=?", (cid,)):
+        for item in jloads(r["identity_json"], {}).get("items", []):
+            if item.get("id") == item_id:
+                return item
+    return None
+
+
 def give_item(cid: str, pack: dict, item_id: str, qty: int = 1, silent: bool = False) -> dict | None:
-    item = worldpacks.get_item(pack, item_id)
+    item = worldpacks.get_item(pack, item_id) or _world_item(cid, item_id)
     if not item:
         return None
     qty = max(1, min(9, int(qty)))
@@ -333,6 +348,20 @@ def apply_effects(cid: str, pack: dict, effects: dict, changes: list[str]) -> di
             (hub, jdumps(state), utcnow(), cid),
         )
         changes.append("Returned to the Living Shore.")
+    beads = effects.get("beads")
+    if isinstance(beads, int) and beads != 0:
+        state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
+        state["beads"] = max(0, int(state.get("beads", 0)) + beads)
+        db.execute("UPDATE campaigns SET state_json=? WHERE id=?", (jdumps(state), cid))
+        changes.append(f"Glassbeads {'+' if beads > 0 else '−'}{abs(beads)} (now {state['beads']}).")
+    cl = effects.get("clue")
+    if isinstance(cl, dict) and cl.get("thread_id"):
+        res = legacy.add_clue(cid, str(cl["thread_id"])[:60], str(cl.get("text", ""))[:300], "choice")
+        if res:
+            changes.append(f"Thread payoff: {res['thread']}.")
+            changes.append(res["narration"])
+        else:
+            changes.append("A clue settles into place.")
     return safe
 
 
@@ -410,12 +439,34 @@ def _mods_for(ch: dict, skill: str) -> tuple[int, str]:
     return stat_mod + skill_mod, stat
 
 
+def _check_death(cid: str, ch: dict) -> bool:
+    """Both lamps out: the wanderer's story concludes, and the multiverse
+    keeps an echo of them."""
+    if ch["vigor"] > 0 or ch["nerve"] > 0:
+        return False
+    state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
+    if state.get("dead"):
+        return False
+    state["dead"] = True
+    db.execute("UPDATE campaigns SET state_json=?, updated_at=? WHERE id=?",
+               (jdumps(state), utcnow(), cid))
+    legacy.create_echo(
+        cid, "achievement", "Remembrance",
+        f"{ch['name']} walked the shore and did not come back. The tavern pours one out.",
+        {"trait_skill": "endure", "trait_delta": 1},
+    )
+    db.log_event(cid, "character_fell", {"name": ch["name"]})
+    legacy.remember(cid, "tavern", "event", f"{ch['name']} was lost to the tide. Nobody says how.")
+    return True
+
+
 def _roll_and_log(cid: str, ch: dict, skill: str, shift: int = 0, sit_mod: int = 0,
-                  harm_type: str = "", reason: str = "") -> dict:
+                  harm_type: str = "", reason: str = "", risk: bool = False,
+                  pending: bool = True) -> dict:
     mod, stat = _mods_for(ch, skill)
-    result = rules.roll_check(stat_mod=mod, sit_mod=sit_mod, shift=shift)
+    result = rules.roll_check(stat_mod=mod, sit_mod=sit_mod, shift=shift, risk=risk)
     outcome = result.outcome
-    harm = rules.harm_for(outcome)
+    harm = rules.harm_for(outcome, risk)
     if harm and ch:
         htype = harm_type or ("vigor" if skill in ("fight", "endure") else "nerve")
         rules.apply_harm(ch, harm, htype)
@@ -424,33 +475,42 @@ def _roll_and_log(cid: str, ch: dict, skill: str, shift: int = 0, sit_mod: int =
         "INSERT INTO dicelog (id, campaign_id, ts, kind, skill, stat_mod, dice_json, total,"
         " difficulty, outcome, effect, note) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
         (new_id("dce"), cid, utcnow(), "check", skill, mod, jdumps(result.dice),
-         result.total, 7 + shift, outcome, rules.harm_for(outcome),
+         result.total, 7 + shift, outcome, harm,
          (reason or "")[:120]),
     )
     db.log_event(cid, "dice_roll", {"skill": skill, "dice": result.dice, "total": result.total,
-                                    "outcome": outcome, "reason": reason[:120]})
-    return {
+                                    "outcome": outcome, "reason": reason[:120], "risk": risk})
+    roll = {
         "dice": result.dice,
         "mod": mod,
-        "sit_mod": sit_mod,
+        "sit_mod": result.sit_mod,
         "total": result.total,
         "outcome": outcome,
         "text": result.text,
         "harm": harm,
         "harm_type": harm_type or ("vigor" if skill in ("fight", "endure") else "nerve"),
+        "note": reason,
+        "risk": risk,
     }
+    if pending:
+        # open the tactical window (Push / Resist) for engine-rolled checks
+        legacy._set_pending_roll(cid, roll, skill, reason or "check")
+        _check_death(cid, ch)
+    return roll
 
 
-def manual_check(cid: str, skill: str, hard: bool = False) -> dict:
+def manual_check(cid: str, skill: str, hard: bool = False, risk: bool = False) -> dict:
     ch = get_character(cid)
     if not ch:
         raise ValueError("no character")
     if skill not in VALID_SKILLS:
         raise ValueError(f"skill must be one of {VALID_SKILLS}")
-    shift = -1 if hard else 0
     state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
+    if state.get("dead"):
+        raise ValueError("This wanderer's story is concluded — begin a new voyage; the multiverse remembers.")
+    shift = -1 if hard else 0
     sit = _consume_omen(state, skill)
-    roll = _roll_and_log(cid, ch, skill, shift=shift, sit_mod=sit, reason="manual roll")
+    roll = _roll_and_log(cid, ch, skill, shift=shift, sit_mod=sit, reason="manual roll", risk=risk)
     if sit:
         db.execute("UPDATE campaigns SET state_json=? WHERE id=?", (jdumps(state), cid))
     return roll
@@ -539,10 +599,29 @@ def _npc_lines(pack: dict) -> str:
 def build_system_prompt(pack: dict, ch: dict, campaign: dict, state: dict, narration_words: int) -> str:
     tide = tide_for(campaign["drift"])
     weather = (state.get("weather") or {}).get("key", "mist")
+    style = legacy.normalize_style(state)
+    world_ctx = ""
+    world_items = ""
+    if str(campaign["location_id"]).startswith("w"):
+        world = legacy.find_world_by_location(campaign["id"], campaign["location_id"])
+        if world:
+            ident = world["identity"]
+            world_ctx = (
+                f"\nCURRENT WORLD: {ident['name']} ({ident['archetype_label']}) — reached through an unstable door.\n"
+                f"WORLD ATMOSPHERE: {ident['weather']}\n"
+                f"WORLD TRUTHS: {' | '.join(ident.get('properties', []))}\n"
+                f"VISITS: {world['visits']}. WORLD RECORD: {world['state'].get('flags', [])}\n"
+            )
+            world_items = "; ".join(f"{i['id']} ({i['name']})" for i in ident.get("items", []))
+    cons = legacy.recent_consequences(campaign["id"], 3)
+    cons_line = ""
+    if cons:
+        cons_line = ("\nCROSS-WORLD ECHOES (already true; reference naturally, never contradict):\n- "
+                     + "\n- ".join(c["summary"] for c in cons))
     return f"""You are the Game Master of SATURDAY MULTIVERSE — an intimate tabletop roleplaying session for one player.
 
+GAME MASTER PERSONA: {style['label']} — {style['prompt']}
 WORLD PACK: {pack['name']} (v{pack.get('version', '1')})
-GAME MASTER STYLE: {_trim(pack.get('gm_style', ''), 300)}
 
 LORE (the world's truth; never contradict it):
 {_trim(worldpacks.lore_text(pack), 1400)}
@@ -550,24 +629,25 @@ LORE (the world's truth; never contradict it):
 PLAYER CHARACTER: {_trim(ch['name'], 40)}, {ch['archetype']} — stats {ch['attributes']}, skills {ch['skills']}, Vigor {ch['vigor']}/{ch['vigor_max']}, Nerve {ch['nerve']}/{ch['nerve_max']}.
 TIDE: {tide}. WEATHER: {weather}. TURN: {campaign['turn'] + 1}.
 
-ITEM CATALOG (valid item_ids): {_catalog_lines(pack)}
+ITEM CATALOG (valid item_ids): {_catalog_lines(pack)}{'; ' + world_items if world_items else ''}
 NPCS (valid npc_ids): {_npc_lines(pack)}
 
 RULES OF YOUR OFFICE:
 1. Mechanics are the app's job. Never roll dice, never state outcomes of checks, never grant injuries or items in prose. If the story clearly needs an item moved, use inventory_request.
 2. Never decide, say, or think anything for the player.
-3. Stay inside this world pack's lore. No other universes, no mention of dice, rules, models or this interface.
+3. Stay inside this world pack's lore and the current world's truths. No other universes unless the records above establish them, no mention of dice, rules, models or this interface.
 4. Keep horror atmospheric — dread and strangeness, not torture-porn. Nothing sexual. This is a game for adults but a kind one.
 5. Hidden story information stays hidden (see memory.hidden_note).
-6. The tide and weather above are facts; the shore's mood follows them.
+6. The tide and weather above are facts; the shore's mood follows them.{cons_line}
 
 {GM_JSON_CONTRACT.replace('NARRATION_WORDS', str(narration_words))}"""
 
 
 def build_user_prompt(campaign: dict, pack: dict, ch: dict, state: dict, action: str) -> str:
-    loc = worldpacks.get_location(pack, campaign["location_id"]) or {}
+    loc = _resolve_location(cid=campaign["id"], pack=pack, location_id=campaign["location_id"])[0] or {}
     beat = state.get("beat")
-    scene = worldpacks.get_scene(pack, state.get("adventure_id") or "", beat) if beat else None
+    scene = _resolve_adventure(cid=campaign["id"], pack=pack, adv_id=state.get("adventure_id") or "") or {}
+    scene = (scene.get("scenes") or {}).get(beat) if beat else None
     inventory = ", ".join(f"{i['name']} x{i['qty']}" for i in get_inventory(campaign["id"])) or "empty pack"
     quests = _quests_for(campaign["id"])
     open_q = "; ".join(f"{q['title']} ({q['status']})" for q in quests if q["status"] == "open") or "none"
@@ -622,8 +702,10 @@ def run_turn(cid: str, action_text: str) -> dict:
     campaign["turn"] += 1
     advance_time(campaign, 1)
     state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
-
-    # Omen deck: an original agent-managed deck, drawn on cadence.
+    if state.get("dead"):
+        raise ValueError("This wanderer's story is concluded — begin a new voyage; the multiverse remembers.")
+    legacy.check_washashore(cid, pack)
+    state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
     omen = None
     if state.get("deck_mode", "agent") == "agent" and campaign["turn"] % DECK_CADENCE == 0:
         omen = _draw_omen(cid, pack, state)
@@ -673,6 +755,12 @@ def run_turn(cid: str, action_text: str) -> dict:
             dice = _roll_and_log(cid, ch, chk["skill"], shift=shift, sit_mod=sit,
                                  harm_type=harm_type, reason=str(chk.get("reason", ""))[:120])
             state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
+            # Cinematic dice reaction: the result is authoritative; the GM
+            # describes the moment (never re-decides it).
+            outcome_line = _gm_outcome_narration(cid, pack, campaign, state, dice)
+            if outcome_line:
+                narration = f"{narration}\n\n{outcome_line}"
+                meta["outcome_narrated"] = True
         # inventory request (validated against the pack catalog)
         inv_req = contract.get("inventory_request")
         if isinstance(inv_req, list):
@@ -692,11 +780,14 @@ def run_turn(cid: str, action_text: str) -> dict:
         if isinstance(mem, dict):
             for fact in (mem.get("facts") or [])[:3]:
                 if isinstance(fact, str) and fact.strip():
+                    f = _trim(fact, 300)
                     db.execute(
                         "INSERT INTO facts (id, campaign_id, ts, text, scope, importance, source)"
                         " VALUES (?,?,?,?,?,?,?)",
-                        (new_id("fct"), cid, utcnow(), _trim(fact, 300), "visible", 2, "gm"),
+                        (new_id("fct"), cid, utcnow(), f, "visible", 2, "gm"),
                     )
+                    # mirror into the NPC memory pool so gossip can ground it
+                    legacy.remember(cid, "all", "event", f)
             if isinstance(mem.get("hidden_note"), str) and mem["hidden_note"].strip():
                 db.execute(
                     "INSERT INTO facts (id, campaign_id, ts, text, scope, importance, source)"
@@ -738,6 +829,38 @@ def run_turn(cid: str, action_text: str) -> dict:
     }
 
 
+def _gm_outcome_narration(cid: str, pack: dict, campaign: dict, state: dict, dice: dict) -> str | None:
+    """Cinematic dice reaction. The roll already happened; the GM describes
+    the moment. With no model, the style's own outcome voice is used."""
+    style = legacy.normalize_style(state)
+    fallback = style["outcomes"].get(dice["outcome"]) or rules.BAND_TEXT[dice["outcome"]]
+    if not ai.get_ai_config().get("enabled"):
+        return fallback
+    try:
+        cfg = ai.get_ai_config()
+        sys_p = (
+            "You are the Game Master of SATURDAY MULTIVERSE. " + style["prompt"] + "\n"
+            "The dice are DONE and the result below is authoritative. Describe ONLY the moment of "
+            "that result, <=70 words, second person, present tense. Never contradict the result, "
+            "never mention dice/numbers/mechanics, never grant items, injuries or decisions. "
+            'Respond ONLY with JSON: {"narration": "..."}'
+        )
+        user_p = (
+            f"AUTHORITATIVE RESULT — skill: {dice.get('skill')}, outcome band: {dice['outcome']}. "
+            f"The band means: {rules.BAND_TEXT[dice['outcome']]} "
+            f"Circumstance: {_trim(str(dice.get('note', '')), 120)}. "
+            f"Narrate the moment of this outcome."
+        )
+        text, _ = ai.chat([{"role": "system", "content": sys_p},
+                           {"role": "user", "content": user_p}], cfg)
+        data = ai.extract_json(text)
+        if data and isinstance(data.get("narration"), str) and len(data["narration"]) > 10:
+            return _trim(data["narration"], 700)
+    except ai.AiError:
+        pass
+    return fallback
+
+
 # --------------------------------------------------------------------------
 # Offline Storyteller (honest fallback: same mechanics, template prose)
 # --------------------------------------------------------------------------
@@ -761,10 +884,14 @@ FALLBACK_CLOSERS = [
 def _fallback_narration(pack: dict, campaign: dict, state: dict, action: str) -> str:
     tide = tide_for(campaign["drift"])
     weather = (state.get("weather") or {}).get("key", "mist")
-    loc = worldpacks.get_location(pack, campaign["location_id"]) or {}
-    scene = worldpacks.get_scene(pack, state.get("adventure_id") or "", state.get("beat") or "") \
-        if state.get("beat") else None
-    flavor_pool = (scene or {}).get("flavor") or loc.get("flavor") or pack.get("fallback_flavor") or FALLBACK_OPENERS
+    style = legacy.normalize_style(state)
+    loc = _resolve_location(cid=campaign["id"], pack=pack, location_id=campaign["location_id"])[0] or {}
+    scene = _resolve_adventure(cid=campaign["id"], pack=pack,
+                               adv_id=state.get("adventure_id") or "")
+    scene = (scene or {}).get("scenes", {}).get(state.get("beat") or "") if state.get("beat") else None
+    flavor_pool = list((scene or {}).get("flavor") or loc.get("flavor")
+                       or pack.get("fallback_flavor") or FALLBACK_OPENERS)
+    flavor_pool += style.get("flavor", [])
     flavor = secrets.choice(flavor_pool)
     short_action = _trim(action, 140)
     return (
@@ -817,8 +944,39 @@ def _draw_omen(cid: str, pack: dict, state: dict) -> dict | None:
         state["omen_bonus"] = {"skill": card.get("boost"), "mod": 1}
     elif card.get("kind") == "complication":
         state["omen_bonus"] = {"skill": "any", "mod": -1}
+        # the wrong gull keeps count of every complication the deck deals
+        legacy.add_clue(cid, "wrong_gull",
+                        f"Omen drawn: {card.get('title', '')} — a gull somewhere kept count.",
+                        "omen")
     db.log_event(cid, "omen_draw", {"card_id": card.get("id"), "title": card.get("title")})
     return card
+
+
+# ==========================================================================
+# World-aware resolution helpers (generated worlds live in the worlds table)
+# ==========================================================================
+
+def _resolve_location(cid: str, pack: dict, location_id: str) -> tuple[dict | None, dict | None]:
+    loc = worldpacks.get_location(pack, location_id)
+    if loc:
+        return loc, None
+    world = legacy.find_world_by_location(cid, location_id)
+    if world:
+        for loc in world["identity"].get("locations", []):
+            if loc["id"] == location_id:
+                return loc, world
+    return None, None
+
+
+def _resolve_adventure(cid: str, pack: dict, adv_id: str) -> dict | None:
+    adv = worldpacks.get_adventure(pack, adv_id)
+    if adv:
+        return adv
+    for r in db.query("SELECT identity_json FROM worlds WHERE campaign_id=?", (cid,)):
+        for a in jloads(r["identity_json"], {}).get("adventures", []):
+            if a.get("id") == adv_id:
+                return a
+    return None
 
 
 # ==========================================================================
@@ -830,6 +988,10 @@ def _choice_available(choice: dict, cid: str, state: dict) -> tuple[bool, str]:
         return False, choice.get("locked_hint", "Something is missing.")
     if choice.get("forbid_flag") and choice["forbid_flag"] in state.get("flags", {}):
         return False, choice.get("locked_hint", "That path has closed.")
+    if choice.get("requires_beads"):
+        if legacy.get_beads(cid) < int(choice["requires_beads"]):
+            return False, choice.get("locked_hint",
+                                     f"That costs {choice['requires_beads']} glassbeads, and your pockets are lighter.")
     if choice.get("requires_item"):
         row = db.query_one(
             "SELECT 1 FROM inventory WHERE campaign_id=? AND item_id=?",
@@ -858,7 +1020,9 @@ def choose(cid: str, choice_id: str) -> dict:
         raise ValueError("campaign not found")
     pack = worldpacks.load_pack(campaign["pack_id"])
     state = jloads(campaign["state_json"], {})
-    adv = worldpacks.get_adventure(pack, state.get("adventure_id") or "")
+    if state.get("dead"):
+        raise ValueError("This wanderer's story is concluded — begin a new voyage; the multiverse remembers.")
+    adv = _resolve_adventure(cid, pack, state.get("adventure_id") or "")
     if not adv or not state.get("beat"):
         raise ValueError("no active adventure scene")
     scene = adv["scenes"].get(state["beat"])
@@ -904,6 +1068,7 @@ def choose(cid: str, choice_id: str) -> dict:
     # endings and epilogues
     ending_id = None
     epilogue = None
+    offers = []
     eff = (branch.get("effects") or {})
     if eff.get("ending"):
         ending_id = str(eff["ending"])
@@ -918,6 +1083,25 @@ def choose(cid: str, choice_id: str) -> dict:
             "UPDATE campaigns SET location_id=?, scene_id='hub', state_json=?, updated_at=? WHERE id=?",
             (ret, jdumps(state), utcnow(), cid),
         )
+        # Echo offers: this ending may seed a cross-campaign legacy.
+        offers = legacy.echo_offers_for(adv, ending_id) or []
+        for off in offers[:3]:
+            try:
+                legacy.create_echo(cid, off.get("kind", "achievement"),
+                                   off.get("title", ""), off.get("detail", ""),
+                                   off.get("data", {}))
+            except ValueError:
+                continue
+        if offers:
+            changes.append(f"Echo offered ({len(offers)} legacy options) — begin a new voyage to weave it in.")
+        # Cross-world consequence, grounded in the recorded ending.
+        if ending.get("consequence"):
+            legacy.register_consequence(cid, f"ending:{adv['id']}:{ending_id}",
+                                        str(ending["consequence"])[:200], {})
+        # ending-level effects (rewards, clues) apply exactly once, here
+        changes += _effects_for(cid, pack, ending.get("effects") or {})
+        legacy.record_event_memories(cid, "ending", "all",
+                                     f"{adv.get('title', adv['id'])} ended: {ending_id}.")
 
     # narration: prefer a live GM bridge, fall back to the scene's own text
     narration = None
@@ -936,7 +1120,10 @@ def choose(cid: str, choice_id: str) -> dict:
     db.add_journal(cid, _trim(narration, 240), "auto")
     advance_time(campaign, 1)
     return {"narration": narration, "dice": dice, "changes": changes,
-            "ending": ending_id, "scene": goto, "meta": {"ai_used": bool(narration and ending_id is None and not epilogue)}}
+            "ending": ending_id,
+            "echo_offers": [{"kind": o.get("kind"), "title": o.get("title"),
+                             "detail": o.get("detail")} for o in (offers or [])],
+            "scene": goto, "meta": {"ai_used": bool(narration and ending_id is None and not epilogue)}}
 
 
 def _gm_scene_bridge(cid: str, pack: dict, campaign: dict, choice: dict, new_scene: dict) -> str | None:
@@ -969,38 +1156,68 @@ def travel(cid: str, location_id: str) -> dict:
     if not campaign:
         raise ValueError("campaign not found")
     pack = worldpacks.load_pack(campaign["pack_id"])
-    loc = worldpacks.get_location(pack, location_id)
+    loc, world = _resolve_location(cid, pack, location_id)
     if not loc:
         raise ValueError("unknown location")
     state = jloads(campaign["state_json"], {})
+    if state.get("dead"):
+        raise ValueError("This wanderer's story is concluded — begin a new voyage; the multiverse remembers.")
 
     # gating: tide
     req = loc.get("requires") or {}
     tide = tide_for(campaign["drift"])
     if req.get("tide") and req["tide"] != tide:
         raise ValueError(f"The {loc['name']} only shows itself at {req['tide']} tide (now: {tide}).")
-    # gating: discovery
+    # gating: discovery (separate from first entry — rumors reveal a place
+    # before the player ever walks into it)
     disc_row = db.query_one(
-        "SELECT discovered FROM locations_state WHERE campaign_id=? AND location_id=?",
+        "SELECT discovered, data_json FROM locations_state WHERE campaign_id=? AND location_id=?",
         (cid, location_id),
     )
+    disc_data = jloads(disc_row["data_json"], {}) if disc_row else {}
+    entered_before = bool(disc_data.get("entered"))
     discovered = bool(disc_row and disc_row["discovered"]) or loc.get("known", False)
     if req.get("discovered") and not discovered:
         raise ValueError("You haven't found the way there yet.")
 
+    first_visit = not entered_before
     db.execute(
         "INSERT INTO locations_state (campaign_id, location_id, discovered, data_json)"
-        " VALUES (?,?,1,'{}') ON CONFLICT(campaign_id, location_id) DO UPDATE SET discovered=1",
-        (cid, location_id),
+        " VALUES (?,?,1,?) ON CONFLICT(campaign_id, location_id) DO UPDATE"
+        " SET discovered=1, data_json=?",
+        (cid, location_id, jdumps({**disc_data, "entered": 1}),
+         jdumps({**disc_data, "entered": 1})),
     )
 
     narration = None
     dice = None
     changes: list[str] = []
     event = "travel"
+    # a location's on_enter effects fire once, on first actual entry —
+    # whether or not the location opens an adventure
+    if first_visit and not world:
+        for eff in loc.get("on_enter", []):
+            changes += _effects_for(cid, pack, eff)
+
+    if world:
+        # Generated world: track the visit, ground the arrival, tint the weather.
+        legacy.note_world_visit(cid, world["id"])
+        ident = world["identity"]
+        state["world_id"] = world["id"]
+        state["weather"] = {"key": ident.get("ambience", "world"), "desc": ident.get("weather", "")}
+        if first_visit:
+            for fact in ident.get("intro_facts", []):
+                db.execute(
+                    "INSERT INTO facts (id, campaign_id, ts, text, scope, importance, source)"
+                    " VALUES (?,?,?,?,?,?,?)",
+                    (new_id("fct"), cid, utcnow(), str(fact)[:300], "visible", 2, "world"),
+                )
+            legacy.record_event_memories(cid, "discovery", "all", f"First walked in {ident['name']}.")
+            changes.append(f"Discovered: {ident['name']}.")
+            db.log_event(cid, "world_visited_first", {"world_id": world["id"]})
 
     if loc.get("adventure"):
-        adv = worldpacks.get_adventure(pack, loc["adventure"])
+        adv = _resolve_adventure(cid, pack, loc["adventure"])
         if not adv:
             raise ValueError("adventure pack data missing")
         state["adventure_id"] = adv["id"]
@@ -1029,15 +1246,18 @@ def travel(cid: str, location_id: str) -> dict:
             "UPDATE campaigns SET location_id=?, scene_id='hub', updated_at=? WHERE id=?",
             (location_id, utcnow(), cid),
         )
+        if state.pop("world_id", None):
+            # back on the Living Shore: shore weather resumes
+            table = pack.get("weather") or [{"key": "mist", "weight": 1, "desc": "Sea mist."}]
+            w = _pick_weighted(table)
+            state["weather"] = {"key": w["key"], "desc": w.get("desc", w["key"])}
+            db.execute("UPDATE campaigns SET state_json=? WHERE id=?", (jdumps(state), cid))
         narration = _trim(loc.get("desc", ""), 800)
         if ai.get_ai_config().get("enabled"):
             bridge = _gm_scene_bridge(cid, pack, campaign,
                                       {"label": f"traveled to {loc['name']}"}, loc)
             if bridge:
                 narration = bridge
-        for eff in loc.get("on_enter", []):
-            changes += _effects_for(cid, pack, eff)
-
     db.add_transcript(cid, "player", f"[traveled] {loc['name']}")
     db.add_transcript(cid, "gm", narration, {"location_id": location_id, "event": event})
     db.add_journal(cid, f"{loc.get('name', location_id)}: {_trim(narration, 200)}", "travel")
@@ -1057,13 +1277,38 @@ def rest(cid: str) -> dict:
     if not rest_spec:
         raise ValueError("This is no place to rest.")
     ch = get_character(cid)
-    dv = min(int(rest_spec.get("vigor", 2)), ch["vigor_max"] - ch["vigor"])
-    dn = min(int(rest_spec.get("nerve", 2)), ch["nerve_max"] - ch["nerve"])
+    owned = set(legacy.owned_upgrades(cid))
+    dv = int(rest_spec.get("vigor", 2))
+    dn = int(rest_spec.get("nerve", 2))
+    loc_id = campaign["location_id"]
+    if loc_id == "camp" and "camp_kettle" in owned:
+        dv += 2
+    if loc_id == "tavern" and "tavern_hammock" in owned:
+        dv = ch["vigor_max"]
+        dn = ch["nerve_max"]
+    dv = min(dv, ch["vigor_max"] - ch["vigor"])
+    dn = min(dn, ch["nerve_max"] - ch["nerve"])
     ch["vigor"] += max(0, dv)
     ch["nerve"] += max(0, dn)
     _persist_character(ch)
+    # a rest refreshes the omen deck's generosity — and a befriended gull
+    legacy.reset_omen_draws(cid)
+    state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
+    extra = ""
+    if "gull_friend" in state.get("flags", []):
+        state["omen_bonus"] = {"skill": "notice", "mod": 1}
+        extra = " The white gull lands near, and its round eye misses nothing on your behalf."
+        db.execute("UPDATE campaigns SET state_json=? WHERE id=?", (jdumps(state), cid))
+    if loc_id == "camp" and "camp_guestbook" in owned and secrets.randbelow(100) < 35:
+        visitor = secrets.choice([
+            "A door-tender's apprentice, in town to measure the Beam.",
+            "A quiet cartographer buying accuracy with stories.",
+            "A pilgrim of the Lantern Law, walking every fire on the shore.",
+        ])
+        legacy.remember(cid, "tavern", "visitor", f"{visitor} signed Cardo's guestbook.")
+        extra += f" A visitor warms their hands at the fire: {visitor}"
     advance_time(campaign, 2)
-    msg = loc.get("rest_text", "You rest, and the shore allows it.")
+    msg = loc.get("rest_text", "You rest, and the shore allows it.") + extra
     db.add_journal(cid, f"Rested at {loc['name']}.", "rest")
     db.log_event(cid, "rest", {"vigor": dv, "nerve": dn})
     return {"narration": msg, "healed": {"vigor": dv, "nerve": dn}}
@@ -1107,8 +1352,9 @@ def campaign_view(cid: str) -> dict:
     pack = worldpacks.load_pack(campaign["pack_id"])
     state = jloads(campaign["state_json"], {})
     ch = get_character(cid)
-    loc = worldpacks.get_location(pack, campaign["location_id"]) or {}
-    adv = worldpacks.get_adventure(pack, state.get("adventure_id") or "") if state.get("adventure_id") else None
+    loc, world = _resolve_location(cid, pack, campaign["location_id"])
+    loc = loc or {}
+    adv = _resolve_adventure(cid, pack, state.get("adventure_id") or "") if state.get("adventure_id") else None
     beat_active = bool(
         state.get("beat") and loc.get("adventure") and loc["adventure"] == state.get("adventure_id")
     )
@@ -1121,6 +1367,7 @@ def campaign_view(cid: str) -> dict:
             "label": portal.get("label", portal["id"]),
             "target_location": portal.get("target_location"),
             "sealed": portal.get("sealed", False),
+            "unstable": portal.get("unstable", False),
             "seal_note": portal.get("seal_note", ""),
         })
 
@@ -1181,9 +1428,22 @@ def campaign_view(cid: str) -> dict:
             "adventure_done": bool(state.get("adventure_done")),
         } if (adv or loc) else None,
         "tide": tide_for(campaign["drift"]),
+        "tide_phase": legacy.tide_phase(campaign["drift"]),
         "weather": state.get("weather", {"key": "mist", "desc": "Sea mist."}),
         "turn": campaign["turn"],
         "drift": campaign["drift"],
+        "beads": int(state.get("beads", 0)),
+        "upgrades_owned": legacy.owned_upgrades(cid),
+        "omen_hand": legacy.omen_hand(cid),
+        "gm_style": (lambda s: {"id": s["id"], "label": s["label"]})(legacy.normalize_style(state)),
+        "washashore": state.get("washashore"),
+        "pending_roll": legacy.get_pending_roll(cid),
+        "dead": bool(state.get("dead")),
+        "world": ({
+            "id": world["id"], "name": world["identity"].get("name", ""),
+            "seed": world["seed"], "tint": world["identity"].get("tint", 0),
+            "visits": world["visits"], "archetype": world["identity"].get("archetype_label", ""),
+        } if world else None),
         "inventory": get_inventory(cid),
         "journal": [dict(r) for r in reversed(journal_rows)],
         "quests": quests,

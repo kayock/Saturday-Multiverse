@@ -11,7 +11,7 @@ from collections import defaultdict, deque
 
 from flask import Blueprint, Response, jsonify, request
 
-from . import ai, config, db, gm, qr, worldpacks
+from . import ai, config, db, gen, gm, legacy, qr, worldpacks
 
 api = Blueprint("api", __name__, url_prefix="/api")
 
@@ -182,7 +182,8 @@ def campaign_choose(cid):
 def campaign_check(cid):
     body = request.get_json(silent=True) or {}
     try:
-        return jsonify(gm.manual_check(cid, body.get("skill", ""), bool(body.get("hard"))))
+        return jsonify(gm.manual_check(cid, body.get("skill", ""),
+                                       bool(body.get("hard")), bool(body.get("risk"))))
     except ValueError as exc:
         return _err(exc)
 
@@ -202,6 +203,155 @@ def campaign_rest(cid):
         return jsonify(gm.rest(cid))
     except ValueError as exc:
         return _err(exc)
+
+
+# --------------------------------------------------------------------------
+# Milestones 1.5 / 2.0 / 2.5
+# --------------------------------------------------------------------------
+
+@api.post("/campaigns/<cid>/style")
+def campaign_style(cid):
+    body = request.get_json(silent=True) or {}
+    try:
+        return jsonify(legacy.set_style(cid, body.get("style_id", "classic"),
+                                        body.get("custom_text", "")))
+    except ValueError as exc:
+        return _err(exc)
+
+
+@api.get("/styles")
+def styles_list():
+    return jsonify({"styles": [
+        {"id": sid, "label": s["label"]}
+        for sid, s in legacy.GM_STYLES.items()
+    ] + [{"id": "custom", "label": "Custom"}]})
+
+
+@api.post("/campaigns/<cid>/talk")
+def campaign_talk(cid):
+    body = request.get_json(silent=True) or {}
+    try:
+        return jsonify(legacy.talk(cid, body.get("npc_id", ""),
+                                   body.get("topic", "the shore")))
+    except ValueError as exc:
+        return _err(exc)
+
+
+@api.post("/campaigns/<cid>/washashore")
+def campaign_washashore(cid):
+    body = request.get_json(silent=True) or {}
+    try:
+        if body.get("action") == "check":
+            return jsonify({"washashore": legacy.check_washashore(
+                cid, worldpacks.load_pack(gm.get_campaign(cid)["pack_id"]))})
+        return jsonify(legacy.pick_washashore(
+            cid, worldpacks.load_pack(gm.get_campaign(cid)["pack_id"])))
+    except ValueError as exc:
+        return _err(exc)
+
+
+@api.post("/campaigns/<cid>/push")
+def campaign_push(cid):
+    try:
+        result = legacy.push_roll(cid)
+        result.pop("pack", None)
+        return jsonify(result)
+    except ValueError as exc:
+        return _err(exc)
+
+
+@api.post("/campaigns/<cid>/resist")
+def campaign_resist(cid):
+    try:
+        return jsonify(legacy.resist_roll(cid))
+    except ValueError as exc:
+        return _err(exc)
+
+
+@api.post("/campaigns/<cid>/pending/accept")
+def campaign_pending_accept(cid):
+    """Player accepts the resolved roll; the tactical window closes."""
+    legacy._clear_pending(cid)
+    return jsonify({"ok": True})
+
+
+@api.get("/campaigns/<cid>/omen_hand")
+def campaign_omen_hand(cid):
+    return jsonify(legacy.omen_hand(cid))
+
+
+@api.post("/campaigns/<cid>/omen/draw")
+def campaign_omen_draw(cid):
+    try:
+        return jsonify(legacy.draw_to_hand(cid))
+    except ValueError as exc:
+        return _err(exc)
+
+
+@api.post("/campaigns/<cid>/omen/play")
+def campaign_omen_play(cid):
+    body = request.get_json(silent=True) or {}
+    try:
+        return jsonify(legacy.play_omen(cid, body.get("card_id", "")))
+    except ValueError as exc:
+        return _err(exc)
+
+
+@api.get("/campaigns/<cid>/upgrades")
+def campaign_upgrades(cid):
+    return jsonify({"upgrades": legacy.list_upgrades(cid),
+                    "beads": legacy.get_beads(cid)})
+
+
+@api.post("/campaigns/<cid>/upgrades")
+def campaign_upgrade_buy(cid):
+    body = request.get_json(silent=True) or {}
+    try:
+        return jsonify(legacy.buy_upgrade(cid, body.get("upgrade_id", "")))
+    except ValueError as exc:
+        return _err(exc)
+
+
+@api.post("/campaigns/<cid>/worlds")
+def campaign_world_generate(cid):
+    body = request.get_json(silent=True) or {}
+    try:
+        w = legacy.generate_and_store(cid, body.get("seed", ""))
+        identity = w.get("identity", {})
+        return jsonify({
+            "world_id": w["id"], "name": w.get("name", identity.get("name", "")),
+            "seed": w.get("seed", body.get("seed", "")),
+            "archetype": identity.get("archetype_label", ""),
+            "tint": identity.get("tint", 0),
+            "entry_location": identity.get("entry_location", ""),
+            "existing": bool(w.get("existing")),
+        })
+    except ValueError as exc:
+        return _err(exc)
+
+
+@api.get("/campaigns/<cid>/worlds")
+def campaign_world_list(cid):
+    return jsonify({"worlds": legacy.list_worlds(cid)})
+
+
+@api.get("/seeds/suggest")
+def seeds_suggest():
+    return jsonify({"suggestions": gen.suggest_seeds(6)})
+
+
+@api.get("/echoes")
+def echoes_list():
+    only_unused = request.args.get("unused") == "1"
+    return jsonify({"echoes": legacy.list_echoes(only_unused)})
+
+
+@api.get("/campaigns/<cid>/ledger")
+def campaign_ledger(cid):
+    try:
+        return jsonify(legacy.ledger(cid))
+    except ValueError as exc:
+        return _err(exc, 404)
 
 
 @api.post("/campaigns/<cid>/use_item")

@@ -30,8 +30,8 @@ def main() -> None:
     # 1. pack
     pack = worldpacks.load_pack("living_shore")
     check("world pack loads", pack is not None)
-    check("8 locations", len(pack["locations"]) == 8, str(len(pack["locations"])))
-    check("16 items", len(pack["items"]) == 16)
+    check("9 locations", len(pack["locations"]) == 9, str(len(pack["locations"])))
+    check("19 items", len(pack["items"]) == 19)
     check("24 omens", len(pack["omens"]) == 24)
     check("lore file present", len(worldpacks.lore_text(pack)) > 500)
     ids = [i["id"] for i in pack["items"]]
@@ -54,7 +54,7 @@ def main() -> None:
     check("kit items granted", len(view["inventory"]) == 3)
     check("intro quest present", any(q["id"] == "find_your_door" for q in view["quests"]))
     check("hub is tidegate", view["location"]["id"] == "tidegate")
-    check("3 portals on the Beam", len(view["portals"]) == 3)
+    check("4 doors on the Beam", len(view["portals"]) == 4)
 
     # 4. freeform turn (AI disabled -> honest fallback)
     turn = gm.run_turn(cid, "I walk the tideline and listen to the doors.")

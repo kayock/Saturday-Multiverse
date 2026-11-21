@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Saturday Multiverse — Which Portal on the Beam?</title>
 <meta name="description" content="A self-hosted AI tabletop adventure. Walk the Living Shore, choose a portal, disappear into an adventure worth remembering.">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=27">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 </head>
 <body>
@@ -86,17 +86,20 @@
         </span>
       </button>
       <div id="hud-conditions" class="hud-conditions">
-        <span id="hud-tide" class="chip">tide —</span>
+        <span id="hud-tide" class="chip chip-tide" title="Tide clock"><svg id="tide-dial" width="14" height="14" viewBox="0 0 20 20" aria-hidden="true"></svg><span id="hud-tide-text">tide —</span></span>
+        <span id="hud-beads" class="chip chip-beads" title="Glassbeads — the shore pays for adventure">◍ 0</span>
         <span id="hud-weather" class="chip">weather —</span>
         <span id="hud-turn" class="chip">turn 0</span>
         <span id="hud-ai" class="chip chip-ai">GM offline</span>
       </div>
       <nav id="hud-nav">
         <button class="btn btn-small" data-panel="map">Map</button>
-        <button class="btn btn-small" data-panel="journal">Journal</button>
+        <button class="btn btn-small" data-panel="ledger">Ledger</button>
         <button class="btn btn-small" data-panel="inventory">Pack</button>
         <button class="btn btn-small" data-panel="quests">Quests</button>
+        <button class="btn btn-small" data-panel="omens">Omens</button>
         <button class="btn btn-small" data-panel="dice">Dice</button>
+        <button class="btn btn-small" data-panel="shore">Shore</button>
         <button class="btn btn-small" data-panel="settings">Settings</button>
       </nav>
     </header>
@@ -104,9 +107,14 @@
     <!-- Narration / interaction dock -->
     <div id="narration-dock">
       <div id="dock-omen" class="omen-card" hidden></div>
+      <div id="dock-wash" class="wash-strip" hidden>
+        <span id="dock-wash-label"></span>
+        <button id="btn-pick-wash" class="btn btn-small">Pick it up</button>
+      </div>
       <div class="dock-head">
         <span id="dock-title">The Living Shore</span>
         <span id="dock-scene-hint" class="dock-hint"></span>
+        <span id="dock-talk" class="dock-talk"></span>
       </div>
       <div id="dock-narration" class="dock-narration">…</div>
       <div id="dock-dice" class="dock-dice" hidden></div>
@@ -146,8 +154,32 @@
   </aside>
 
   <div id="toast-root" class="toast-root" aria-live="polite"></div>
+
+  <!-- ===================== SEED GATE modal ===================== -->
+  <aside id="seed-root" class="panel-root" hidden>
+    <div class="panel-scrim" data-close-seed></div>
+    <div class="panel panel-wide" role="dialog" aria-modal="true">
+      <header class="panel-head">
+        <h3>The Unstable Door</h3>
+        <button class="btn btn-small btn-ghost" data-close-seed>Close</button>
+      </header>
+      <div id="seed-body" class="panel-body"></div>
+    </div>
+  </aside>
+
+  <!-- ===================== ECHO modal ===================== -->
+  <aside id="echo-root" class="panel-root" hidden>
+    <div class="panel-scrim"></div>
+    <div class="panel panel-wide" role="dialog" aria-modal="true">
+      <header class="panel-head">
+        <h3>The Multiverse Remembers</h3>
+        <button class="btn btn-small btn-ghost" data-close-echo>Close</button>
+      </header>
+      <div id="echo-body" class="panel-body"></div>
+    </div>
+  </aside>
 </div>
 
-<script type="module" src="js/main.js"></script>
+<script type="module" src="js/main.js?v=27"></script>
 </body>
 </html>

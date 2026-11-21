@@ -29,6 +29,20 @@ def _ai_disabled():
     yield
 
 
+@pytest.fixture()
+def client():
+    from server import config
+    from server.app import create_app
+    # the suite exercises many endpoints in one minute; lift the limiter
+    old_api, old_ai = config.RATE_LIMIT_API, config.RATE_LIMIT_AI
+    config.RATE_LIMIT_API = 10000
+    config.RATE_LIMIT_AI = 10000
+    app = create_app()
+    app.testing = True
+    yield app.test_client()
+    config.RATE_LIMIT_API, config.RATE_LIMIT_AI = old_api, old_ai
+
+
 @pytest.fixture(scope="session")
 def mock_gm_url():
     """Spin up the OpenAI-compatible mock Game Master on a random port."""

@@ -5,8 +5,10 @@ from server import db, gm, qr, worldpacks
 def test_campaign_lifecycle(campaign):
     view = gm.campaign_view(campaign)
     assert view["location"]["id"] == "tidegate"
-    assert len(view["portals"]) == 3
+    assert len(view["portals"]) == 4  # salt, ash, sealed roots, unstable
     assert any(q["id"] == "find_your_door" for q in view["quests"])
+    assert view["tide_phase"]["tide"] in ("high", "low")
+    assert view["gm_style"]["id"] == "classic"
 
 
 def test_fallback_turn_is_honest(campaign):

@@ -51,6 +51,7 @@ class RollResult:
     outcome: str = "clean"
     text: str = ""
     doubles: bool = False
+    risk: bool = False          # declared before the roll: +2 mod, failure hurts more
 
 
 def _d6() -> int:
@@ -70,13 +71,18 @@ def _band_index(total: int, shift: int = 0) -> int:
     return max(0, min(4, base + shift))
 
 
-def roll_check(stat_mod: int = 0, sit_mod: int = 0, shift: int = 0) -> RollResult:
+def roll_check(stat_mod: int = 0, sit_mod: int = 0, shift: int = 0,
+               risk: bool = False) -> RollResult:
     """Roll 2d6 + modifiers and resolve the outcome band.
 
     shift: -1 for a "hard" check, +1 for an "easy" one.
+    risk:  declared BEFORE the roll — +2 to the roll, but any failure
+           (undertow/wipeout) deals 2 extra harm. Declared by the player,
+           applied by the engine.
     """
+    sit_total = sit_mod + (2 if risk else 0)
     dice = [_d6(), _d6()]
-    total = sum(dice) + stat_mod + sit_mod
+    total = sum(dice) + stat_mod + sit_total
     doubles = dice[0] == dice[1]
 
     if doubles and dice[0] == 6:
@@ -89,20 +95,39 @@ def roll_check(stat_mod: int = 0, sit_mod: int = 0, shift: int = 0) -> RollResul
     result = RollResult(
         dice=dice,
         stat_mod=stat_mod,
-        sit_mod=sit_mod,
+        sit_mod=sit_total,
         total=total,
         outcome=outcome,
         doubles=doubles,
+        risk=risk,
     )
+    risk_note = " (risked)" if risk else ""
     result.text = (
-        f"2d6 [{dice[0]}+{dice[1]}] {stat_mod:+d} stat {sit_mod:+d} situation "
-        f"= {total} → {BAND_TEXT[outcome]}"
+        f"2d6 [{dice[0]}+{dice[1]}] {stat_mod:+d} stat {sit_total:+d} situation "
+        f"= {total} → {BAND_TEXT[outcome]}{risk_note}"
     )
     return result
 
 
-def harm_for(outcome: str) -> int:
-    return HARM_TABLE.get(outcome, 0)
+def bump_band(outcome: str) -> str | None:
+    """A Push moves the band ONE step toward success — but only from a
+    failure or a partial. Clean and Surge cannot be pushed; crits are fate.
+    Returns the new outcome, or None when a push is not possible."""
+    upgrades = {"undertow": "riptide", "riptide": "clean"}
+    return upgrades.get(outcome)
+
+
+def resist_harm(harm: int) -> int:
+    """Resisting halves the incoming harm, rounding down (1 -> 0)."""
+    return max(0, harm // 2)
+
+
+def harm_for(outcome: str, risk: bool = False) -> int:
+    """Harm for an outcome band; a declared Risk adds 2 on any failure."""
+    base = HARM_TABLE.get(outcome, 0)
+    if risk and outcome in ("undertow", "wipeout"):
+        base += 2
+    return base
 
 
 def draw_from_deck(draw_pile: list[dict], discard: list[dict]) -> tuple[dict | None, list[dict], list[dict]]:

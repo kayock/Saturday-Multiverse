@@ -218,6 +218,78 @@ CREATE TABLE IF NOT EXISTS backups (
   path TEXT NOT NULL,
   size INTEGER NOT NULL DEFAULT 0
 );
+
+-- ==========================================================================
+-- Milestones 1.5 / 2.0 / 2.5 (all additive — a Milestone 1 database gains
+-- these tables on open and every existing row is preserved untouched).
+-- ==========================================================================
+
+-- M2.0: seeded, persistent generated worlds.
+CREATE TABLE IF NOT EXISTS worlds (
+  id TEXT NOT NULL,
+  campaign_id TEXT NOT NULL,
+  seed TEXT NOT NULL,
+  seed_hash TEXT NOT NULL,
+  generator_version TEXT NOT NULL,
+  name TEXT NOT NULL,
+  identity_json TEXT NOT NULL DEFAULT '{}',
+  state_json TEXT NOT NULL DEFAULT '{}',
+  discovered_at TEXT NOT NULL,
+  visits INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (campaign_id, id)
+);
+
+-- M1.5: structured NPC memories — the ground truth gossip is built from.
+CREATE TABLE IF NOT EXISTS npc_memories (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL,
+  npc_id TEXT NOT NULL,
+  ts TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'event',
+  scope TEXT NOT NULL DEFAULT 'all',
+  text TEXT NOT NULL
+);
+
+-- M2.5: foreshadowing clue threads.
+CREATE TABLE IF NOT EXISTS clues (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL,
+  thread_id TEXT NOT NULL,
+  ts TEXT NOT NULL,
+  text TEXT NOT NULL,
+  source TEXT NOT NULL DEFAULT 'event'
+);
+
+-- M2.5: echoes — a profile-level legacy that crosses campaigns.
+CREATE TABLE IF NOT EXISTS echoes (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT,
+  created_at TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  title TEXT NOT NULL,
+  detail TEXT NOT NULL DEFAULT '',
+  data_json TEXT NOT NULL DEFAULT '{}',
+  used_in TEXT
+);
+
+-- M2.0: shore improvements (base building, persistent and visible).
+CREATE TABLE IF NOT EXISTS upgrades (
+  campaign_id TEXT NOT NULL,
+  upgrade_id TEXT NOT NULL,
+  purchased_at TEXT NOT NULL,
+  PRIMARY KEY (campaign_id, upgrade_id)
+);
+
+-- M2.5: cross-world consequences, grounded in recorded triggers.
+CREATE TABLE IF NOT EXISTS consequences (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL,
+  ts TEXT NOT NULL,
+  trigger TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  data_json TEXT NOT NULL DEFAULT '{}',
+  surfaced INTEGER NOT NULL DEFAULT 0
+);
 """
 
 SEARCH_SQL = """
@@ -231,7 +303,11 @@ CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(
 
 
 def init_db() -> None:
-    """Create/upgrade the schema. Migrations are additive and versioned."""
+    """Create/upgrade the schema. Migrations are additive and versioned.
+
+    A Milestone 1 database (schema v1) opens here, gains the new tables, and
+    keeps every existing row — verified by tests/test_migrations.py.
+    """
     conn = get_conn()
     with _LOCK:
         conn.executescript(SCHEMA_SQL)
@@ -242,7 +318,32 @@ def init_db() -> None:
                 "INSERT INTO meta (key, value) VALUES ('schema_version', ?)",
                 (config.SCHEMA_VERSION,),
             )
+        elif row["value"] != config.SCHEMA_VERSION:
+            _migrate(conn, row["value"])
         conn.commit()
+
+
+def _migrate(conn: sqlite3.Connection, from_version: str) -> None:
+    """Forward-only, additive migrations. Never deletes or rewrites rows.
+
+    v1 -> v2: the Milestone 1.5/2.0/2.5 tables (worlds, npc_memories, clues,
+    echoes, upgrades, consequences). Every statement is CREATE TABLE IF NOT
+    EXISTS, so an untouched v1 save migrates with zero data loss.
+    """
+    if from_version in ("saturday.core.v1",):
+        conn.executescript(SCHEMA_SQL)
+        conn.executescript(SEARCH_SQL)
+        conn.execute(
+            "UPDATE meta SET value=? WHERE key='schema_version'",
+            (config.SCHEMA_VERSION,),
+        )
+        conn.commit()
+        return
+    # Unknown or *newer* version: refuse to touch it rather than downgrade.
+    raise RuntimeError(
+        f"database schema {from_version} is newer than this build "
+        f"({config.SCHEMA_VERSION}); restore a matching backup instead"
+    )
 
 
 # --------------------------------------------------------------------------

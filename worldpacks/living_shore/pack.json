@@ -3,7 +3,11 @@
   "name": "The Living Shore",
   "version": "1.0.0",
   "summary": "A persistent beach between universes. Walk the tideline, gather at the campfire, and step through a door on the Beam into whatever waits on the other side.",
-  "genre_tags": ["dark fantasy", "supernatural horror", "dimensional travel"],
+  "genre_tags": [
+    "dark fantasy",
+    "supernatural horror",
+    "dimensional travel"
+  ],
   "theme": {
     "bg": "#0b0e14",
     "deep": "#141126",
@@ -19,10 +23,14 @@
   "intro_facts": [
     "You woke on the Living Shore with sand in your boots and a door-shaped ache behind your eyes.",
     "The Beam runs above the tideline at dusk, and doors stand in the surf beneath it.",
-    "Open flame is sacred here: a lit lantern marks you as a person, not a hunger."
+    "Open flame is sacred here: a lit lantern marks you as a person, not a hunger.",
+    "An unstable door shimmers at the far end of the Beam, half-here: it opens for whispered seeds."
   ],
   "intro_quests": [
-    { "id": "find_your_door", "title": "Choose a portal on the Beam" }
+    {
+      "id": "find_your_door",
+      "title": "Choose a portal on the Beam"
+    }
   ],
   "fallback_flavor": [
     "The shore holds its breath around you.",
@@ -31,11 +39,31 @@
     "Gulls wheel once, land, and watch you with too much patience."
   ],
   "weather": [
-    { "key": "mist", "weight": 4, "desc": "Low sea mist that swallows the horizon." },
-    { "key": "clear", "weight": 3, "desc": "A rare clean night, stars doubled in the wet sand." },
-    { "key": "drizzle", "weight": 2, "desc": "Fine cold rain, more felt than heard." },
-    { "key": "storm", "weight": 1, "desc": "A storm walking the horizon line, looking for a way in." },
-    { "key": "fogbank", "weight": 2, "desc": "A solid fogbank moored offshore like a second, darker sea." }
+    {
+      "key": "mist",
+      "weight": 4,
+      "desc": "Low sea mist that swallows the horizon."
+    },
+    {
+      "key": "clear",
+      "weight": 3,
+      "desc": "A rare clean night, stars doubled in the wet sand."
+    },
+    {
+      "key": "drizzle",
+      "weight": 2,
+      "desc": "Fine cold rain, more felt than heard."
+    },
+    {
+      "key": "storm",
+      "weight": 1,
+      "desc": "A storm walking the horizon line, looking for a way in."
+    },
+    {
+      "key": "fogbank",
+      "weight": 2,
+      "desc": "A solid fogbank moored offshore like a second, darker sea."
+    }
   ],
   "locations": [
     {
@@ -51,8 +79,20 @@
         "Sand keeps trying to bury the signpost. Something keeps digging it out."
       ],
       "hotspots": [
-        { "id": "signpost", "label": "the leaning signpost", "x": 18, "y": 62, "text": "DADA CHUNK, DA DACHINK — OPEN A DOOR BEFORE YOU SINK. Beneath, in smaller letters, barely legible: 'the doors always let you out. what they let out may not be what walked in.'" },
-        { "id": "beam", "label": "the Beam overhead", "x": 50, "y": 12, "text": "Up close the Beam is not light at all but a slow procession of luminous script, traveling left to right, never repeating." }
+        {
+          "id": "signpost",
+          "label": "the leaning signpost",
+          "x": 18,
+          "y": 62,
+          "text": "DADA CHUNK, DA DACHINK — OPEN A DOOR BEFORE YOU SINK. Beneath, in smaller letters, barely legible: 'the doors always let you out. what they let out may not be what walked in.'"
+        },
+        {
+          "id": "beam",
+          "label": "the Beam overhead",
+          "x": 50,
+          "y": 12,
+          "text": "Up close the Beam is not light at all but a slow procession of luminous script, traveling left to right, never repeating."
+        }
       ]
     },
     {
@@ -62,7 +102,10 @@
       "desc": "A ring of whale-rib posts and driftwood seats around a fire that burns low, orange, and absolutely certain. Old Cardo tends it with a fisherman's patience and a nurse's timing.",
       "known": true,
       "vignette": "camp",
-      "rest": { "vigor": 3, "nerve": 2 },
+      "rest": {
+        "vigor": 3,
+        "nerve": 2
+      },
       "rest_text": "You sit where the smoke leans. The fire takes your tiredness as fuel and gives back a little steadiness. Cardo nods like a man paid in full.",
       "flavor": [
         "Cardo feeds the fire one stick at a time, like a man counting money he can't keep.",
@@ -70,10 +113,21 @@
         "Someone has nailed dozens of tiny brass doors to the driftwood, each no bigger than a thumb."
       ],
       "hotspots": [
-        { "id": "brass_doors", "label": "the tiny brass doors", "x": 68, "y": 58, "text": "Each little door is different: one riveted, one fused shut, one warm to the touch, one with a hairline of light beneath it. Cardo says they are 'doorlets — retired.' When you ask what they retired from, he just adds a stick to the fire." }
+        {
+          "id": "brass_doors",
+          "label": "the tiny brass doors",
+          "x": 68,
+          "y": 58,
+          "text": "Each little door is different: one riveted, one fused shut, one warm to the touch, one with a hairline of light beneath it. Cardo says they are 'doorlets — retired.' When you ask what they retired from, he just adds a stick to the fire."
+        }
       ],
       "on_enter": [
-        { "npc_rel": { "npc_id": "old_cardo", "delta": 0 } }
+        {
+          "npc_rel": {
+            "npc_id": "old_cardo",
+            "delta": 0
+          }
+        }
       ]
     },
     {
@@ -83,7 +137,10 @@
       "desc": "Inside, the Salt & Lantern is low-ceilinged and amber, smelling of lamp oil, tar, and stew. Maren, the glass-eyed tavernkeeper, pours something dark and answers most questions sideways.",
       "known": true,
       "vignette": "tavern",
-      "rest": { "vigor": 4, "nerve": 4 },
+      "rest": {
+        "vigor": 4,
+        "nerve": 4
+      },
       "rest_text": "Maren takes your glass without asking, pours two fingers of something that tastes like plum smoke, and rolls you a hammock by the stove. The room hums. You sleep like cargo.",
       "flavor": [
         "The mirror behind the bar shows the room a half-second late.",
@@ -91,12 +148,28 @@
         "Maren's left eye is green glass. It tracks the door, not the customers."
       ],
       "hotspots": [
-        { "id": "rumor_board", "label": "the rumor board", "x": 74, "y": 34, "text": "Cards pinned in Maren's careful hand: 'THE LIGHTHOUSE KEEPS ITS OWN WEATHER.' — 'LOW TIDE SHOWS THE BELL WRECK. BRASS STILL GOOD.' — 'THE CAVE WEST OF THE POINT: BRING LIGHT, LEAVE A NAIL.' Rumors like these put places on your map." },
-        { "id": "maren_rumor", "label": "ask Maren for the truth", "x": 40, "y": 40, "text": "You ask Maren what the light is in the lighthouse, if the lamp room is empty. She wipes a glass that is already clean. 'The Skyless Light doesn't cast light,' she says. 'It casts looking. People go to see what it sees. Mostly they come back.' She pours you the dark drink. 'Mostly.' (You have heard enough to find the lighthouse and the cave west of the point.)" }
+        {
+          "id": "rumor_board",
+          "label": "the rumor board",
+          "x": 74,
+          "y": 34,
+          "text": "Cards pinned in Maren's careful hand: 'THE LIGHTHOUSE KEEPS ITS OWN WEATHER.' — 'LOW TIDE SHOWS THE BELL WRECK. BRASS STILL GOOD.' — 'THE CAVE WEST OF THE POINT: BRING LIGHT, LEAVE A NAIL.' Rumors like these put places on your map."
+        },
+        {
+          "id": "maren_rumor",
+          "label": "ask Maren for the truth",
+          "x": 40,
+          "y": 40,
+          "text": "You ask Maren what the light is in the lighthouse, if the lamp room is empty. She wipes a glass that is already clean. 'The Skyless Light doesn't cast light,' she says. 'It casts looking. People go to see what it sees. Mostly they come back.' She pours you the dark drink. 'Mostly.' (You have heard enough to find the lighthouse and the cave west of the point.)"
+        }
       ],
       "on_enter": [
-        { "discover": "lighthouse" },
-        { "discover": "seacave" }
+        {
+          "discover": "lighthouse"
+        },
+        {
+          "discover": "seacave"
+        }
       ]
     },
     {
@@ -105,7 +178,9 @@
       "short": "The abandoned lighthouse on the point. Its beam casts no shadow.",
       "desc": "The lighthouse stands on black rock at the point, whitewash gone grey, windows like closed eyes. Its lamp room is empty — and yet on storm nights it sweeps the water with a beam that casts no shadow.",
       "known": false,
-      "requires": { "discovered": true },
+      "requires": {
+        "discovered": true
+      },
       "vignette": "lighthouse",
       "flavor": [
         "The stairwell whispers back a half-beat after your footsteps stop.",
@@ -113,11 +188,26 @@
         "Salt crusts the glass in patterns like fingerprints — dozens of sets."
       ],
       "hotspots": [
-        { "id": "keepers_log", "label": "the keeper's log", "x": 46, "y": 52, "text": "The last page: 'Signal from the drowned bay again. Nine lamps lit. It is asking for the name I promised I would never say. If anyone reads this, the lantern is in the rack — take it. A lit lantern is a promise you are a person. — K.' (You take the keeper's lantern. And a fact: someone was answering a signal across the water.)" }
+        {
+          "id": "keepers_log",
+          "label": "the keeper's log",
+          "x": 46,
+          "y": 52,
+          "text": "The last page: 'Signal from the drowned bay again. Nine lamps lit. It is asking for the name I promised I would never say. If anyone reads this, the lantern is in the rack — take it. A lit lantern is a promise you are a person. — K.' (You take the keeper's lantern. And a fact: someone was answering a signal across the water.)"
+        }
       ],
       "on_enter": [
-        { "fact": "The lighthouse's last keeper wrote of a signal from a drowned bay, nine lamps lit, asking for a name." }
-      ]
+        {
+          "fact": "The lighthouse's last keeper wrote of a signal from a drowned bay, nine lamps lit, asking for a name."
+        },
+        {
+          "clue": {
+            "thread_id": "ninth_wave",
+            "text": "The keeper's log speaks of a signal asking for a name — the ninth wave's count."
+          }
+        }
+      ],
+      "adventure": "skyless_light"
     },
     {
       "id": "seacave",
@@ -125,7 +215,10 @@
       "short": "Low tide only. Bring light; leave a nail.",
       "desc": "At low tide a cave opens in the bluff west of the point, its ceiling strung with old nails hammered in by travelers who followed Maren's advice. Deep in, a tide pool glows faintly green.",
       "known": false,
-      "requires": { "tide": "low", "discovered": true },
+      "requires": {
+        "tide": "low",
+        "discovered": true
+      },
       "vignette": "seacave",
       "flavor": [
         "The nails in the ceiling are all heads-out, as if hammered from inside the rock.",
@@ -133,11 +226,26 @@
         "Water drips upward, once, apologetically."
       ],
       "hotspots": [
-        { "id": "tide_pool", "label": "the glowing tide pool", "x": 55, "y": 60, "text": "In the pool: a salt-charm braided from kelp and wire, still warm, and the sense of being handed something across a great distance. You take the charm. (At low tide, the wreck of the Marrow Bell becomes visible past the point.)" }
+        {
+          "id": "tide_pool",
+          "label": "the glowing tide pool",
+          "x": 55,
+          "y": 60,
+          "text": "In the pool: a salt-charm braided from kelp and wire, still warm, and the sense of being handed something across a great distance. You take the charm. (At low tide, the wreck of the Marrow Bell becomes visible past the point.)"
+        }
       ],
       "on_enter": [
-        { "item_give": [ { "item_id": "salt_charm", "qty": 1 } ] },
-        { "discover": "wreck" }
+        {
+          "item_give": [
+            {
+              "item_id": "salt_charm",
+              "qty": 1
+            }
+          ]
+        },
+        {
+          "discover": "wreck"
+        }
       ]
     },
     {
@@ -146,7 +254,10 @@
       "short": "A salvage sloop aground at low tide. Her brass is still good.",
       "desc": "The Marrow Bell lies keeled in the sand like a beached leviathan, hull green with weed. Her bronze bell hangs silent in the bow, and below decks the dark keeps a careful, hold-your-breath order.",
       "known": false,
-      "requires": { "tide": "low", "discovered": true },
+      "requires": {
+        "tide": "low",
+        "discovered": true
+      },
       "vignette": "wreck",
       "flavor": [
         "The bell's clapper is missing. Cut, not rusted.",
@@ -154,10 +265,23 @@
         "Your footprints arrive before you do, by a step or two, in the wet sand."
       ],
       "hotspots": [
-        { "id": "captain_chest", "label": "the captain's chest", "x": 42, "y": 55, "text": "The chest is unlocked because it does not need to be locked. Inside: a brass key stamped with nine lamps, and a manifest that ends mid-sentence. (You take the brass key. Something in the drowned bay may want it back.)" }
+        {
+          "id": "captain_chest",
+          "label": "the captain's chest",
+          "x": 42,
+          "y": 55,
+          "text": "The chest is unlocked because it does not need to be locked. Inside: a brass key stamped with nine lamps, and a manifest that ends mid-sentence. (You take the brass key. Something in the drowned bay may want it back.)"
+        }
       ],
       "on_enter": [
-        { "item_give": [ { "item_id": "brass_key", "qty": 1 } ] }
+        {
+          "item_give": [
+            {
+              "item_id": "brass_key",
+              "qty": 1
+            }
+          ]
+        }
       ]
     },
     {
@@ -185,6 +309,45 @@
         "The embers drift upward, which is the wrong direction for falling stars.",
         "A waystone flips its pointing finger when it thinks you aren't watching.",
         "Distant music from the market stops between one step and the next."
+      ],
+      "adventure": "umbral_market"
+    },
+    {
+      "id": "ninth_wave",
+      "name": "The Ninth Wave",
+      "short": "A wave that came in once and never left.",
+      "desc": "A ninth wave stands on the beach where it came ashore, a wall of held water with a door in it, and through the door: the under-side of the sea, lit by every lantern ever lost overboard.",
+      "known": false,
+      "vignette": "seacave",
+      "flavor": [
+        "The wave holds, and the foam at its crest moves in slow motion.",
+        "Lost lanterns drift through the water-door like far-off streetlights.",
+        "For one moment your reflection arrives before you."
+      ],
+      "hotspots": [
+        {
+          "id": "water_door",
+          "label": "the standing water",
+          "x": 55,
+          "y": 46,
+          "text": "You look into the held wave and the held wave looks back, kindly, the way old dogs do. Somewhere in there, the count goes on — nine, nine, nine."
+        }
+      ],
+      "on_enter": [
+        {
+          "item_give": [
+            {
+              "item_id": "ninth_pearl",
+              "qty": 1
+            }
+          ]
+        },
+        {
+          "beads": 2
+        },
+        {
+          "fact": "I walked into the ninth wave and it gave me a pearl and two glassbeads, like a handshake."
+        }
       ]
     }
   ],
@@ -209,6 +372,13 @@
       "sealed": true,
       "door_index": 2,
       "seal_note": "Sealed for now — new universes arrive with the world-pack system (Milestone 2)."
+    },
+    {
+      "id": "door_unstable",
+      "label": "Unstable Door",
+      "unstable": true,
+      "door_index": 3,
+      "hint": "Whisper a seed — a word or short phrase — and somewhere new answers."
     }
   ],
   "npcs": [
@@ -244,6 +414,18 @@
       "location": "saltgrave_gate",
       "desc": "Soaked wool, a keeper's coat grown with weed, a face like wet paper holding the memory of a face. It carries a lamp that burns underwater.",
       "greeting": "\"You came,\" it says, in a voice like water finding stairs. \"Nobody comes. The lamps lit and lit, and nobody comes.\""
+    },
+    {
+      "id": "ledger_keeper",
+      "name": "Vess, Ledger-Keeper",
+      "role": "keeper of the Umbral Market's great ledger",
+      "location": "umbral_reach",
+      "desc": "Precise, courteous, absolutely serious. Every warm thing is owed, and she keeps the sums.",
+      "greeting": "\"You again,\" she says, kindly, though you have never been here. \"Or soon.\"",
+      "rumors": [
+        "\"The ninth entry in every ledger stays open. Ours is no exception.\"",
+        "\"Your shore pays in glassbeads. Beads are hours, polished. Spend them like time.\""
+      ]
     }
   ],
   "archetypes": [
@@ -251,78 +433,433 @@
       "id": "sensitive",
       "name": "Sensitive",
       "blurb": "You feel names the way others feel weather. The shore shows you its seams.",
-      "stats": { "wits": 1, "might": -1, "mettle": 0, "bind": 2 },
+      "stats": {
+        "wits": 1,
+        "might": -1,
+        "mettle": 0,
+        "bind": 2
+      },
       "palette": "violet",
-      "kit": ["salt_charm", "grandmothers_journal", "chalk"]
+      "kit": [
+        "salt_charm",
+        "grandmothers_journal",
+        "chalk"
+      ]
     },
     {
       "id": "warden",
       "name": "Warden",
       "blurb": "You have put yourself between the dark and someone smaller before. The habit holds.",
-      "stats": { "wits": 0, "might": 2, "mettle": 1, "bind": -1 },
+      "stats": {
+        "wits": 0,
+        "might": 2,
+        "mettle": 1,
+        "bind": -1
+      },
       "palette": "iron",
-      "kit": ["tide_iron_cudgel", "storm_lantern", "rations"]
+      "kit": [
+        "tide_iron_cudgel",
+        "storm_lantern",
+        "rations"
+      ]
     },
     {
       "id": "deepwright",
       "name": "Deepwright",
       "blurb": "Salvage, snares, clockwork patience. You fix what the sea gives back.",
-      "stats": { "wits": 2, "might": 0, "mettle": -1, "bind": 0 },
+      "stats": {
+        "wits": 2,
+        "might": 0,
+        "mettle": -1,
+        "bind": 0
+      },
       "palette": "brass",
-      "kit": ["tool_roll", "brass_fittings", "lamp_oil"]
+      "kit": [
+        "tool_roll",
+        "brass_fittings",
+        "lamp_oil"
+      ]
     },
     {
       "id": "lanternist",
       "name": "Lanternist",
       "blurb": "You took the Lantern Law as a vow, not a convenience. Doors respect that.",
-      "stats": { "wits": 0, "might": -1, "mettle": 2, "bind": 1 },
+      "stats": {
+        "wits": 0,
+        "might": -1,
+        "mettle": 2,
+        "bind": 1
+      },
       "palette": "ember",
-      "kit": ["keepers_lantern", "oil_flask", "ward_paper"]
+      "kit": [
+        "keepers_lantern",
+        "oil_flask",
+        "ward_paper"
+      ]
     }
   ],
   "items": [
-    { "id": "salt_charm", "name": "Salt-charm", "kind": "charm", "desc": "Braided kelp and wire, warm to the touch.", "use": { "text": "The charm tightens like a held hand, then relaxes.", "heal": { "nerve": 1 }, "consume": true } },
-    { "id": "grandmothers_journal", "name": "Grandmother's journal", "kind": "lore", "desc": "Water-stained pages of names, each one crossed out carefully, lovingly.", "use": { "text": "You read a page. One of the names in it is shorter than it was yesterday.", "fact": "Grandmother's journal lists true names, carefully crossed out — one is fresh." } },
-    { "id": "chalk", "name": "Chalk", "kind": "tool", "desc": "For marking doors that should stay shut.", "use": { "text": "You draw a clean line on the ground. The dark on the other side of it considers, and does not cross.", "flag": "chalk_line" } },
-    { "id": "tide_iron_cudgel", "name": "Tide-iron cudgel", "kind": "weapon", "desc": "Heavy, salt-pitted, honest.", "use": { "text": "You roll your wrist. The cudgel settles like it remembers." } },
-    { "id": "storm_lantern", "name": "Storm lantern", "kind": "light", "desc": "Glass-shielded flame, steady in wind.", "use": { "text": "You trim the wick. The dark steps back a polite distance.", "flag": "light_lit" } },
-    { "id": "rations", "name": "Rations", "kind": "provision", "desc": "Dense, dry, absolutely dependable.", "use": { "text": "You eat. Simple, human, good.", "heal": { "vigor": 2 }, "consume": true } },
-    { "id": "tool_roll", "name": "Tool roll", "kind": "tool", "desc": "Wrenches, picks, and a tiny hammer for tiny doors.", "use": { "text": "You lay the tools out. Everything has a place, and for a moment the world does too." } },
-    { "id": "brass_fittings", "name": "Brass fittings", "kind": "tool", "desc": "Assorted hinges and hasps, some from doors you don't recognize.", "use": { "text": "One fitting is warm. You set it back gently, the way you'd return a sleeping cat." } },
-    { "id": "lamp_oil", "name": "Lamp oil", "kind": "light", "desc": "One refill, sealed against the wet.", "use": { "text": "You top up a lantern. The flame stands up straighter.", "flag": "light_lit" } },
-    { "id": "keepers_lantern", "name": "Keeper's lantern", "kind": "light", "desc": "The lighthouse keeper's own: burnished, heavy, alive with a steady flame.", "use": { "text": "The flame leans toward whatever you face, like a compass made of promise.", "flag": "light_lit" } },
-    { "id": "oil_flask", "name": "Oil flask", "kind": "light", "desc": "Sanctified lamp oil. It burns even underwater, once.", "use": { "text": "You crack the seal. The smell is incense and harbors.", "flag": "oil_blessed" } },
-    { "id": "ward_paper", "name": "Ward-paper", "kind": "charm", "desc": "Folded paper inked with the Lantern Law, in a keeper's hand.", "use": { "text": "You unfold the words. For a breath, you can hear which way the nearest hunger is leaning.", "fact": "Ward-paper lets you feel hungers leaning nearby.", "consume": true } },
-    { "id": "brass_key", "name": "Brass key, nine lamps", "kind": "key", "desc": "Stamped with nine lamps in a ring. Salvaged from the Marrow Bell.", "use": { "text": "The key is heavier than brass should be. Somewhere far off, nine lamps flicker in greeting." } },
-    { "id": "dried_kelp", "name": "Dried kelp ribbon", "kind": "provision", "desc": "Chewy, mineral, better than it sounds.", "use": { "text": "You chew. The sea consents to feed you.", "heal": { "vigor": 1 }, "consume": true } },
-    { "id": "callers_name", "name": "The Caller's Name", "kind": "relic", "desc": "Small as a coin, heavy as an anchor. The true name of what speaks from the drowned bay — and its leash.", "use": { "text": "You turn it over in your palm. Far away, something enormous rolls over in its sleep and dreams of your voice." } },
-    { "id": "marrow_bell_shard", "name": "Marrow Bell shard", "kind": "relic", "desc": "A broken wedge of bronze from the drowned bay's beacon bell, still humming one stubborn note.", "use": { "text": "You hold it to your ear. The note is patient. It will hum as long as you do." } }
+    {
+      "id": "salt_charm",
+      "name": "Salt-charm",
+      "kind": "charm",
+      "desc": "Braided kelp and wire, warm to the touch.",
+      "use": {
+        "text": "The charm tightens like a held hand, then relaxes.",
+        "heal": {
+          "nerve": 1
+        },
+        "consume": true
+      }
+    },
+    {
+      "id": "grandmothers_journal",
+      "name": "Grandmother's journal",
+      "kind": "lore",
+      "desc": "Water-stained pages of names, each one crossed out carefully, lovingly.",
+      "use": {
+        "text": "You read a page. One of the names in it is shorter than it was yesterday.",
+        "fact": "Grandmother's journal lists true names, carefully crossed out — one is fresh."
+      }
+    },
+    {
+      "id": "chalk",
+      "name": "Chalk",
+      "kind": "tool",
+      "desc": "For marking doors that should stay shut.",
+      "use": {
+        "text": "You draw a clean line on the ground. The dark on the other side of it considers, and does not cross.",
+        "flag": "chalk_line"
+      }
+    },
+    {
+      "id": "tide_iron_cudgel",
+      "name": "Tide-iron cudgel",
+      "kind": "weapon",
+      "desc": "Heavy, salt-pitted, honest.",
+      "use": {
+        "text": "You roll your wrist. The cudgel settles like it remembers."
+      }
+    },
+    {
+      "id": "storm_lantern",
+      "name": "Storm lantern",
+      "kind": "light",
+      "desc": "Glass-shielded flame, steady in wind.",
+      "use": {
+        "text": "You trim the wick. The dark steps back a polite distance.",
+        "flag": "light_lit"
+      }
+    },
+    {
+      "id": "rations",
+      "name": "Rations",
+      "kind": "provision",
+      "desc": "Dense, dry, absolutely dependable.",
+      "use": {
+        "text": "You eat. Simple, human, good.",
+        "heal": {
+          "vigor": 2
+        },
+        "consume": true
+      }
+    },
+    {
+      "id": "tool_roll",
+      "name": "Tool roll",
+      "kind": "tool",
+      "desc": "Wrenches, picks, and a tiny hammer for tiny doors.",
+      "use": {
+        "text": "You lay the tools out. Everything has a place, and for a moment the world does too."
+      }
+    },
+    {
+      "id": "brass_fittings",
+      "name": "Brass fittings",
+      "kind": "tool",
+      "desc": "Assorted hinges and hasps, some from doors you don't recognize.",
+      "use": {
+        "text": "One fitting is warm. You set it back gently, the way you'd return a sleeping cat."
+      }
+    },
+    {
+      "id": "lamp_oil",
+      "name": "Lamp oil",
+      "kind": "light",
+      "desc": "One refill, sealed against the wet.",
+      "use": {
+        "text": "You top up a lantern. The flame stands up straighter.",
+        "flag": "light_lit"
+      }
+    },
+    {
+      "id": "keepers_lantern",
+      "name": "Keeper's lantern",
+      "kind": "light",
+      "desc": "The lighthouse keeper's own: burnished, heavy, alive with a steady flame.",
+      "use": {
+        "text": "The flame leans toward whatever you face, like a compass made of promise.",
+        "flag": "light_lit"
+      }
+    },
+    {
+      "id": "oil_flask",
+      "name": "Oil flask",
+      "kind": "light",
+      "desc": "Sanctified lamp oil. It burns even underwater, once.",
+      "use": {
+        "text": "You crack the seal. The smell is incense and harbors.",
+        "flag": "oil_blessed"
+      }
+    },
+    {
+      "id": "ward_paper",
+      "name": "Ward-paper",
+      "kind": "charm",
+      "desc": "Folded paper inked with the Lantern Law, in a keeper's hand.",
+      "use": {
+        "text": "You unfold the words. For a breath, you can hear which way the nearest hunger is leaning.",
+        "fact": "Ward-paper lets you feel hungers leaning nearby.",
+        "consume": true
+      }
+    },
+    {
+      "id": "brass_key",
+      "name": "Brass key, nine lamps",
+      "kind": "key",
+      "desc": "Stamped with nine lamps in a ring. Salvaged from the Marrow Bell.",
+      "use": {
+        "text": "The key is heavier than brass should be. Somewhere far off, nine lamps flicker in greeting."
+      }
+    },
+    {
+      "id": "dried_kelp",
+      "name": "Dried kelp ribbon",
+      "kind": "provision",
+      "desc": "Chewy, mineral, better than it sounds.",
+      "use": {
+        "text": "You chew. The sea consents to feed you.",
+        "heal": {
+          "vigor": 1
+        },
+        "consume": true
+      }
+    },
+    {
+      "id": "callers_name",
+      "name": "The Caller's Name",
+      "kind": "relic",
+      "desc": "Small as a coin, heavy as an anchor. The true name of what speaks from the drowned bay — and its leash.",
+      "use": {
+        "text": "You turn it over in your palm. Far away, something enormous rolls over in its sleep and dreams of your voice."
+      }
+    },
+    {
+      "id": "marrow_bell_shard",
+      "name": "Marrow Bell shard",
+      "kind": "relic",
+      "desc": "A broken wedge of bronze from the drowned bay's beacon bell, still humming one stubborn note.",
+      "use": {
+        "text": "You hold it to your ear. The note is patient. It will hum as long as you do."
+      }
+    },
+    {
+      "id": "umbral_token",
+      "name": "Umbral token",
+      "kind": "relic",
+      "desc": "A coin of pressed shadow, warm on one side only.",
+      "use": {
+        "text": "The token's warm side swings toward the nearest door.",
+        "fact": "The umbral token points, when held, toward whatever door is nearest."
+      }
+    },
+    {
+      "id": "watchers_eye",
+      "name": "The Watcher's Eye",
+      "kind": "relic",
+      "desc": "A lens that shows a room as the lighthouse once saw it.",
+      "use": {
+        "text": "Through the eye, the shore appears from above: patient, mapped, remembered.",
+        "fact": "The Watcher's Eye shows the shore from above when held.",
+        "flag": "eye_of_the_light"
+      }
+    },
+    {
+      "id": "ninth_pearl",
+      "name": "Ninth Wave pearl",
+      "kind": "relic",
+      "desc": "Cold, salt-clear, holding one wave's worth of ocean.",
+      "use": {
+        "text": "You drink the wave. It is restorative beyond reason.",
+        "heal": {
+          "vigor": 2,
+          "nerve": 2
+        },
+        "consume": true
+      }
+    }
   ],
   "omens": [
-    { "id": "om001", "kind": "edge", "title": "Knotluck", "text": "A fisherman's knot you tied in childhood remembers its business.", "boost": "endure" },
-    { "id": "om002", "kind": "edge", "title": "Third-Eye Weather", "text": "The air tells you what it is hiding before you ask.", "boost": "notice" },
-    { "id": "om003", "kind": "edge", "title": "The Kind Word", "text": "Something in you is easy to trust tonight, and knows it.", "boost": "persuade" },
-    { "id": "om004", "kind": "edge", "title": "Name on the Tongue", "text": "You wake with someone's true name halfway formed in your mouth.", "boost": "bind" },
-    { "id": "om005", "kind": "edge", "title": "Sea Legs", "text": "The ground pretends to be a deck, and your body approves.", "boost": "fight" },
-    { "id": "om006", "kind": "edge", "title": "Lamplight Memory", "text": "You recall exactly how the old keepers trimmed their wicks.", "boost": "lore" },
-    { "id": "om007", "kind": "edge", "title": "Salt in the Blood", "text": "The sea briefly mistakes you for one of its own and lets you pass.", "boost": "endure" },
-    { "id": "om008", "kind": "edge", "title": "Pocket Gale", "text": "A helpful wind lives in your cuff until you need it.", "boost": "any" },
-    { "id": "om009", "kind": "complication", "title": "The Ebb Pulls", "text": "Everything you set down drifts a little further from hand.", "boost": "any" },
-    { "id": "om010", "kind": "complication", "title": "Cold Check", "text": "Someone counts your footsteps behind you, badly, on purpose.", "boost": "any" },
-    { "id": "om011", "kind": "complication", "title": "Wet Wicks", "text": "Every flame you carry shrinks to a thought and stays there.", "boost": "any" },
-    { "id": "om012", "kind": "complication", "title": "The Wrong Gull", "text": "A gull follows you, mocking your voice in your voice.", "boost": "any" },
-    { "id": "om013", "kind": "complication", "title": "Slow Doors", "text": "Hinges everywhere groan with held-back meaning.", "boost": "any" },
-    { "id": "om014", "kind": "complication", "title": "Salt in the Wound", "text": "An old ache picks tonight to file a complaint.", "boost": "any" },
-    { "id": "om015", "kind": "complication", "title": "Interference", "text": "The Beam crackles, and every name you try to say arrives wrong.", "boost": "any" },
-    { "id": "om016", "kind": "complication", "title": "Unquiet Rigging", "text": "Ropes and wires tighten somewhere out of sight.", "boost": "any" },
-    { "id": "om017", "kind": "turn", "title": "A Gull's Shadow", "text": "A gull crosses the moon and its shadow arrives first, wearing a hat." },
-    { "id": "om018", "kind": "turn", "title": "The Second Tide", "text": "A tide comes in from the wrong direction, gently, and goes back." },
-    { "id": "om019", "kind": "turn", "title": "Doors at Dusk", "text": "Every door you pass sighs as you go by, like ushers at the end of a play." },
-    { "id": "om020", "kind": "turn", "title": "The Patient Bell", "text": "Somewhere, a bell rings once. No wind explains it. You decide not to." },
-    { "id": "om021", "kind": "turn", "title": "Fellow Travelers", "text": "Two strangers nod to you like colleagues. You have no memory of the shared job." },
-    { "id": "om022", "kind": "turn", "title": "The Offering", "text": "A perfect unbroken crab shell sits in your path, empty, polished, deliberate." },
-    { "id": "om023", "kind": "turn", "title": "Low Thunder", "text": "Thunder with no storm. The horizon apologizes without explaining." },
-    { "id": "om024", "kind": "turn", "title": "The Name in the Foam", "text": "For one wave, the foam spells a word you almost read before it dissolves." }
+    {
+      "id": "om001",
+      "kind": "edge",
+      "title": "Knotluck",
+      "text": "A fisherman's knot you tied in childhood remembers its business.",
+      "boost": "endure"
+    },
+    {
+      "id": "om002",
+      "kind": "edge",
+      "title": "Third-Eye Weather",
+      "text": "The air tells you what it is hiding before you ask.",
+      "boost": "notice"
+    },
+    {
+      "id": "om003",
+      "kind": "edge",
+      "title": "The Kind Word",
+      "text": "Something in you is easy to trust tonight, and knows it.",
+      "boost": "persuade"
+    },
+    {
+      "id": "om004",
+      "kind": "edge",
+      "title": "Name on the Tongue",
+      "text": "You wake with someone's true name halfway formed in your mouth.",
+      "boost": "bind"
+    },
+    {
+      "id": "om005",
+      "kind": "edge",
+      "title": "Sea Legs",
+      "text": "The ground pretends to be a deck, and your body approves.",
+      "boost": "fight"
+    },
+    {
+      "id": "om006",
+      "kind": "edge",
+      "title": "Lamplight Memory",
+      "text": "You recall exactly how the old keepers trimmed their wicks.",
+      "boost": "lore"
+    },
+    {
+      "id": "om007",
+      "kind": "edge",
+      "title": "Salt in the Blood",
+      "text": "The sea briefly mistakes you for one of its own and lets you pass.",
+      "boost": "endure"
+    },
+    {
+      "id": "om008",
+      "kind": "edge",
+      "title": "Pocket Gale",
+      "text": "A helpful wind lives in your cuff until you need it.",
+      "boost": "any"
+    },
+    {
+      "id": "om009",
+      "kind": "complication",
+      "title": "The Ebb Pulls",
+      "text": "Everything you set down drifts a little further from hand.",
+      "boost": "any"
+    },
+    {
+      "id": "om010",
+      "kind": "complication",
+      "title": "Cold Check",
+      "text": "Someone counts your footsteps behind you, badly, on purpose.",
+      "boost": "any"
+    },
+    {
+      "id": "om011",
+      "kind": "complication",
+      "title": "Wet Wicks",
+      "text": "Every flame you carry shrinks to a thought and stays there.",
+      "boost": "any"
+    },
+    {
+      "id": "om012",
+      "kind": "complication",
+      "title": "The Wrong Gull",
+      "text": "A gull follows you, mocking your voice in your voice.",
+      "boost": "any"
+    },
+    {
+      "id": "om013",
+      "kind": "complication",
+      "title": "Slow Doors",
+      "text": "Hinges everywhere groan with held-back meaning.",
+      "boost": "any"
+    },
+    {
+      "id": "om014",
+      "kind": "complication",
+      "title": "Salt in the Wound",
+      "text": "An old ache picks tonight to file a complaint.",
+      "boost": "any"
+    },
+    {
+      "id": "om015",
+      "kind": "complication",
+      "title": "Interference",
+      "text": "The Beam crackles, and every name you try to say arrives wrong.",
+      "boost": "any"
+    },
+    {
+      "id": "om016",
+      "kind": "complication",
+      "title": "Unquiet Rigging",
+      "text": "Ropes and wires tighten somewhere out of sight.",
+      "boost": "any"
+    },
+    {
+      "id": "om017",
+      "kind": "turn",
+      "title": "A Gull's Shadow",
+      "text": "A gull crosses the moon and its shadow arrives first, wearing a hat."
+    },
+    {
+      "id": "om018",
+      "kind": "turn",
+      "title": "The Second Tide",
+      "text": "A tide comes in from the wrong direction, gently, and goes back."
+    },
+    {
+      "id": "om019",
+      "kind": "turn",
+      "title": "Doors at Dusk",
+      "text": "Every door you pass sighs as you go by, like ushers at the end of a play."
+    },
+    {
+      "id": "om020",
+      "kind": "turn",
+      "title": "The Patient Bell",
+      "text": "Somewhere, a bell rings once. No wind explains it. You decide not to."
+    },
+    {
+      "id": "om021",
+      "kind": "turn",
+      "title": "Fellow Travelers",
+      "text": "Two strangers nod to you like colleagues. You have no memory of the shared job."
+    },
+    {
+      "id": "om022",
+      "kind": "turn",
+      "title": "The Offering",
+      "text": "A perfect unbroken crab shell sits in your path, empty, polished, deliberate."
+    },
+    {
+      "id": "om023",
+      "kind": "turn",
+      "title": "Low Thunder",
+      "text": "Thunder with no storm. The horizon apologizes without explaining."
+    },
+    {
+      "id": "om024",
+      "kind": "turn",
+      "title": "The Name in the Foam",
+      "text": "For one wave, the foam spells a word you almost read before it dissolves."
+    }
   ],
   "adventures": [
     {
@@ -333,8 +870,17 @@
       "entry": "sg_arrival",
       "summary": "A drowned bay is broadcasting a name in lamplight. Someone has to answer, answer for, or end the signal.",
       "on_enter": [
-        { "quest_update": { "quest_id": "salt_grave", "title": "The Salt-Grave Signal", "status": "open", "note": "Something in the drowned bay is saying a name in lamplight." } },
-        { "fact": "Through the Door of Salt lies a drowned bay with nine cold lanterns on the far shore." }
+        {
+          "quest_update": {
+            "quest_id": "salt_grave",
+            "title": "The Salt-Grave Signal",
+            "status": "open",
+            "note": "Something in the drowned bay is saying a name in lamplight."
+          }
+        },
+        {
+          "fact": "Through the Door of Salt lies a drowned bay with nine cold lanterns on the far shore."
+        }
       ],
       "scenes": {
         "sg_arrival": {
@@ -348,8 +894,20 @@
             "A lamp swings somewhere behind the town's terraces, above the waterline."
           ],
           "hotspots": [
-            { "id": "lanterns", "label": "the nine lanterns", "x": 62, "y": 46, "text": "Nine lamps in a row, burning underwater without bubbling. Count them twice: the second time there is a tenth, dark, waiting to be earned." },
-            { "id": "drowned_town", "label": "the drowned terraces", "x": 30, "y": 50, "text": "Doors and windows underfoot, all standing open. Kelp hangs from lintels like curtains drawn courteously aside." }
+            {
+              "id": "lanterns",
+              "label": "the nine lanterns",
+              "x": 62,
+              "y": 46,
+              "text": "Nine lamps in a row, burning underwater without bubbling. Count them twice: the second time there is a tenth, dark, waiting to be earned."
+            },
+            {
+              "id": "drowned_town",
+              "label": "the drowned terraces",
+              "x": 30,
+              "y": 50,
+              "text": "Doors and windows underfoot, all standing open. Kelp hangs from lintels like curtains drawn courteously aside."
+            }
           ],
           "choices": [
             {
@@ -357,34 +915,58 @@
               "label": "Follow the shoreline toward the lanterns",
               "hint": "The long way, on land.",
               "goto": "sg_shoreline",
-              "effects": { "journal": "Circled the drowned bay along the shoreline, toward the nine lanterns." }
+              "effects": {
+                "journal": "Circled the drowned bay along the shoreline, toward the nine lanterns."
+              }
             },
             {
               "id": "call_out",
               "label": "Call out across the water",
               "hint": "Bind — answer the signal directly.",
-              "check": { "skill": "bind", "hard": false, "riptide_counts_pass": true },
+              "check": {
+                "skill": "bind",
+                "hard": false,
+                "riptide_counts_pass": true
+              },
               "on_pass": {
                 "goto": "sg_stair",
-                "effects": { "fact": "The signal answered you back, once, in your own voice, politely.", "journal": "Called across the water. Something answered in my own voice, politely." }
+                "effects": {
+                  "fact": "The signal answered you back, once, in your own voice, politely.",
+                  "journal": "Called across the water. Something answered in my own voice, politely."
+                }
               },
               "on_fail": {
                 "goto": "sg_shoreline",
-                "effects": { "harm": { "type": "nerve", "amount": 2 }, "journal": "Called across the water. The water called back with too many voices, and something of me stayed in the echo." }
+                "effects": {
+                  "harm": {
+                    "type": "nerve",
+                    "amount": 2
+                  },
+                  "journal": "Called across the water. The water called back with too many voices, and something of me stayed in the echo."
+                }
               }
             },
             {
               "id": "study_signal",
               "label": "Study the lantern rhythm first",
               "hint": "Lore — read the signal before touching it.",
-              "check": { "skill": "lore", "hard": false },
+              "check": {
+                "skill": "lore",
+                "hard": false
+              },
               "on_pass": {
                 "goto": "sg_shoreline",
-                "effects": { "fact": "The lantern rhythm is a keeper's distress code: 'light lost, keeper holding, name requested.'", "journal": "Read the lantern rhythm: a keeper's distress code. 'Light lost, keeper holding, name requested.'" }
+                "effects": {
+                  "fact": "The lantern rhythm is a keeper's distress code: 'light lost, keeper holding, name requested.'",
+                  "journal": "Read the lantern rhythm: a keeper's distress code. 'Light lost, keeper holding, name requested.'"
+                }
               },
               "on_fail": {
                 "goto": "sg_shoreline",
-                "effects": { "fact": "The lantern rhythm almost reads as a keeper's code — but one beat is wrong, deliberately.", "journal": "Tried to read the lantern rhythm. One beat is wrong. Deliberately." }
+                "effects": {
+                  "fact": "The lantern rhythm almost reads as a keeper's code — but one beat is wrong, deliberately.",
+                  "journal": "Tried to read the lantern rhythm. One beat is wrong. Deliberately."
+                }
               }
             }
           ]
@@ -400,16 +982,40 @@
             "The tower keyhole breathes warm air out, in, out."
           ],
           "hotspots": [
-            { "id": "flooded_stair", "label": "the flooded stair", "x": 48, "y": 58, "text": "Green light below, rising and falling like a sleeping pulse. Wet footprints lead down — none come up." }
+            {
+              "id": "flooded_stair",
+              "label": "the flooded stair",
+              "x": 48,
+              "y": 58,
+              "text": "Green light below, rising and falling like a sleeping pulse. Wet footprints lead down — none come up."
+            }
           ],
           "choices": [
             {
               "id": "descend_stair",
               "label": "Descend the Lampkeeper's stair",
               "hint": "Down into the flooded signal-house.",
-              "check": { "skill": "endure", "hard": false },
-              "on_pass": { "goto": "sg_stair", "effects": { "journal": "Descended the stair into the flooded signal-house." } },
-              "on_fail": { "goto": "sg_stair", "effects": { "harm": { "type": "vigor", "amount": 1 }, "fact": "Something in the flooded dark took one careful taste on the way down.", "journal": "Descended the stair. Something in the dark took one careful taste." } }
+              "check": {
+                "skill": "endure",
+                "hard": false
+              },
+              "on_pass": {
+                "goto": "sg_stair",
+                "effects": {
+                  "journal": "Descended the stair into the flooded signal-house."
+                }
+              },
+              "on_fail": {
+                "goto": "sg_stair",
+                "effects": {
+                  "harm": {
+                    "type": "vigor",
+                    "amount": 1
+                  },
+                  "fact": "Something in the flooded dark took one careful taste on the way down.",
+                  "journal": "Descended the stair. Something in the dark took one careful taste."
+                }
+              }
             },
             {
               "id": "climb_tower",
@@ -418,22 +1024,44 @@
               "requires_item": "brass_key",
               "locked_hint": "The brass-banded door needs a key stamped with nine lamps. The wreckline whispers of a salvage sloop named Marrow Bell, far away at low tide.",
               "goto": "sg_signal_room",
-              "effects": { "journal": "Unlocked the signal room with the nine-lamp key from the Marrow Bell." }
+              "effects": {
+                "journal": "Unlocked the signal room with the nine-lamp key from the Marrow Bell."
+              }
             },
             {
               "id": "force_tower",
               "label": "Force the signal room door",
               "hint": "Might — the brass is old, the door is not.",
-              "check": { "skill": "fight", "hard": true },
-              "on_pass": { "goto": "sg_signal_room", "effects": { "journal": "Shoulder through the signal room door, brass and all." } },
-              "on_fail": { "goto": "sg_shoreline", "effects": { "harm": { "type": "vigor", "amount": 2 }, "fact": "The door took the blow and kept the sound. Everything in the bay heard it.", "journal": "The signal room door refused me, loudly. The whole bay heard." } }
+              "check": {
+                "skill": "fight",
+                "hard": true
+              },
+              "on_pass": {
+                "goto": "sg_signal_room",
+                "effects": {
+                  "journal": "Shoulder through the signal room door, brass and all."
+                }
+              },
+              "on_fail": {
+                "goto": "sg_shoreline",
+                "effects": {
+                  "harm": {
+                    "type": "vigor",
+                    "amount": 2
+                  },
+                  "fact": "The door took the blow and kept the sound. Everything in the bay heard it.",
+                  "journal": "The signal room door refused me, loudly. The whole bay heard."
+                }
+              }
             },
             {
               "id": "leave_bay",
               "label": "Return to the Door of Salt",
               "hint": "The door always lets you out.",
               "goto": "sg_door",
-              "effects": { "journal": "Walked back to the Door of Salt without answering the signal. It kept saying the name, patiently." }
+              "effects": {
+                "journal": "Walked back to the Door of Salt without answering the signal. It kept saying the name, patiently."
+              }
             }
           ]
         },
@@ -448,7 +1076,13 @@
             "When it blinks, the whole room blinks."
           ],
           "hotspots": [
-            { "id": "switchboard", "label": "the name-switchboard", "x": 52, "y": 48, "text": "Rows of brass switches, each stamped with a name. One is stamped with nine lamps, worn bright by use. The Lampkeeper keeps its hand an inch from it, always." }
+            {
+              "id": "switchboard",
+              "label": "the name-switchboard",
+              "x": 52,
+              "y": 48,
+              "text": "Rows of brass switches, each stamped with a name. One is stamped with nine lamps, worn bright by use. The Lampkeeper keeps its hand an inch from it, always."
+            }
           ],
           "choices": [
             {
@@ -456,34 +1090,75 @@
               "label": "Ask it about the signal",
               "hint": "What is being said, and to whom.",
               "goto": "sg_signal_room",
-              "effects": { "fact": "The Lampkeeper confessed: the signal asks for the keeper's true name. It gave its own long ago and has been holding the line since.", "journal": "The Lampkeeper told me: the signal asks for a true name. It has been holding the line with its own." }
+              "effects": {
+                "fact": "The Lampkeeper confessed: the signal asks for the keeper's true name. It gave its own long ago and has been holding the line since.",
+                "journal": "The Lampkeeper told me: the signal asks for a true name. It has been holding the line with its own."
+              }
             },
             {
               "id": "share_warmth",
               "label": "Share your light with it",
               "hint": "Bind — the Lantern Law, honored.",
-              "check": { "skill": "bind", "hard": false },
+              "check": {
+                "skill": "bind",
+                "hard": false
+              },
               "on_pass": {
                 "goto": "sg_signal_room",
-                "effects": { "item_give": [ { "item_id": "keepers_lantern", "qty": 1 } ], "npc_rel": { "npc_id": "drowned_lampkeeper", "delta": 1 }, "fact": "The Drowned Lampkeeper owes me a light and a favor.", "journal": "Shared my light with the Lampkeeper. It gave me the keeper's lantern and its thanks." }
+                "effects": {
+                  "item_give": [
+                    {
+                      "item_id": "keepers_lantern",
+                      "qty": 1
+                    }
+                  ],
+                  "npc_rel": {
+                    "npc_id": "drowned_lampkeeper",
+                    "delta": 1
+                  },
+                  "fact": "The Drowned Lampkeeper owes me a light and a favor.",
+                  "journal": "Shared my light with the Lampkeeper. It gave me the keeper's lantern and its thanks."
+                }
               },
               "on_fail": {
                 "goto": "sg_signal_room",
-                "effects": { "harm": { "type": "nerve", "amount": 1 }, "journal": "Offered my light to the Lampkeeper. It wept seawater and could not take it. Something in me went cold." }
+                "effects": {
+                  "harm": {
+                    "type": "nerve",
+                    "amount": 1
+                  },
+                  "journal": "Offered my light to the Lampkeeper. It wept seawater and could not take it. Something in me went cold."
+                }
               }
             },
             {
               "id": "demand_name",
               "label": "Demand it give you the name",
               "hint": "Mettle — take the leash in hand.",
-              "check": { "skill": "persuade", "hard": true },
+              "check": {
+                "skill": "persuade",
+                "hard": true
+              },
               "on_pass": {
                 "goto": "sg_signal_room",
-                "effects": { "fact": "I pried the Lampkeeper's true name out of it. The name tastes like a hook.", "journal": "Made the Lampkeeper give up its true name. It obeys now. I am not sure that was mercy." }
+                "effects": {
+                  "fact": "I pried the Lampkeeper's true name out of it. The name tastes like a hook.",
+                  "journal": "Made the Lampkeeper give up its true name. It obeys now. I am not sure that was mercy."
+                }
               },
               "on_fail": {
                 "goto": "sg_shoreline",
-                "effects": { "harm": { "type": "nerve", "amount": 2 }, "npc_rel": { "npc_id": "drowned_lampkeeper", "delta": -1 }, "journal": "Demanded the Lampkeeper's name. It receded like a tide going out, and the stair behind me was suddenly longer." }
+                "effects": {
+                  "harm": {
+                    "type": "nerve",
+                    "amount": 2
+                  },
+                  "npc_rel": {
+                    "npc_id": "drowned_lampkeeper",
+                    "delta": -1
+                  },
+                  "journal": "Demanded the Lampkeeper's name. It receded like a tide going out, and the stair behind me was suddenly longer."
+                }
               }
             }
           ]
@@ -499,7 +1174,13 @@
             "Salt fog crawls up the window from outside, as if the sea wants to see this too."
           ],
           "hotspots": [
-            { "id": "beacon_cage", "label": "the beacon mechanism", "x": 44, "y": 36, "text": "A lever, a lamp housing, and a socket stamped with nine lamps. The mechanism is not broken. It is waiting." }
+            {
+              "id": "beacon_cage",
+              "label": "the beacon mechanism",
+              "x": 44,
+              "y": 36,
+              "text": "A lever, a lamp housing, and a socket stamped with nine lamps. The mechanism is not broken. It is waiting."
+            }
           ],
           "choices": [
             {
@@ -509,7 +1190,11 @@
               "goto": "sg_signal_room",
               "effects": {
                 "ending": "beacon_lit",
-                "quest_update": { "quest_id": "salt_grave", "status": "done", "note": "Lit the beacon. The signal ended; the Lampkeeper stood down, at last, in peace." },
+                "quest_update": {
+                  "quest_id": "salt_grave",
+                  "status": "done",
+                  "note": "Lit the beacon. The signal ended; the Lampkeeper stood down, at last, in peace."
+                },
                 "fact": "I lit the beacon in the drowned bay. The signal is over; the Lampkeeper is free.",
                 "journal": "Lit the beacon. Nine lamps went out like a held breath released. Somewhere above, a gull — an ordinary gull — cried once."
               }
@@ -518,12 +1203,24 @@
               "id": "answer_call",
               "label": "Answer the call",
               "hint": "Bind, hard — take the Caller's Name and its leash.",
-              "check": { "skill": "bind", "hard": true },
+              "check": {
+                "skill": "bind",
+                "hard": true
+              },
               "on_pass": {
                 "effects": {
                   "ending": "pact",
-                  "quest_update": { "quest_id": "salt_grave", "status": "done", "note": "Answered the signal. The Caller's Name is mine now, and its leash is in my hand." },
-                  "item_give": [ { "item_id": "callers_name", "qty": 1 } ],
+                  "quest_update": {
+                    "quest_id": "salt_grave",
+                    "status": "done",
+                    "note": "Answered the signal. The Caller's Name is mine now, and its leash is in my hand."
+                  },
+                  "item_give": [
+                    {
+                      "item_id": "callers_name",
+                      "qty": 1
+                    }
+                  ],
                   "hidden_fact": "The Caller that offered the pact was the bay itself. It has wanted out for a hundred years. It will remember the hand that let it hold the leash.",
                   "fact": "I answered the signal and took the Caller's Name.",
                   "journal": "Answered the call. The bay exhaled, and something enormous and grateful knows my voice now."
@@ -532,9 +1229,16 @@
               "on_fail": {
                 "effects": {
                   "ending": "taken",
-                  "quest_update": { "quest_id": "salt_grave", "status": "failed", "note": "Answered the signal unready. The bay took my name and left me my shadow." },
+                  "quest_update": {
+                    "quest_id": "salt_grave",
+                    "status": "failed",
+                    "note": "Answered the signal unready. The bay took my name and left me my shadow."
+                  },
                   "hidden_fact": "The bay now holds the player's name. Things from the drowned bay may one day come to collect it politely.",
-                  "harm": { "type": "nerve", "amount": 3 },
+                  "harm": {
+                    "type": "nerve",
+                    "amount": 3
+                  },
                   "journal": "Answered the call. My name went out of me like warmth, and something vast said 'thank you' with my own voice."
                 }
               }
@@ -543,19 +1247,34 @@
               "id": "sink_tower",
               "label": "Sink the tower",
               "hint": "Might, hard — break the mechanism, silence the bay, keep the shard.",
-              "check": { "skill": "fight", "hard": true },
+              "check": {
+                "skill": "fight",
+                "hard": true
+              },
               "on_pass": {
                 "effects": {
                   "ending": "sunk",
-                  "quest_update": { "quest_id": "salt_grave", "status": "done", "note": "Broke the beacon. The bay went dark and stays dark. I kept a shard of the bell." },
-                  "item_give": [ { "item_id": "marrow_bell_shard", "qty": 1 } ],
+                  "quest_update": {
+                    "quest_id": "salt_grave",
+                    "status": "done",
+                    "note": "Broke the beacon. The bay went dark and stays dark. I kept a shard of the bell."
+                  },
+                  "item_give": [
+                    {
+                      "item_id": "marrow_bell_shard",
+                      "qty": 1
+                    }
+                  ],
                   "fact": "I sank the signal tower. The drowned bay is silent now, and something in it is grateful or furious — I chose not to learn which.",
                   "journal": "Wrecked the mechanism. The bay went out like a lamp pinched between wet fingers. I kept a shard."
                 }
               },
               "on_fail": {
                 "effects": {
-                  "harm": { "type": "vigor", "amount": 2 },
+                  "harm": {
+                    "type": "vigor",
+                    "amount": 2
+                  },
                   "journal": "Swung at the mechanism and missed what mattered. The cage sang like a struck bell, and everything in the bay now knows exactly where I stand.",
                   "fact": "The signal room mechanism survived my blow, and the bay knows where I am."
                 }
@@ -578,7 +1297,10 @@
               "id": "step_through",
               "label": "Step through the door, home to the shore",
               "hint": "Return to the Living Shore. The adventure keeps its state.",
-              "effects": { "return_shore": true, "journal": "Returned through the Door of Salt to the Living Shore." }
+              "effects": {
+                "return_shore": true,
+                "journal": "Returned through the Door of Salt to the Living Shore."
+              }
             }
           ]
         }
@@ -586,28 +1308,954 @@
       "endings": {
         "beacon_lit": {
           "text": "The beacon takes your flame like a first breath after drowning. Across the bay the nine lanterns go out — not snuffed, but finished. The water settles. On the lowest stair of the signal-house, the Lampkeeper stands up straight for the first time in a hundred years, steps into the water, and does not come back out. The Door of Salt is already open. The Shore is bright with dusk, and Old Cardo says you look taller. You are not taller. You are lighter.",
-          "return_location": "tidegate"
+          "return_location": "tidegate",
+          "consequence": "The drowned bay's signal has ended; the Salt door breathes slower now.",
+          "effects": {
+            "clue": {
+              "thread_id": "ninth_wave",
+              "text": "The beacon ended the signal — and the count reached nine."
+            }
+          }
         },
         "pact": {
           "text": "You say the name into the unanswered line, and the line says yours back — correctly, once, like a handshake. The bay's water rises an inch, all of it, everywhere, in one courteous bow. Something enormous now knows your voice the way sailors know a harbor. It gives you what it promised: the Caller's Name, small as a coin and heavy as an anchor, folded into your palm. The door lets you out. The door is very careful about doors.",
-          "return_location": "tidegate"
+          "return_location": "tidegate",
+          "consequence": "Something enormous in the drowned bay knows a voice from the shore, and was pleased."
         },
         "taken": {
           "text": "You answer before you are ready, and the bay can tell. The name it wanted was not the Lampkeeper's after all — it was any name, freely given, and yours will do. It takes the sound of you and leaves the rest. You walk out of the signal room with your shadow walking slightly wrong, and the Door of Salt, kind old thing, shuts the water out behind you. On the shore, Cardo looks at you twice before he recognizes you. You will have to be reintroduced to yourself. Slowly, it can be done.",
-          "return_location": "tidegate"
+          "return_location": "tidegate",
+          "consequence": "A name was taken at the drowned bay; the Salt door whispers it sometimes."
         },
         "sunk": {
           "text": "The mechanism breaks the way old brass breaks: with dignity and one loud note. The beacon cage cracks. The nine lanterns gutter out mid-syllable, and the bay goes dark all at once, like a held eye finally allowed to close. In the ringing quiet afterward, you find a shard of the bell in the wreckage — bronze, still humming faintly, keeping one stubborn note of its own. The Door of Salt lets you out without comment. Some silences are mercy. You hope this is one.",
-          "return_location": "tidegate"
+          "return_location": "tidegate",
+          "consequence": "The signal tower in the drowned bay went dark — the bay keeps its silence.",
+          "effects": {
+            "clue": {
+              "thread_id": "ninth_wave",
+              "text": "The tower sank with its count unfinished."
+            }
+          }
         }
+      },
+      "echo_offers": {
+        "beacon_lit": [
+          {
+            "kind": "item",
+            "title": "Keeper's lantern",
+            "detail": "A lamp carried out of a finished story.",
+            "data": {
+              "item_id": "keepers_lantern"
+            }
+          },
+          {
+            "kind": "achievement",
+            "title": "Beaconlighter",
+            "detail": "Lit the beacon in the drowned bay.",
+            "data": {
+              "trait_skill": "mettle",
+              "trait_delta": 1
+            }
+          }
+        ],
+        "pact": [
+          {
+            "kind": "achievement",
+            "title": "Namedfriend",
+            "detail": "Answered the call and kept the leash.",
+            "data": {
+              "trait_skill": "bind",
+              "trait_delta": 1
+            }
+          }
+        ],
+        "taken": [
+          {
+            "kind": "achievement",
+            "title": "Survivor of the Taking",
+            "detail": "Came back from a namelessness.",
+            "data": {
+              "trait_skill": "endure",
+              "trait_delta": 1
+            }
+          }
+        ],
+        "sunk": [
+          {
+            "kind": "item",
+            "title": "Marrow Bell shard",
+            "detail": "Bronze that remembers one stubborn note.",
+            "data": {
+              "item_id": "marrow_bell_shard"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "umbral_market",
+      "title": "The Umbral Market",
+      "genre": "dark fantasy",
+      "portal_id": "door_ash",
+      "entry": "um_arrival",
+      "summary": "A midnight market where everything has a price, and the Ledger-Keeper knows your page.",
+      "on_enter": [
+        {
+          "quest_update": {
+            "quest_id": "umbral_market",
+            "title": "The Umbral Market",
+            "status": "open",
+            "note": "The market trades in hours, favors, and one honest memory."
+          }
+        },
+        {
+          "fact": "Through the Door of Ash lies a market of little lights that is open after midnight, forever."
+        }
+      ],
+      "scenes": {
+        "um_arrival": {
+          "title": "The Market of Little Lights",
+          "brief": "Arrival in the Umbral Reach's night market. Stalls of warm bargains; the Ledger-Keeper's booth at the center.",
+          "gm_directive": "The market is charming and dangerous in equal measure. Nothing here is free; everything here is fair.",
+          "intro": "The Door of Ash lets you out between two waystones that disagree. Ahead, the market hums: stalls of warm glass, a chiming prairie-sound underfoot, and at the center, a booth of stacked ledgers where the Ledger-Keeper is already looking at your page. \"You again,\" she says, kindly, though you have never been here. \"Or soon.\"",
+          "flavor": [
+            "A stall sells bottled noons. Another sells the feeling of being expected.",
+            "The embers overhead arrange themselves into prices.",
+            "Your shadow pays for something small and hurries back to you."
+          ],
+          "hotspots": [
+            {
+              "id": "warm_stalls",
+              "label": "the warm-glass stalls",
+              "x": 62,
+              "y": 44,
+              "text": "Bargains cool too quickly here. One jar contains a Tuesday, unlabeled."
+            },
+            {
+              "id": "waystones",
+              "label": "the disagreeing waystones",
+              "x": 28,
+              "y": 55,
+              "text": "Each points a different way home. Both are certain."
+            }
+          ],
+          "choices": [
+            {
+              "id": "browse",
+              "label": "Browse toward the Ledger-Keeper's booth",
+              "hint": "Everyone arrives at the ledger eventually.",
+              "goto": "um_ledger",
+              "effects": {
+                "journal": "Walked the Umbral Market to the Ledger-Keeper's booth."
+              }
+            },
+            {
+              "id": "ask_about_market",
+              "label": "Ask a vendor what the market actually sells",
+              "hint": "Lore — learn the market's true currency.",
+              "check": {
+                "skill": "lore",
+                "hard": false
+              },
+              "on_pass": {
+                "goto": "um_ledger",
+                "effects": {
+                  "fact": "The Umbral Market trades in hours, favors, and one honest memory.",
+                  "journal": "Learned the market's currency: hours, favors, one honest memory."
+                }
+              },
+              "on_fail": {
+                "goto": "um_ledger",
+                "effects": {
+                  "fact": "The market's prices are fair, which is somehow worse.",
+                  "journal": "The vendor only smiled. Fair prices. Worse."
+                }
+              }
+            }
+          ]
+        },
+        "um_ledger": {
+          "title": "The Ledger-Keeper's Booth",
+          "brief": "Meet the Ledger-Keeper, who keeps a page with your name on it.",
+          "gm_directive": "Vess is courteous, precise, and absolutely serious. The ledger does not lie; it smudges.",
+          "intro": "The Ledger-Keeper's booth is a fortress of stacked ledgers, each spine labeled in ash. She turns the great book to your page without asking your name. \"One unspent hour,\" she says. \"Minted the night you first stood on your shore. The market would like it. The market can pay.\"",
+          "flavor": [
+            "The ledgers exhale warmth like sleeping animals.",
+            "Your page is warm to the touch.",
+            "Somewhere in the stacks, a debt turns over in its sleep."
+          ],
+          "hotspots": [
+            {
+              "id": "great_ledger",
+              "label": "the great ledger",
+              "x": 48,
+              "y": 46,
+              "text": "Pages of names and prices. Yours is there. The column header reads: OWED, WILLING."
+            }
+          ],
+          "choices": [
+            {
+              "id": "read_your_page",
+              "label": "Read your page closely",
+              "hint": "Lore, hard — the ledger smudges for the unwary.",
+              "check": {
+                "skill": "lore",
+                "hard": true
+              },
+              "on_pass": {
+                "goto": "um_settle",
+                "effects": {
+                  "fact": "My market ledger page shows one unspent hour, minted my first night on the shore.",
+                  "journal": "Read my page: one unspent hour, minted my first night ashore."
+                }
+              },
+              "on_fail": {
+                "goto": "um_settle",
+                "effects": {
+                  "fact": "Someone has been reading my ledger page. The smudge is fresh.",
+                  "journal": "My page is smudged. Someone has been reading ahead of me."
+                }
+              }
+            },
+            {
+              "id": "compliment_the_stacks",
+              "label": "Compliment her filing system",
+              "hint": "Persuade — flattery, sincerely meant.",
+              "check": {
+                "skill": "persuade",
+                "hard": false
+              },
+              "on_pass": {
+                "goto": "um_settle",
+                "effects": {
+                  "npc_rel": {
+                    "npc_id": "ledger_keeper",
+                    "delta": 1
+                  },
+                  "fact": "The Ledger-Keeper liked my compliment. She has filed it.",
+                  "journal": "The Ledger-Keeper accepted my compliment and filed it, alphabetically."
+                }
+              },
+              "on_fail": {
+                "goto": "um_settle",
+                "effects": {
+                  "journal": "My compliment was filed under 'attempted'."
+                }
+              }
+            }
+          ]
+        },
+        "um_settle": {
+          "title": "Settlement",
+          "brief": "The market names its price for your unspent hour. Pay, bargain, or walk away clean.",
+          "gm_directive": "Every option is fair. Consequences are permanent and recorded in ledgers.",
+          "intro": "\"Here is the market's offer,\" says the Ledger-Keeper. \"Three glassbeads for the hour — beads being hours the shore polished. Or bargain with me for something better and stranger. Or refuse, and be refused nothing. The market respects a clean refusal.\"",
+          "flavor": [
+            "The embers overhead dim politely while you decide.",
+            "The great ledger waits with the patience of arithmetic.",
+            "A small light hovers by your shoulder, reading over it."
+          ],
+          "hotspots": [],
+          "choices": [
+            {
+              "id": "pay_beads",
+              "label": "Pay three glassbeads for the hour",
+              "hint": "Clean, final, yours.",
+              "requires_beads": 3,
+              "locked_hint": "The market wants three glassbeads, and your pockets are lighter than that. Adventures and the tide pay in beads.",
+              "effects": {
+                "ending": "debt_paid",
+                "beads": -3,
+                "item_give": [
+                  {
+                    "item_id": "umbral_token",
+                    "qty": 1
+                  }
+                ],
+                "quest_update": {
+                  "quest_id": "umbral_market",
+                  "status": "done",
+                  "note": "Paid three glassbeads for the unspent hour. Fair, clean, done."
+                },
+                "fact": "I sold my unspent hour to the Umbral Market for three glassbeads. Fair.",
+                "clue": {
+                  "thread_id": "ninth_wave",
+                  "text": "The market's ledger mentions a ninth entry, still open."
+                },
+                "journal": "Paid the market. It gave me an umbral token and its regard."
+              }
+            },
+            {
+              "id": "bargain",
+              "label": "Bargain for something better and stranger",
+              "hint": "Bind, hard — the market bargains in true names.",
+              "check": {
+                "skill": "bind",
+                "hard": true
+              },
+              "on_pass": {
+                "effects": {
+                  "ending": "bargain_struck",
+                  "item_give": [
+                    {
+                      "item_id": "umbral_token",
+                      "qty": 1
+                    }
+                  ],
+                  "npc_rel": {
+                    "npc_id": "ledger_keeper",
+                    "delta": 1
+                  },
+                  "hidden_fact": "The Ledger-Keeper knows my shore-name now, and keeps it between pages.",
+                  "fact": "I bargained with the Ledger-Keeper and came out ahead. She seemed glad.",
+                  "beads": 2,
+                  "quest_update": {
+                    "quest_id": "umbral_market",
+                    "status": "done",
+                    "note": "Bargained well: kept the hour, gained the token and her favor."
+                  },
+                  "journal": "Bargained with Vess. Kept my hour, gained a token, two beads, and a strange new respect."
+                }
+              },
+              "on_fail": {
+                "effects": {
+                  "ending": "debt_taken",
+                  "harm": {
+                    "type": "nerve",
+                    "amount": 3
+                  },
+                  "hidden_fact": "The market holds a lien on one of my Tuesdays.",
+                  "quest_update": {
+                    "quest_id": "umbral_market",
+                    "status": "failed",
+                    "note": "The bargain went wrong. Something of mine is filed away."
+                  },
+                  "journal": "The bargain turned. The market filed away a piece of my week, politely."
+                }
+              }
+            },
+            {
+              "id": "walk_away",
+              "label": "Refuse cleanly and walk away",
+              "hint": "The market respects refusals. Once.",
+              "effects": {
+                "ending": "walked_free",
+                "quest_update": {
+                  "quest_id": "umbral_market",
+                  "status": "done",
+                  "note": "Refused the market cleanly. It approved."
+                },
+                "fact": "I refused the Umbral Market cleanly. It filed the refusal with respect.",
+                "clue": {
+                  "thread_id": "wrong_gull",
+                  "text": "A gull watched my refusal from the market's eaves, and approved."
+                },
+                "journal": "Walked away from the market. Nothing followed. That was its own gift."
+              }
+            }
+          ]
+        }
+      },
+      "endings": {
+        "debt_paid": {
+          "text": "The Ledger-Keeper closes your page with two fingers, gently, the way one closes an eye. Three glassbeads click into the market's till, and something minted the night you first stood on your shore is spent at last. She gives you an umbral token — 'for the doorways, they like being pointed at' — and the market's little lights dip once, in respect. The Door of Ash is behind you. It was always behind you.",
+          "return_location": "tidegate",
+          "consequence": "The Umbral Market closed one account, and the Door of Ash burns warmer."
+        },
+        "bargain_struck": {
+          "text": "You bargain the way the tide bargains: patiently, with the whole shore behind you. The Ledger-Keeper's smile arrives in three installments, and when the deal closes she is holding your hour in her open palm and giving it back. \"Well kept,\" she says, and means your name. Two glassbeads and a warm-sided token are your change. The market approves of you now. That is a kind of debt too.",
+          "return_location": "tidegate",
+          "consequence": "The Ledger-Keeper of the Umbral Market keeps someone's shore-name between her pages, fondly."
+        },
+        "debt_taken": {
+          "text": "The bargain turns in the specific way ledgers turn: quietly, precisely, with your signature already in the margin. Something of your week is filed away — you will notice the gap on a Tuesday and not know which one. The market is gentle about it. The market is always gentle about it. You leave lighter.",
+          "return_location": "tidegate",
+          "consequence": "The Umbral Market holds a lien from a shore-walker, and collects it politely."
+        },
+        "walked_free": {
+          "text": "You say no clearly, without cruelty, and the market does the rarest thing a market can do: it agrees. The Ledger-Keeper marks the refusal in a column you suspect is rarer than gold. \"Clean,\" she says. The little lights part for you all the way back to the waystones. You leave the Umbral Market with nothing, which the market considers the most valuable thing of all.",
+          "return_location": "tidegate",
+          "consequence": "A clean refusal is on file at the Umbral Market, and eases its doors."
+        }
+      },
+      "echo_offers": {
+        "debt_paid": [
+          {
+            "kind": "item",
+            "title": "Umbral token",
+            "detail": "Bought fair, kept warm.",
+            "data": {
+              "item_id": "umbral_token"
+            }
+          },
+          {
+            "kind": "achievement",
+            "title": "Fair Dealer",
+            "detail": "Paid the market what was asked.",
+            "data": {
+              "trait_skill": "persuade",
+              "trait_delta": 1
+            }
+          }
+        ],
+        "bargain_struck": [
+          {
+            "kind": "achievement",
+            "title": "Loud Bargainer",
+            "detail": "Out-bargained a ledger.",
+            "data": {
+              "trait_skill": "bind",
+              "trait_delta": 1
+            }
+          }
+        ],
+        "walked_free": [
+          {
+            "kind": "achievement",
+            "title": "Clean Refusal",
+            "detail": "Walked away owing nothing.",
+            "data": {
+              "trait_skill": "mettle",
+              "trait_delta": 1
+            }
+          }
+        ],
+        "debt_taken": [
+          {
+            "kind": "achievement",
+            "title": "Polite Debtor",
+            "detail": "Owed the market something, and smiled anyway.",
+            "data": {
+              "trait_skill": "endure",
+              "trait_delta": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "skyless_light",
+      "title": "The Skyless Light",
+      "genre": "supernatural mystery",
+      "portal_id": null,
+      "entry": "sl_lamp_room",
+      "summary": "The lighthouse casts a beam that casts no shadow. Someone is doing the casting.",
+      "on_enter": [
+        {
+          "quest_update": {
+            "quest_id": "skyless_light",
+            "title": "The Skyless Light",
+            "status": "open",
+            "note": "Something casts the lighthouse beam, and it wants a keeper's name."
+          }
+        }
+      ],
+      "scenes": {
+        "sl_lamp_room": {
+          "title": "The Empty Lamp Room",
+          "brief": "The lamp room is empty, yet on storm nights the beam sweeps the water. Find the caster.",
+          "gm_directive": "Cold and methodical dread. The mystery is administrative: ledgers, logs, a keeper who never left.",
+          "intro": "The lamp room is empty. The great lens waits under dust, the wick-holder dry, the oil cans sealed for years — and yet out over the water, sweeping patient circles, goes the beam that casts no shadow. Something is doing the casting. It has been doing the casting for a very long time, and it is good at it.",
+          "flavor": [
+            "The dust on the floor is undisturbed except by light.",
+            "The lens is warm on one side only.",
+            "Through the glass, the beam ignores the moon entirely."
+          ],
+          "hotspots": [
+            {
+              "id": "cold_lens",
+              "label": "the cold lens",
+              "x": 50,
+              "y": 40,
+              "text": "Looking through the lens from inside, the sea is counted — each wave tagged with a small cold numeral."
+            },
+            {
+              "id": "oil_cans",
+              "label": "the sealed oil cans",
+              "x": 68,
+              "y": 55,
+              "text": "Sealed with wax, thumb-printed. The thumb is small, like a child's, or like something wearing a child's thumb."
+            }
+          ],
+          "choices": [
+            {
+              "id": "relamp",
+              "label": "Set a new flame in the lamp",
+              "hint": "Requires the Relamp upgrade — a lit lantern is a promise.",
+              "requires_flag": "up_light_relamp",
+              "locked_hint": "The lamp needs a new flame, and the shore would have to fund one. Build 'Relamp the Skyless Light' while standing here.",
+              "goto": "sl_ledger_names",
+              "effects": {
+                "flag": "light_relit",
+                "fact": "I relit the Skyless Light. The beam turned teal, and it looks at me kindly now.",
+                "clue": {
+                  "thread_id": "ninth_wave",
+                  "text": "The relit beam counted nine waves and stopped, waiting."
+                },
+                "journal": "Set a flame in the empty lamp. The beam went teal and grateful."
+              }
+            },
+            {
+              "id": "climb_dark",
+              "label": "Work by feel in the dark stairwell",
+              "hint": "Endure — the dark here is load-bearing.",
+              "check": {
+                "skill": "endure",
+                "hard": false
+              },
+              "on_pass": {
+                "goto": "sl_ledger_names",
+                "effects": {
+                  "journal": "Climb the dark stair by feel. The dark allows it, politely."
+                }
+              },
+              "on_fail": {
+                "goto": "sl_ledger_names",
+                "effects": {
+                  "harm": {
+                    "type": "vigor",
+                    "amount": 2
+                  },
+                  "fact": "Something in the stairwell counted my steps back down as well as up.",
+                  "journal": "The stairwell counted my steps. I counted the bruises."
+                }
+              }
+            },
+            {
+              "id": "step_out",
+              "label": "Step back outside",
+              "hint": "The beam will still be here. It is very patient.",
+              "effects": {
+                "return_shore": true,
+                "journal": "Stepped back out of the Skyless Light. The beam swept on without me."
+              }
+            }
+          ]
+        },
+        "sl_ledger_names": {
+          "title": "The Keeper's Name-Ledger",
+          "brief": "A ledger of keepers' names. Yours is in it, in the keepers' column.",
+          "gm_directive": "The revelation is quiet and enormous: the player has been entered as a keeper.",
+          "intro": "Behind the lens hangs the keeper's ledger — names, dates, a column headed 'held the light.' The last keeper's entry stops mid-word. And beneath it, in fresh ink that dries as you watch, a new entry has been started. It is your name. It is in the keepers' column.",
+          "flavor": [
+            "The ink is wet and smells of the sea at night.",
+            "The ledger's spine is worn soft by hands.",
+            "Every entry in the keepers' column is crossed out except yours."
+          ],
+          "hotspots": [
+            {
+              "id": "your_entry",
+              "label": "your entry",
+              "x": 46,
+              "y": 50,
+              "text": "Your name, the date you first stood on your shore, and a job title: KEEPER, PROVISIONAL."
+            }
+          ],
+          "choices": [
+            {
+              "id": "read_aloud",
+              "label": "Read your entry aloud",
+              "hint": "Bind — names have weight here.",
+              "check": {
+                "skill": "bind",
+                "hard": false
+              },
+              "on_pass": {
+                "goto": "sl_watcher",
+                "effects": {
+                  "fact": "Read aloud, my ledger entry answered: 'noted, Keeper.' The voice was the beam.",
+                  "journal": "I read my entry aloud and the beam said 'noted, Keeper.'"
+                }
+              },
+              "on_fail": {
+                "goto": "sl_watcher",
+                "effects": {
+                  "fact": "The ledger smudged as I read, as if embarrassed for me.",
+                  "journal": "The ledger smudged my reading. It was almost kind about it."
+                }
+              }
+            },
+            {
+              "id": "burn_page",
+              "label": "Tear out and burn your page",
+              "hint": "Might — refuse the appointment by force.",
+              "check": {
+                "skill": "fight",
+                "hard": false
+              },
+              "on_pass": {
+                "effects": {
+                  "ending": "page_burned",
+                  "beads": 3,
+                  "quest_update": {
+                    "quest_id": "skyless_light",
+                    "status": "done",
+                    "note": "Burned the provisional keeper's page. The beam went dim and free."
+                  },
+                  "fact": "I burned my page in the keeper's ledger. The beam dimmed, freer.",
+                  "clue": {
+                    "thread_id": "ninth_wave",
+                    "text": "The burned page's smoke spelled a nine before it scattered."
+                  },
+                  "journal": "Burned the page. Three beads of melted brass rolled out of the binding."
+                }
+              },
+              "on_fail": {
+                "goto": "sl_watcher",
+                "effects": {
+                  "harm": {
+                    "type": "vigor",
+                    "amount": 2
+                  },
+                  "fact": "The page would not tear. The ledger held onto my name like a tide holds a boot.",
+                  "journal": "The page refused to tear. It knows my name better than paper should."
+                }
+              }
+            }
+          ]
+        },
+        "sl_watcher": {
+          "title": "The Watcher Below",
+          "brief": "The caster of the beam shows itself. Share the light, give the name, or shutter the beam.",
+          "gm_directive": "The Watcher is not a monster. It is a duty that outlived its keeper. Let the player feel the weight of three doors.",
+          "intro": "It rises through the floor of the lamp room like a note through water: a figure of kept-light, a keeper's coat grown with lantern-glass instead of weed. It has been holding the beam since its keeper stopped holding it, and it is so tired. It shows you three things in order: the flame it cannot light, the name it cannot say, and the switch it cannot leave.",
+          "flavor": [
+            "The Watcher's lantern-glass coat chimes when it breathes.",
+            "Its shadow falls behind it, which is the wrong way around.",
+            "It looks at your hands, appraising a keeper's hands."
+          ],
+          "hotspots": [
+            {
+              "id": "kept_light",
+              "label": "the kept-light figure",
+              "x": 52,
+              "y": 44,
+              "text": "Where its face should be: a lens. Through it, you see the shore, from above, watched over for years."
+            }
+          ],
+          "choices": [
+            {
+              "id": "share_flame",
+              "label": "Share your flame with the Watcher",
+              "hint": "Requires having relit the lamp — you carry a lit lantern's promise.",
+              "requires_flag": "light_relit",
+              "locked_hint": "You have no flame of your own to share. Light the lamp first.",
+              "effects": {
+                "ending": "light_shared",
+                "item_give": [
+                  {
+                    "item_id": "watchers_eye",
+                    "qty": 1
+                  }
+                ],
+                "quest_update": {
+                  "quest_id": "skyless_light",
+                  "status": "done",
+                  "note": "Shared the flame. The Watcher stood down; the light is shared now, not kept."
+                },
+                "fact": "I shared my flame with the Watcher of the Skyless Light. It stood down, free.",
+                "clue": {
+                  "thread_id": "ninth_wave",
+                  "text": "The freed Watcher counted nine waves aloud, and rested."
+                },
+                "npc_rel": {
+                  "npc_id": "drowned_lampkeeper",
+                  "delta": 1
+                },
+                "journal": "Shared the flame. The beam is shared now — mine, the Watcher's, the shore's."
+              }
+            },
+            {
+              "id": "give_name",
+              "label": "Give the Watcher the name it cannot say",
+              "hint": "Bind, hard — a name freely given is a lantern freely lit.",
+              "check": {
+                "skill": "bind",
+                "hard": true
+              },
+              "on_pass": {
+                "effects": {
+                  "ending": "name_given",
+                  "beads": 2,
+                  "quest_update": {
+                    "quest_id": "skyless_light",
+                    "status": "done",
+                    "note": "Gave the Watcher its own name. It said it, and stood down."
+                  },
+                  "fact": "The Watcher's name was Brinehold. I gave it back, and it remembered itself.",
+                  "hidden_fact": "Brinehold owes a keeper's shift to whoever freed it. The debt is real and will be honored.",
+                  "clue": {
+                    "thread_id": "ninth_wave",
+                    "text": "Brinehold said: 'the ninth wave is the door. I kept count all my life.'"
+                  },
+                  "journal": "Gave the Watcher its name back. Brinehold stood down, humming."
+                }
+              },
+              "on_fail": {
+                "effects": {
+                  "ending": "shadow_taken",
+                  "harm": {
+                    "type": "nerve",
+                    "amount": 3
+                  },
+                  "quest_update": {
+                    "quest_id": "skyless_light",
+                    "status": "failed",
+                    "note": "The name-giving failed. My shadow keeps the light now, part-time."
+                  },
+                  "hidden_fact": "My shadow took a part-time shift holding the beam. It comes home tired.",
+                  "journal": "The name went wrong. My shadow works the light now, evenings."
+                }
+              }
+            },
+            {
+              "id": "shutter_beam",
+              "label": "Shutter the beam and end the watching",
+              "hint": "Might, hard — the duty will not go quietly.",
+              "check": {
+                "skill": "fight",
+                "hard": true
+              },
+              "on_pass": {
+                "effects": {
+                  "ending": "beam_shuttered",
+                  "beads": 2,
+                  "quest_update": {
+                    "quest_id": "skyless_light",
+                    "status": "done",
+                    "note": "Shuttered the beam. The watching stopped; the water keeps its own lookouts now."
+                  },
+                  "fact": "I shuttered the beam. The water keeps its own lookouts now.",
+                  "clue": {
+                    "thread_id": "ninth_wave",
+                    "text": "When the beam shut, the sea counted out loud: nine, and stopped."
+                  },
+                  "journal": "Shuttered the beam. The Watcher bowed, relieved, and fell into rest."
+                }
+              },
+              "on_fail": {
+                "goto": "sl_ledger_names",
+                "effects": {
+                  "harm": {
+                    "type": "vigor",
+                    "amount": 2
+                  },
+                  "fact": "The shutter jammed. The beam is stronger than steel and older than hinges.",
+                  "journal": "The shutter refused. The beam carried on, patient as arithmetic."
+                }
+              }
+            }
+          ]
+        }
+      },
+      "endings": {
+        "light_shared": {
+          "text": "You open your lantern's little glass door and the Watcher leans its lens-face in, close as a cold nose. For a moment the beam and your flame argue about color; then they agree on teal. The coat of lantern-glass slides off the Watcher like a coat at the end of a shift, and what steps out of it is small, dry, and free. It gives you the lens that was its face — the Watcher's Eye — and walks down the stairs it could never leave, out the door it could never see, into the ordinary night. The beam goes on. It is shared now, not kept.",
+          "return_location": "lighthouse",
+          "consequence": "The Skyless Light's beam is shared now, and the Watcher walks free."
+        },
+        "name_given": {
+          "text": "You say the name — Brinehold, the name the ledger's smudges were hiding, the name the Watcher's own lens-face was too polished to read. The figure says it after you, once, in a voice like a lamp being lit. Two glassbeads fall from somewhere, because the shore pays for mercies. Brinehold stands down. The beam keeps turning, but from now on it is a lighthouse, not a looking.",
+          "return_location": "tidegate",
+          "consequence": "Brinehold, the old keeper of the Skyless Light, remembers its name and owes a shift."
+        },
+        "shadow_taken": {
+          "text": "The name goes wrong in your mouth and the Watcher catches it before it drowns — but catching things has a cost, and the cost is you, part-time. Your shadow takes an evening shift holding the beam. You will notice it coming home tired on days you cannot name. The Watcher is very polite about the arrangement. The shore says nothing, but the tavern pours darker.",
+          "return_location": "lighthouse",
+          "consequence": "Someone's shadow works evening shifts at the Skyless Light."
+        },
+        "page_burned": {
+          "text": "The page burns badly, the way things burn that were written in duty. Three beads of melted brass roll out of the binding — the ledger's own savings, pressed into your hand by no hand at all. The beam dims, wavers, and settles into something smaller and freer: a lighthouse again, instead of a appointment. Somewhere out on the water, a wave is counted, and the count stops at nine, satisfied.",
+          "return_location": "lighthouse",
+          "consequence": "A page burned in the Skyless Light; an appointment was refused by fire."
+        },
+        "beam_shuttered": {
+          "text": "You force the shutter home through a resistance like deep water, and the beam — the patient, shadowless beam — stops. The quiet afterward is not empty; it is relieved. The Watcher bows the way tired workers bow, and the sea takes up its own watching. Two glassbeads, warm from the mechanism, are your severance. You are not the keeper. You are the one who ended the keeping.",
+          "return_location": "lighthouse",
+          "consequence": "The Skyless Light was shuttered by a visitor, and the sea approved."
+        }
+      },
+      "echo_offers": {
+        "light_shared": [
+          {
+            "kind": "item",
+            "title": "The Watcher's Eye",
+            "detail": "A lens that remembers watching.",
+            "data": {
+              "item_id": "watchers_eye"
+            }
+          },
+          {
+            "kind": "achievement",
+            "title": "Lampfriend",
+            "detail": "Shared a flame with the Watcher.",
+            "data": {
+              "trait_skill": "notice",
+              "trait_delta": 1
+            }
+          }
+        ],
+        "beam_shuttered": [
+          {
+            "kind": "achievement",
+            "title": "Duty-Ender",
+            "detail": "Shuttered a beam that would not stop.",
+            "data": {
+              "trait_skill": "endure",
+              "trait_delta": 1
+            }
+          }
+        ],
+        "page_burned": [
+          {
+            "kind": "achievement",
+            "title": "Unappointed",
+            "detail": "Refused a keeper's duty by fire.",
+            "data": {
+              "trait_skill": "might",
+              "trait_delta": 1
+            }
+          }
+        ]
       }
     }
   ],
   "qr_lore": [
-    { "id": "cardo_song", "title": "Cardo's door-song", "text": "Old Cardo hums it while tending the fire: 'Open a chunk and a dachink, let the traveler in, let the hunger think — the lantern's law is a thin bright skin, and the sea outside has never been in.'" }
+    {
+      "id": "cardo_song",
+      "title": "Cardo's door-song",
+      "text": "Old Cardo hums it while tending the fire: 'Open a chunk and a dachink, let the traveler in, let the hunger think — the lantern's law is a thin bright skin, and the sea outside has never been in.'"
+    }
   ],
   "qr_events": [
-    { "id": "firefly_hour", "title": "The Firefly Hour", "text": "For one hour, harmless lights visit the shore and sit on open palms. You feel rested.", "effects": { "heal": { "vigor": 1, "nerve": 1 }, "journal": "Sat in the Firefly Hour. Harmless lights, open palms, a little rest." } },
-    { "id": "whisper_tide", "title": "The Whisper Tide", "text": "A wave arrives with a whisper folded in it and leaves without the whisper.", "effects": { "fact": "A whisper-tide brought a message I did not catch and cannot forget catching.", "journal": "A whisper-tide came and went. The message dissolved; the catching did not." } }
+    {
+      "id": "firefly_hour",
+      "title": "The Firefly Hour",
+      "text": "For one hour, harmless lights visit the shore and sit on open palms. You feel rested.",
+      "effects": {
+        "heal": {
+          "vigor": 1,
+          "nerve": 1
+        },
+        "journal": "Sat in the Firefly Hour. Harmless lights, open palms, a little rest."
+      }
+    },
+    {
+      "id": "whisper_tide",
+      "title": "The Whisper Tide",
+      "text": "A wave arrives with a whisper folded in it and leaves without the whisper.",
+      "effects": {
+        "fact": "A whisper-tide brought a message I did not catch and cannot forget catching.",
+        "journal": "A whisper-tide came and went. The message dissolved; the catching did not."
+      }
+    }
+  ],
+  "foreshadow_threads": [
+    {
+      "id": "ninth_wave",
+      "title": "The Ninth Wave",
+      "threshold": 4,
+      "payoff_title": "The Ninth Wave arrives",
+      "payoff_narration": "A ninth wave comes up the beach and does not go back out. Where it stands, wet and patient, a door of standing water opens on the shore.",
+      "flag": "ninth_wave_open",
+      "payoff_effects": {
+        "discover": "ninth_wave",
+        "fact": "The ninth wave came in and stayed. A door of standing water stands on the beach now."
+      }
+    },
+    {
+      "id": "wrong_gull",
+      "title": "The Wrong Gull",
+      "threshold": 3,
+      "payoff_title": "The white gull befriends you",
+      "payoff_narration": "A white gull lands beside you, its shadow briefly wearing a hat, and decides — with terrible solemnity — to be your friend.",
+      "flag": "gull_friend",
+      "payoff_effects": {
+        "fact": "The wrong gull has decided to be my friend. Its eye misses nothing."
+      }
+    }
+  ],
+  "washashore": [
+    {
+      "id": "glass_beads",
+      "kind": "beads",
+      "label": "a scatter of glassbeads",
+      "text": "Sea-glass beads, polished by the Beam, pooled in a drag-mark. The shore pays for attention.",
+      "effects": {
+        "beads": 2
+      },
+      "weight": 3
+    },
+    {
+      "id": "brine_script",
+      "kind": "clue",
+      "label": "a brine-scripted plank",
+      "text": "A plank scored with brine-script: the same mark the lighthouse keeper logged. The ninth wave is being counted.",
+      "effects": {
+        "clue": {
+          "thread_id": "ninth_wave",
+          "text": "Brine-script plank: the ninth wave is counted, not awaited."
+        }
+      },
+      "weight": 2
+    },
+    {
+      "id": "drift_bundle",
+      "kind": "item",
+      "label": "a lashed drift-bundle",
+      "text": "A sealed bundle: dried kelp and a storm lantern, lashed by careful hands.",
+      "effects": {
+        "item_give": [
+          {
+            "item_id": "dried_kelp",
+            "qty": 1
+          },
+          {
+            "item_id": "storm_lantern",
+            "qty": 1
+          }
+        ]
+      },
+      "weight": 2
+    },
+    {
+      "id": "salt_charm_wash",
+      "kind": "item",
+      "label": "a salt-charm knot",
+      "text": "A fresh salt-charm, still warm, tied by no one you can see.",
+      "effects": {
+        "item_give": [
+          {
+            "item_id": "salt_charm",
+            "qty": 1
+          }
+        ]
+      },
+      "weight": 2
+    },
+    {
+      "id": "wrong_feather",
+      "kind": "clue",
+      "label": "a gull feather, shadow-first",
+      "text": "A white feather whose shadow wears a hat. The wrong gull is counting things ashore.",
+      "effects": {
+        "clue": {
+          "thread_id": "wrong_gull",
+          "text": "Wash-ashore feather: the wrong gull is counting things on the shore."
+        }
+      },
+      "weight": 2
+    },
+    {
+      "id": "single_bead",
+      "kind": "beads",
+      "label": "one perfect glassbead",
+      "text": "One bead, blue as the Beam, warm as a held hand.",
+      "effects": {
+        "beads": 1
+      },
+      "weight": 3
+    }
   ]
 }

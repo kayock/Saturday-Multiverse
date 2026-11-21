@@ -4,12 +4,13 @@
 
 import { apiGet, apiSend } from "./api.js";
 import { state, setView } from "./state.js";
-import { ShoreScene } from "./scene.js";
-import { renderVignette } from "./vignettes.js";
+import { ShoreScene } from "./scene.js?v=27";
+import { renderVignette } from "./vignettes.js?v=27";
 import { portraitSVG } from "./portraits.js";
 import { audio } from "./audio.js";
 import { attachScanner } from "./qr.js";
-import { openPanel, openSettings, closeSettings, initPanelChrome } from "./ui.js";
+import { openPanel, openSettings, closeSettings, initPanelChrome,
+         openSeedGate, openTalk, showEchoOffers, openEchoShelf } from "./ui.js?v=27";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -113,7 +114,7 @@ async function refreshCampaignList() {
 window.__refreshCampaignList = refreshCampaignList;
 
 // ---------- character creation ----------
-let createSel = { archetype: "sensitive", stat: "bind", specialty: "bind", seed: "" };
+let createSel = { archetype: "sensitive", stat: "bind", specialty: "bind", seed: "", echoes: [] };
 
 async function showCreate() {
   showScreen("screen-create");
@@ -122,16 +123,48 @@ async function showCreate() {
     state.packs = res.packs;
   } catch (e) { toast(e.message, "bad"); return; }
   const pack = state.packs.find((p) => p.id === "living_shore") || state.packs[0];
-  const detail = await apiGet(`/api/packs`).then(() => fetchPackDetail(pack.id));
+  const detail = await fetchPackDetail(pack.id);
   renderCreate(detail);
+  renderEchoChoices();
 }
 
 async function fetchPackDetail(packId) {
-  // full archetypes for the chosen pack come embedded in pack list view's
-  // locations; for creation we need the whole manifest — served by the
-  // campaign view only after creation, so creation uses a lightweight copy:
   const res = await apiSend("/api/packs/detail", "POST", { pack_id: packId });
   return res.pack;
+}
+
+async function renderEchoChoices() {
+  createSel.echoes = [];
+  let echoes = [];
+  try { echoes = (await apiGet("/api/echoes?unused=1")).echoes; } catch { /* ignore */ }
+  let box = document.getElementById("create-echoes");
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "create-echoes";
+    document.querySelector(".create-actions").before(box);
+  }
+  if (!echoes.length) {
+    box.innerHTML = `<label class="field-label">The multiverse remembers</label>
+      <div class="fact-line" style="color:var(--dim)">No echoes yet — finished adventures leave legacies here
+      that new voyages can weave in.</div>`;
+    return;
+  }
+  box.innerHTML = `
+    <label class="field-label">The multiverse remembers — weave up to 2 echoes into this wanderer</label>
+    <div class="card-grid">${echoes.map((e) => `
+      <div class="ledger-card card-paid echo-pick ${createSel.echoes.includes(e.id) ? "selected" : ""}" data-echo="${esc(e.id)}">
+        <div class="lc-kind">echo · ${esc(e.kind)}</div>
+        <strong>${esc(e.title)}</strong>
+        <div class="fact-line">${esc(e.detail)}</div>
+      </div>`).join("")}</div>`;
+  box.querySelectorAll("[data-echo]").forEach((c) => c.addEventListener("click", () => {
+    const id = c.dataset.echo;
+    if (createSel.echoes.includes(id)) createSel.echoes = createSel.echoes.filter((x) => x !== id);
+    else if (createSel.echoes.length < 2) createSel.echoes.push(id);
+    else { toast("Only two echoes can be woven into one voyage.", "bad"); return; }
+    c.classList.toggle("selected", createSel.echoes.includes(id));
+    audio.ui();
+  }));
 }
 
 function renderCreate(pack) {
@@ -175,9 +208,19 @@ let hub = null;
 function ensureHub() {
   if (hub) return hub;
   hub = new ShoreScene($("shore-canvas"), {
-    onTravel: (locId) => doTravel(locId),
+    onTravel: (locId) => { if (locId) doTravel(locId); else openSeedGate(); },
     onHotspot: (hotspotId) => showHotspot(hotspotId),
     onSealed: (p) => { toast(p.hint || "Sealed for now.", ""); audio.ui(); },
+    onSeed: () => openSeedGate(),
+    onWash: async () => {
+      try {
+        const res = await apiSend(`/api/campaigns/${state.view.id}/washashore`, "POST", {});
+        toast(res.narration, "good");
+        if (res.changes?.length) showChanges(res.changes);
+        audio.chime();
+        await refreshView();
+      } catch (e) { toast(e.message, "bad"); }
+    },
     onHover: (h) => {
       const tip = $("scene-tooltip");
       if (!h || $("shore-canvas").clientWidth === 0) { tip.hidden = true; return; }
@@ -187,6 +230,8 @@ function ensureHub() {
       tip.innerHTML = `<span class="tt-label">${esc(h.label)}</span> — ${esc(h.hint || "")}`;
     },
   });
+  hub.setCalm(localStorage.getItem("sm_calm") === "1");
+  window.__hub = hub;
   return hub;
 }
 
@@ -210,13 +255,19 @@ window.__refreshView = refreshView;
 function renderGame() {
   const v = state.view;
   const inAdventureScene = !!v.scene?.beat;
+  const interior = ["tavern", "lighthouse", "seacave", "wreck", "umbral_reach", "saltgrave_gate", "ninth_wave"]
+    .includes(v.location?.id) || !!v.world;
   // canvas vs vignette
-  if (inAdventureScene || ["tavern", "lighthouse", "seacave", "wreck", "umbral_reach", "saltgrave_gate"].includes(v.location?.id)) {
+  if (inAdventureScene || interior) {
     $("shore-canvas").style.display = "none";
     renderVignette($("vignette-layer"), v, (id) => showHotspot(id));
+    // seeded worlds tint their scenes; the shore keeps its own palette
+    $("vignette-layer").style.filter = v.world
+      ? `hue-rotate(${v.world.tint || 0}deg) saturate(1.15)` : "";
   } else {
     $("shore-canvas").style.display = "block";
     $("vignette-layer").innerHTML = "";
+    $("vignette-layer").style.filter = "";
     hub.setView(v);
   }
   // HUD
@@ -225,7 +276,17 @@ function renderGame() {
   $("hud-portrait").innerHTML = portraitSVG(ch.portrait.seed, ch.portrait.palette, ch.archetype);
   $("hud-vigor").style.width = `${(ch.vigor / ch.vigor_max) * 100}%`;
   $("hud-nerve").style.width = `${(ch.nerve / ch.nerve_max) * 100}%`;
-  $("hud-tide").textContent = `tide: ${v.tide}`;
+  // tide clock dial
+  const phase = v.tide_phase || { tide: v.tide, progress: 0 };
+  const circ = 2 * Math.PI * 8;
+  $("tide-dial").innerHTML = `
+    <circle cx="10" cy="10" r="8" fill="none" stroke="rgba(155,140,255,0.25)" stroke-width="3"/>
+    <circle cx="10" cy="10" r="8" fill="none" stroke="${phase.tide === "low" ? "#43e8d8" : "#9b8cff"}"
+      stroke-width="3" stroke-linecap="round" stroke-dasharray="${circ}"
+      stroke-dashoffset="${(circ * (1 - (phase.progress ?? 0))).toFixed(1)}"
+      transform="rotate(-90 10 10)"/>`;
+  $("hud-tide-text").textContent = `${phase.tide} tide · ${phase.beats_to_change} beats`;
+  $("hud-beads").textContent = `◍ ${v.beads ?? 0}`;
   $("hud-weather").textContent = `${v.weather?.key || ""} · ${v.weather?.desc || ""}`;
   $("hud-turn").textContent = `turn ${v.turn}`;
   refreshAIBadge();
@@ -233,11 +294,24 @@ function renderGame() {
   const locTitle = v.scene?.title || v.location?.name || "The Living Shore";
   $("dock-title").textContent = locTitle;
   $("dock-scene-hint").textContent = v.scene?.brief ? "" : (v.location?.short || "");
+  // who can be talked to here
+  const talkNpc = { camp: "Old Cardo", tavern: "Maren", umbral_reach: "the Ledger-Keeper" }[v.location?.id];
+  $("dock-talk").innerHTML = talkNpc
+    ? `<button id="btn-talk" class="btn btn-small">${talkNpc ? `Talk — ${esc(talkNpc)}` : ""}</button>` : "";
+  $("btn-talk")?.addEventListener("click", () => openTalk());
+  // something on the beach?
+  if (v.washashore) {
+    $("dock-wash").hidden = false;
+    $("dock-wash-label").textContent = `Something washed ashore: ${v.washashore.label}`;
+  } else {
+    $("dock-wash").hidden = true;
+  }
   if ($("dock-narration").dataset.pending !== "1") {
     $("dock-narration").textContent = lastNarration || v.summary || v.location?.desc || "The shore waits.";
     $("dock-narration").classList.remove("busy");
   }
   renderChoices();
+  renderPendingRoll();
   // audio scene
   const amb = v.location?.id === "camp" ? "camp" : v.location?.id === "tavern" ? "tavern" : "shore";
   audio.setScene(amb, v.weather?.key || "mist", v.tide);
@@ -328,6 +402,7 @@ async function doChoose(choiceId) {
     if (res.dice) { audio.dice(); showDice(res.dice); }
     if (res.ending) { audio.chime(); toast(`Ending witnessed: ${res.ending.replace(/_/g, " ")}`, "good"); }
     showChanges(res.changes || []);
+    if (res.echo_offers?.length) showEchoOffers(res.echo_offers);
     await refreshView();
     $("dock-narration").textContent = lastNarration;
   } catch (e) { toast(e.message, "bad"); }
@@ -374,6 +449,52 @@ function showDice(dice) {
 }
 window.__showDice = showDice;
 
+// ---------- tactical window (Push / Resist) ----------
+function renderPendingRoll() {
+  const v = state.view;
+  const box = $("dock-dice");
+  const p = v.pending_roll;
+  if (!p || !v.pending_roll || v.pending_roll.resolved) { return; }
+  const canPush = !p.pushed && ["undertow", "riptide"].includes(p.outcome);
+  const canResist = !p.resisted && (p.harm || 0) > 0;
+  if (!canPush && !canResist) return;
+  box.hidden = false;
+  const row = document.createElement("div");
+  row.className = "pending-row";
+  row.innerHTML = `
+    ${canPush ? `<button class="btn btn-small" data-tactic="push">Push — 1 Vigor, raise the band</button>` : ""}
+    ${canResist ? `<button class="btn btn-small" data-tactic="resist">Resist — 1 Nerve, halve the harm</button>` : ""}
+    <button class="btn btn-small btn-ghost" data-tactic="accept">Accept the result</button>`;
+  box.appendChild(row);
+  row.querySelector("[data-tactic='accept']")?.addEventListener("click", () => acceptPending());
+  row.querySelector("[data-tactic='push']")?.addEventListener("click", async () => {
+    try {
+      const res = await apiSend(`/api/campaigns/${state.view.id}/push`, "POST", {});
+      toast(res.narration, "good");
+      showChanges(res.changes || []);
+      acceptPending();
+      await refreshView();
+    } catch (e) { toast(e.message, "bad"); }
+  });
+  row.querySelector("[data-tactic='resist']")?.addEventListener("click", async () => {
+    try {
+      const res = await apiSend(`/api/campaigns/${state.view.id}/resist`, "POST", {});
+      toast(res.narration, "good");
+      showChanges(res.changes || []);
+      acceptPending();
+      await refreshView();
+    } catch (e) { toast(e.message, "bad"); }
+  });
+}
+
+function acceptPending() {
+  const box = $("dock-dice");
+  box.querySelector(".pending-row")?.remove();
+  if (!box.querySelector(".die")) box.hidden = true;
+  // clear the server-side window quietly
+  apiSend(`/api/campaigns/${state.view.id}/pending/accept`, "POST", {}).catch(() => {});
+}
+
 function showChanges(changes) {
   const box = $("dock-changes");
   box.innerHTML = (changes || []).map((c) => {
@@ -390,7 +511,6 @@ function showTurnExtras(res) {
     $("dock-omen").innerHTML = `<span class="omen-kind">omen · ${esc(res.omen.kind)}</span> — <strong>${esc(res.omen.title)}</strong> ${esc(res.omen.text)}`;
   }
 }
-
 // ---------- QR ----------
 async function handleScan(payload) {
   if (!state.view) { toast("Scan a sigil while inside a campaign.", "bad"); return; }
@@ -428,6 +548,13 @@ async function boot() {
   $("btn-continue").addEventListener("click", () => { audio.ensure(); audio.ui(); refreshCampaignList(); });
   $("btn-title-settings").addEventListener("click", () => { audio.ensure(); openSettings(); });
 
+  // echo shelf shortcut on the title screen footer
+  const shelf = document.createElement("button");
+  shelf.className = "btn btn-ghost btn-small";
+  shelf.textContent = "Echoes left behind…";
+  shelf.addEventListener("click", () => { audio.ensure(); openEchoShelf(); });
+  document.querySelector(".title-footer").appendChild(shelf);
+
   $("create-name").addEventListener("input", updatePortrait);
   $("create-seed").addEventListener("input", updatePortrait);
   $("btn-create-back").addEventListener("click", () => { showScreen("screen-title"); refreshCampaignList(); });
@@ -443,10 +570,12 @@ async function boot() {
           extra_stat: { stat: createSel.stat },
           specialty: createSel.specialty,
           portrait_seed: $("create-seed").value.trim() || name,
+          echo_ids: createSel.echoes,
         },
       });
       audio.portal();
       enterGame(res.view);
+      if (createSel.echoes.length) toast(`The multiverse remembers: ${createSel.echoes.length} echo${createSel.echoes.length > 1 ? "es" : ""} woven in.`, "good");
     } catch (e) { toast(e.message, "bad"); }
   });
 

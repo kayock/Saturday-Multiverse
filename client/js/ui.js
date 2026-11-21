@@ -14,13 +14,17 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 
 // ---------- drawer plumbing ----------
 export function openPanel(name) {
-  panelTitle.textContent = { map: "Map of the Shore", journal: "Journal", inventory: "Pack",
-    quests: "Quests & Mysteries", dice: "Dice Log", character: "Character" }[name] || "Panel";
+  panelTitle.textContent = { map: "Map of the Shore", journal: "Journal Log", inventory: "Pack",
+    quests: "Quests & Mysteries", dice: "Dice Log", character: "Character",
+    ledger: "The Memory Ledger", omens: "The Omen Deck", shore: "The Growing Shore",
+    worlds: "Known Worlds" }[name] || "Panel";
   panelBody.innerHTML = { map: panelMap, journal: panelJournal, inventory: panelInventory,
-    quests: panelQuests, dice: panelDice, character: panelCharacter }[name]?.() || "";
+    quests: panelQuests, dice: panelDice, character: panelCharacter,
+    ledger: panelLedger, omens: panelOmens, shore: panelShore, worlds: panelWorlds }[name]?.() || "";
   wirePanel(name);
   root.hidden = false;
   audio.ui();
+  if (name === "ledger" || name === "shore") refreshPanelExtras(name);
 }
 
 export function closePanel() { root.hidden = true; }
@@ -145,6 +149,9 @@ function panelDice() {
       <label style="display:flex;gap:0.4em;align-items:center;color:var(--dim);font-size:0.85em">
         <input type="checkbox" id="dice-hard"> hard (−1 band)
       </label>
+      <label style="display:flex;gap:0.4em;align-items:center;color:var(--gold);font-size:0.85em" title="+2 to the roll, but any failure deals 2 extra harm">
+        <input type="checkbox" id="dice-risk"> risk it (+2 / fail hurts)
+      </label>
       <button id="dice-roll" class="btn btn-small btn-primary">Roll 2d6</button>
     </div>
   </div>
@@ -156,16 +163,19 @@ function panelDice() {
 const MAP_POS = {
   tidegate: [46, 46], camp: [22, 62], tavern: [34, 55], lighthouse: [80, 30],
   seacave: [68, 38], wreck: [63, 68], saltgrave_gate: [58, 14], umbral_reach: [24, 14],
+  ninth_wave: [12, 40], "": [50, 50],
 };
 
 function panelMap() {
   const v = state.view;
   const here = v.location?.id;
-  const pins = v.pack?.locations || [];
+  const pins = (v.pack?.locations || []).concat(v.world ? [{
+    id: v.world.id, name: v.world.name,
+  }] : []);
   const disc = v.discovered || {};
   const svgPins = pins.map((l) => {
     const [px, py] = MAP_POS[l.id] || [50, 50];
-    const known = l.id === here || disc[l.id] || ["tidegate", "camp", "tavern"].includes(l.id);
+    const known = l.id === here || disc[l.id] || ["tidegate", "camp", "tavern"].includes(l.id) || l.id === v.world?.id;
     const isHere = l.id === here;
     const color = isHere ? "#43e8d8" : known ? "#9b8cff" : "#4a4560";
     const label = known ? l.name : "unmarked";
@@ -190,8 +200,280 @@ function panelMap() {
       ${svgPins}
     </svg>
   </div>
-  <div class="fact-line" style="margin-top:0.8em">Click a marked place to walk there. The Beam carries the doors: two stand open, one is sealed.</div>
-  <div class="fact-line">${v.tide === "low" ? "Low tide: the cave and the wreck are reachable." : "High tide: the cave and the wreck are under water."}</div>`;
+  <div class="fact-line" style="margin-top:0.8em">Click a marked place to walk there. The Beam carries four doors: two open, one sealed — and the Unstable Door, which opens for whispered seeds.</div>
+  <div class="fact-line">${v.tide === "low" ? "Low tide: the cave and the wreck are reachable." : "High tide: the cave and the wreck are under water."}
+  ${v.tide_phase ? `Tide changes in ${v.tide_phase.beats_to_change} beats.` : ""}</div>`;
+}
+
+// ---------- M1.5 / 2.0 / 2.5 panels ----------
+let ledgerCache = null;
+
+async function refreshPanelExtras(name) {
+  if (name === "ledger") {
+    try {
+      ledgerCache = await apiGet(`/api/campaigns/${state.view.id}/ledger`);
+      const box = panelBody.querySelector("#ledger-body");
+      if (box) box.innerHTML = ledgerHTML(ledgerCache);
+      wireLedger();
+    } catch (e) { window.__toast?.(e.message, "bad"); }
+  } else if (name === "shore") {
+    try {
+      const res = await apiGet(`/api/campaigns/${state.view.id}/upgrades`);
+      const box = panelBody.querySelector("#shore-body");
+      if (box) box.innerHTML = shoreHTML(res);
+      wireShore();
+    } catch (e) { window.__toast?.(e.message, "bad"); }
+  }
+}
+
+function panelLedger() {
+  return `<div id="ledger-body"><div class="fact-line">Opening the ledger…</div></div>`;
+}
+
+function ledgerHTML(led) {
+  const worldCards = led.worlds.map((w) => `
+    <div class="ledger-card card-world">
+      <div class="lc-kind">world · visited ${w.visits}×</div>
+      <strong>${esc(w.name)}</strong>
+      <div class="fact-line">${esc(w.archetype)} · seed: “${esc(w.seed)}”</div>
+      ${w.hooks?.length ? `<div class="fact-line" style="color:var(--gold)">hook: ${esc(w.hooks[0])}</div>` : ""}
+      <button class="btn btn-small" data-world-seed="${esc(w.seed)}">The door remembers</button>
+    </div>`).join("") || "<div class='fact-line'>No worlds discovered yet. Whisper a seed at the Unstable Door.</div>";
+
+  const people = led.people.map((p) => `
+    <div class="npc-row"><strong>${esc(p.name)}</strong>
+      <span class="npc-rel">${p.reputation ? "reputation" : p.met ? `rel ${p.rel > 0 ? "+" : ""}${p.rel}` : "has heard of you"}</span></div>`).join("")
+    || "<div class='fact-line'>No one worth remembering yet.</div>";
+
+  const threads = led.threads.map((t) => `
+    <div class="ledger-card ${t.paid ? "card-paid" : ""}">
+      <div class="lc-kind">mystery · ${t.count}/${t.threshold} clues</div>
+      <strong>${esc(t.title)}</strong> ${t.paid ? `<span class="chip good">paid off</span>` : ""}
+      ${t.clues.map((c) => `<div class="fact-line">· ${esc(c.text)}</div>`).join("")}
+    </div>`).join("") || "<div class='fact-line'>No mysteries yet.</div>";
+
+  const cons = led.consequences.map((c) => `
+    <div class="fact-line" style="color:var(--gold)">◈ ${esc(c.summary)}</div>`).join("")
+    || "<div class='fact-line'>No echoes between worlds yet.</div>";
+
+  const echoes = led.echoes.map((e) => `
+    <div class="ledger-card ${e.used_in ? "card-used" : "card-paid"}">
+      <div class="lc-kind">echo · ${esc(e.kind)}${e.used_in ? " · woven into a later voyage" : " · waiting"}</div>
+      <strong>${esc(e.title)}</strong>
+      <div class="fact-line">${esc(e.detail)}</div>
+    </div>`).join("") || "<div class='fact-line'>No echoes yet — finish an adventure to leave one.</div>";
+
+  const memories = led.memories.slice(0, 14).map((m) => `
+    <div class="fact-line"><span style="color:var(--faint)">[${esc(m.kind)}]</span> ${esc(m.text)}</div>`).join("");
+
+  return `
+  <div class="sect"><h4>Known worlds</h4><div class="card-grid">${worldCards}</div></div>
+  <div class="sect"><h4>People</h4>${people}</div>
+  <div class="sect"><h4>Mysteries & threads</h4>${threads}</div>
+  <div class="sect"><h4>Cross-world consequences</h4>${cons}</div>
+  <div class="sect"><h4>Echoes</h4><div class="card-grid">${echoes}</div></div>
+  <div class="sect"><h4>What the tavern talks about</h4>${memories}</div>
+  <div class="sect"><h4>Chronological log</h4>
+    ${state.view.journal.map((j) => `
+      <div class="journal-entry kind-${esc(j.kind)}">
+        <span class="je-kind">${esc(j.kind)} · ${esc((j.ts || "").slice(0, 16).replace("T", " "))}</span>
+        <div class="je-text">${esc(j.text)}</div>
+      </div>`).join("")}
+  </div>`;
+}
+
+function wireLedger() {
+  panelBody.querySelectorAll("[data-world-seed]").forEach((b) => b.addEventListener("click", async () => {
+    try {
+      const res = await apiSend(`/api/campaigns/${state.view.id}/worlds`, "POST", { seed: b.dataset.worldSeed });
+      if (res.entry_location) { closePanel(); window.__travel?.(res.entry_location); }
+    } catch (e) { window.__toast?.(e.message, "bad"); }
+  }));
+}
+
+function panelOmens() {
+  const v = state.view;
+  const hand = v.omen_hand || { hand: [], draws_left: 0, hand_max: 2 };
+  return `
+  <div class="sect"><h4>Your hand — ${hand.hand.length}/${hand.hand_max} held</h4>
+    <div class="fact-line">Drawing costs 1 Nerve; the deck gives ${hand.draws_left} more until you rest.
+    Edges grant +1 on their skill when played; turn-cards steady you. Complications play themselves.</div>
+    <div id="omen-hand-box">
+      ${hand.hand.map((c) => `
+        <div class="ledger-card ${c.kind === "edge" ? "card-paid" : ""}">
+          <div class="lc-kind">${esc(c.kind)}</div>
+          <strong>${esc(c.title)}</strong>
+          <div class="fact-line">${esc(c.text)}</div>
+          ${c.kind !== "complication" ? `<button class="btn btn-small" data-play-omen="${esc(c.id)}">Play</button>` : `<div class="fact-line" style="color:var(--danger)">it will land when it lands</div>`}
+        </div>`).join("") || "<div class='fact-line'>Your hand is empty.</div>"}
+    </div>
+    <div class="setting-row">
+      <button id="omen-draw" class="btn btn-small btn-primary" ${hand.draws_left > 0 ? "" : "disabled"}>Draw an omen (1 Nerve)</button>
+    </div>
+  </div>
+  <div class="sect"><h4>Last drawn by the tide</h4>
+    ${v.omen ? `<div class="omen-card"><span class="omen-kind">${esc(v.omen.kind)}</span> — <strong>${esc(v.omen.title)}</strong><br>${esc(v.omen.text)}</div>`
+      : "<div class='fact-line'>The deck is quiet.</div>"}
+  </div>`;
+}
+
+function panelShore() {
+  return `<div id="shore-body"><div class="fact-line">Surveying the shore…</div></div>`;
+}
+
+function shoreHTML(res) {
+  return `
+  <div class="sect"><h4>Glassbeads: ${res.beads}</h4>
+    <div class="fact-line">The shore's small coin — sea-glass polished by the Beam. Adventure endings,
+    wash-ashore finds and worlds pay in beads. Build improvements where they belong: stand at the
+    camp, the tavern, or the lighthouse to build there.</div>
+  </div>
+  ${res.upgrades.map((u) => `
+    <div class="ledger-card ${u.owned ? "card-paid" : ""}">
+      <div class="lc-kind">${esc(u.location)} · ${u.owned ? "built" : `${u.cost} glassbeads`}</div>
+      <strong>${esc(u.name)}</strong>
+      <div class="fact-line">${esc(u.desc)}</div>
+      ${!u.owned && u.affordable ? `<button class="btn btn-small btn-primary" data-build="${esc(u.id)}">Build here</button>` : ""}
+      ${!u.owned && !u.affordable ? `<div class="fact-line" style="color:var(--faint)">needs ${u.cost - res.beads} more bead${u.cost - res.beads === 1 ? "" : "s"}${u.location !== state.view.location?.id ? ` · travel to the ${esc(u.location)}` : ""}</div>` : ""}
+    </div>`).join("")}`;
+}
+
+function wireShore() {
+  panelBody.querySelectorAll("[data-build]").forEach((b) => b.addEventListener("click", async () => {
+    try {
+      const res = await apiSend(`/api/campaigns/${state.view.id}/upgrades`, "POST", { upgrade_id: b.dataset.build });
+      window.__toast?.(res.narration, "good");
+      window.__refreshView?.();
+      refreshPanelExtras("shore");
+    } catch (e) { window.__toast?.(e.message, "bad"); }
+  }));
+}
+
+function panelWorlds() {
+  return `<div id="ledger-body"><div class="fact-line">Opening the worlds list…</div></div>`;
+}
+
+// ---------- talk (M1.5) ----------
+export async function openTalk(npcId) {
+  const v = state.view;
+  const byLocation = { tavern: "maren", camp: "old_cardo", umbral_reach: "ledger_keeper" };
+  const who = npcId || byLocation[v.location?.id];
+  if (!who) return;
+  panelTitle.textContent = "A conversation";
+  panelBody.innerHTML = `
+    <div id="talk-box"><div class="fact-line">Listening…</div></div>
+    <div class="chip-row" id="talk-topics">
+      ${["what's new", "rumors", "the shore"].map((t) => `<span class="chip" data-topic="${esc(t)}">${esc(t)}</span>`).join("")}
+    </div>`;
+  root.hidden = false;
+  await loadTalk(who, "what's new");
+  panelBody.querySelectorAll("[data-topic]").forEach((c) =>
+    c.addEventListener("click", () => loadTalk(who, c.dataset.topic)));
+  audio.ui();
+}
+
+async function loadTalk(npcId, topic) {
+  const box = panelBody.querySelector("#talk-box");
+  try {
+    const res = await apiSend(`/api/campaigns/${state.view.id}/talk`, "POST", { npc_id: npcId, topic });
+    box.innerHTML = res.lines.map((l) => `
+      <div class="journal-entry" style="border-color:var(--gold)">
+        <span class="je-kind">${esc(res.npc.name)}${res.meta.ai_used ? "" : " · offline voice"}</span>
+        <div class="je-text" style="font-family:var(--serif)">${esc(l)}</div>
+      </div>`).join("");
+  } catch (e) { if (box) box.innerHTML = `<div class="fact-line">${esc(e.message)}</div>`; }
+}
+
+// ---------- seed gate (M2.0) ----------
+export async function openSeedGate() {
+  const seedRoot = document.getElementById("seed-root");
+  const body = document.getElementById("seed-body");
+  let suggestions = [];
+  try { suggestions = (await apiGet("/api/seeds/suggest")).suggestions; } catch { /* ignore */ }
+  let worlds = [];
+  try { worlds = (await apiGet(`/api/campaigns/${state.view.id}/worlds`)).worlds; } catch { /* ignore */ }
+  body.innerHTML = `
+    <div class="fact-line">The Unstable Door is half-here. Whisper a seed — a word, a name, a short
+    phrase — and somewhere new answers. The same seed always opens the same world, and the world
+    remembers you between visits.</div>
+    <div class="setting-row">
+      <input id="seed-input" class="input" maxlength="120" placeholder="whisper a seed… (e.g. Clockwork Ocean)">
+      <button id="seed-open" class="btn btn-primary btn-small">Open the door</button>
+    </div>
+    <div class="chip-row">${suggestions.map((s) => `<span class="chip" data-seed="${esc(s)}">${esc(s)}</span>`).join("")}</div>
+    <div id="seed-result" style="margin-top:0.8em"></div>
+    <div class="sect"><h4>Worlds already discovered (${worlds.length})</h4>
+      ${worlds.map((w) => `
+        <div class="ledger-card"><div class="lc-kind">visited ${w.visits}×</div>
+        <strong>${esc(w.name)}</strong> <span class="fact-line">seed “${esc(w.seed)}”</span>
+        <button class="btn btn-small" data-return-world="${esc(w.seed)}">Return</button></div>`).join("")
+        || "<div class='fact-line'>None yet. The first seed costs nothing but a whisper.</div>"}
+    </div>`;
+  seedRoot.hidden = false;
+  body.querySelectorAll("[data-seed]").forEach((c) => c.addEventListener("click", () => {
+    body.querySelector("#seed-input").value = c.dataset.seed;
+  }));
+  body.querySelectorAll("[data-return-world]").forEach((b) => b.addEventListener("click", async () => {
+    try {
+      const res = await apiSend(`/api/campaigns/${state.view.id}/worlds`, "POST", { seed: b.dataset.returnWorld });
+      document.getElementById("seed-root").hidden = true;
+      window.__travel?.(res.entry_location);
+    } catch (e) { window.__toast?.(e.message, "bad"); }
+  }));
+  body.querySelector("#seed-open").addEventListener("click", async () => {
+    const inp = body.querySelector("#seed-input");
+    const result = body.querySelector("#seed-result");
+    if (!inp.value.trim()) return;
+    result.innerHTML = "<div class='fact-line'>The door listens…</div>";
+    try {
+      const res = await apiSend(`/api/campaigns/${state.view.id}/worlds`, "POST", { seed: inp.value });
+      result.innerHTML = `
+        <div class="omen-card"><strong>${esc(res.name)}</strong> — ${esc(res.archetype)}
+        ${res.existing ? "· the door remembers this world" : "· a new world answers"}</div>
+        <button id="seed-enter" class="btn btn-primary btn-small">Step through</button>`;
+      result.querySelector("#seed-enter").addEventListener("click", () => {
+        document.getElementById("seed-root").hidden = true;
+        window.__travel?.(res.entry_location);
+      });
+    } catch (e) { result.innerHTML = `<div class="fact-line" style="color:var(--danger)">${esc(e.message)}</div>`; }
+  });
+  audio.ui();
+}
+
+// ---------- echoes (M2.5) ----------
+export function showEchoOffers(offers) {
+  const echoRoot = document.getElementById("echo-root");
+  const body = document.getElementById("echo-body");
+  body.innerHTML = `
+    <div class="fact-line">This ending offered ${offers.length} echo${offers.length > 1 ? "es" : ""} — pieces of
+    this journey the multiverse keeps. They are saved already. Begin a <strong>New Voyage</strong> and
+    weave up to two of them into whoever walks the shore next.</div>
+    ${offers.map((o) => `
+      <div class="ledger-card card-paid"><div class="lc-kind">echo · ${esc(o.kind)}</div>
+      <strong>${esc(o.title)}</strong><div class="fact-line">${esc(o.detail || "")}</div></div>`).join("")}
+    <div class="setting-row"><button class="btn btn-small btn-primary" data-close-echo>Carry on</button></div>`;
+  echoRoot.hidden = false;
+  body.querySelectorAll("[data-close-echo]").forEach((el) => el.addEventListener("click", () => { echoRoot.hidden = true; }));
+  audio.chime();
+}
+
+export async function openEchoShelf() {
+  const echoRoot = document.getElementById("echo-root");
+  const body = document.getElementById("echo-body");
+  let echoes = [];
+  try { echoes = (await apiGet("/api/echoes")).echoes; } catch { /* ignore */ }
+  body.innerHTML = `
+    <div class="fact-line">Echoes are what finished adventures leave behind. Up to two can be woven
+    into a new voyage at character creation — each echo can only be woven once.</div>
+    ${echoes.map((e) => `
+      <div class="ledger-card ${e.used_in ? "card-used" : "card-paid"}">
+        <div class="lc-kind">echo · ${esc(e.kind)} · ${e.used_in ? "woven" : "waiting"}</div>
+        <strong>${esc(e.title)}</strong>
+        <div class="fact-line">${esc(e.detail)}</div>
+      </div>`).join("") || "<div class='fact-line'>The shelf is empty. Finish an adventure.</div>"}
+    <div class="setting-row"><button class="btn btn-small" data-close-echo>Close</button></div>`;
+  echoRoot.hidden = false;
+  body.querySelectorAll("[data-close-echo]").forEach((el) => el.addEventListener("click", () => { echoRoot.hidden = true; }));
 }
 
 function wirePanel(name) {
@@ -237,11 +519,30 @@ function wirePanel(name) {
   if (roll) roll.addEventListener("click", async () => {
     const skill = panelBody.querySelector("#dice-skill").value;
     const hard = panelBody.querySelector("#dice-hard").checked;
+    const risk = panelBody.querySelector("#dice-risk")?.checked || false;
     try {
-      const res = await apiSend(`/api/campaigns/${state.view.id}/check`, "POST", { skill, hard });
+      const res = await apiSend(`/api/campaigns/${state.view.id}/check`, "POST", { skill, hard, risk });
       audio.dice();
       window.__showDice?.(res);
       window.__refreshView?.();
+    } catch (e) { window.__toast?.(e.message, "bad"); }
+  });
+  panelBody.querySelectorAll("[data-play-omen]").forEach((b) => b.addEventListener("click", async () => {
+    try {
+      const res = await apiSend(`/api/campaigns/${state.view.id}/omen/play`, "POST", { card_id: b.dataset.playOmen });
+      window.__toast?.(res.narration, "good");
+      window.__refreshView?.();
+      openPanel("omens");
+    } catch (e) { window.__toast?.(e.message, "bad"); }
+  }));
+  const omenDraw = panelBody.querySelector("#omen-draw");
+  if (omenDraw) omenDraw.addEventListener("click", async () => {
+    try {
+      const res = await apiSend(`/api/campaigns/${state.view.id}/omen/draw`, "POST", {});
+      audio.chime();
+      window.__toast?.(res.narration, "good");
+      window.__refreshView?.();
+      openPanel("omens");
     } catch (e) { window.__toast?.(e.message, "bad"); }
   });
 }
@@ -250,6 +551,21 @@ function wirePanel(name) {
 function settingsHTML() {
   const v = state.view;
   return `
+  <div class="setting-block">
+    <h4>Game Master personality</h4>
+    <div class="fact-line">The Game Master's voice — narration style and outcome lines. Personality never
+    becomes rules authority: dice, state and consequences stay in the engine.</div>
+    <div class="chip-row" id="gm-style-row">
+      ${["classic", "grimdark", "cosmic", "noir", "whimsical", "mythic", "custom"].map((s) => `
+        <span class="chip ${v.gm_style?.id === s ? "selected" : ""}" data-style="${s}">${s}</span>`).join("")}
+    </div>
+    <div class="setting-row" id="gm-custom-row" ${v.gm_style?.id === "custom" ? "" : "hidden"}>
+      <input id="gm-custom-text" class="input" maxlength="400" placeholder="Describe the tone you want…"
+             value="${esc(window.__gmCustomText || "")}">
+    </div>
+    <div class="setting-row"><button id="gm-style-save" class="btn btn-small btn-primary">Save persona</button></div>
+  </div>
+
   <div class="setting-block">
     <h4>AI Game Master — any OpenAI-compatible endpoint</h4>
     <div class="fact-line">Works with local model servers (Ollama, LM Studio, llama.cpp, KoboldCpp, vLLM…) or remote providers. Your key stays in your local database and is never sent anywhere except the endpoint you configure.</div>
@@ -267,11 +583,12 @@ function settingsHTML() {
   </div>
 
   <div class="setting-block">
-    <h4>Sound</h4>
+    <h4>Sound & motion</h4>
     <div class="slider-row"><label>Music</label><input type="range" id="vol-music" min="0" max="1" step="0.05" value="${audio.prefs.music}"></div>
     <div class="slider-row"><label>Ambience</label><input type="range" id="vol-amb" min="0" max="1" step="0.05" value="${audio.prefs.amb}"></div>
     <div class="slider-row"><label>Effects</label><input type="range" id="vol-sfx" min="0" max="1" step="0.05" value="${audio.prefs.sfx}"></div>
     <div class="setting-row"><label><input type="checkbox" id="vol-mute" ${audio.prefs.muted ? "checked" : ""}> mute everything</label></div>
+    <div class="setting-row"><label><input type="checkbox" id="calm-mode" ${localStorage.getItem("sm_calm") === "1" ? "checked" : ""}> calm mode (gentler animation, no rain)</label></div>
   </div>
 
   <div class="setting-block">
@@ -304,6 +621,26 @@ function wireSettings() {
   const temp = $("#ai-temp"), words = $("#ai-words");
   temp?.addEventListener("input", () => { $("#ai-temp-val").textContent = temp.value; });
   words?.addEventListener("input", () => { $("#ai-words-val").textContent = `${words.value} words`; });
+
+  let chosenStyle = state.view?.gm_style?.id || "classic";
+  settingsBody.querySelectorAll("#gm-style-row [data-style]").forEach((c) => {
+    c.addEventListener("click", () => {
+      chosenStyle = c.dataset.style;
+      settingsBody.querySelectorAll("#gm-style-row [data-style]").forEach((x) => x.classList.toggle("selected", x === c));
+      const row = $("#gm-custom-row");
+      if (row) row.hidden = chosenStyle !== "custom";
+      audio.ui();
+    });
+  });
+  $("#gm-style-save")?.addEventListener("click", async () => {
+    if (!state.view) { window.__toast?.("Enter a campaign first.", "bad"); return; }
+    try {
+      const res = await apiSend(`/api/campaigns/${state.view.id}/style`, "POST",
+        { style_id: chosenStyle, custom_text: $("#gm-custom-text")?.value || "" });
+      window.__toast?.(`Game Master persona: ${res.label}.`, "good");
+      window.__refreshView?.();
+    } catch (e) { window.__toast?.(e.message, "bad"); }
+  });
 
   $("#ai-save")?.addEventListener("click", async () => {
     const patch = {
@@ -346,6 +683,12 @@ function wireSettings() {
     $(id)?.addEventListener("input", (e) => audio.setBus(bus, parseFloat(e.target.value)));
   }
   $("#vol-mute")?.addEventListener("change", (e) => audio.setMuted(e.target.checked));
+  $("#calm-mode")?.addEventListener("change", (e) => {
+    localStorage.setItem("sm_calm", e.target.checked ? "1" : "0");
+    document.body.classList.toggle("calm", e.target.checked);
+    window.__hub?.setCalm(e.target.checked);
+    window.__toast?.(e.target.checked ? "Calm mode on — the shore moves gently." : "Calm mode off.", "good");
+  });
 
   $("#btn-backup")?.addEventListener("click", async () => {
     try {
@@ -391,6 +734,8 @@ async function refreshBackups() {
 export function initPanelChrome() {
   document.querySelectorAll("[data-close-panel]").forEach((el) => el.addEventListener("click", closePanel));
   document.querySelectorAll("[data-close-settings]").forEach((el) => el.addEventListener("click", closeSettings));
+  document.querySelectorAll("[data-close-seed]").forEach((el) =>
+    el.addEventListener("click", () => { document.getElementById("seed-root").hidden = true; }));
   document.querySelectorAll("#hud-nav [data-panel]").forEach((b) =>
     b.addEventListener("click", () => {
       if (b.dataset.panel === "settings") openSettings();
