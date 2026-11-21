@@ -1,4 +1,4 @@
-"""Save compatibility: Milestone 1 and 2.5 saves must migrate with zero loss.
+"""Save compatibility: Milestone 1/2.5/3.2 saves must migrate with zero loss.
 
 These tests run against the normal session database through the regular
 engine — no module reloads, no environment juggling — so they can never
@@ -18,7 +18,7 @@ def _pin(cid: str, version: str) -> None:
     db.init_db()
 
 
-def test_v25_save_migrates_to_v3_and_preserves_everything(campaign):
+def test_v25_save_migrates_to_v5_and_preserves_everything(campaign):
     """A Living-Multiverse (v2.5) save opens under the Shared Shore build."""
     from server import legacy
     # give the wanderer state that v3 must move into the character record
@@ -31,7 +31,15 @@ def test_v25_save_migrates_to_v3_and_preserves_everything(campaign):
 
     _pin(campaign, "saturday.core.v2")
     marker = db.query_one("SELECT value FROM meta WHERE key='schema_version'")
-    assert marker["value"] == "saturday.core.v3"
+    assert marker["value"] == "saturday.core.v5"
+    # v4 additions exist and default sanely
+    assert db.query_one("SELECT ruleset FROM campaigns WHERE id=?", (campaign,))["ruleset"] == "undertow"
+    # the v4 library tables exist and work (the shared DB may hold other docs)
+    db.execute("DELETE FROM library_docs WHERE id='migration_check_doc'")
+    db.execute("INSERT INTO library_docs (id, title, doc_type, added_at)"
+               " VALUES ('migration_check_doc', 't', 'txt', '2026-01-01T00:00:00Z')")
+    assert db.query_one("SELECT title FROM library_docs WHERE id='migration_check_doc'")
+    db.execute("DELETE FROM library_docs WHERE id='migration_check_doc'")
 
     view = gm.campaign_view(campaign)
     assert view["character"]["name"] == name_before
@@ -48,7 +56,7 @@ def test_v1_pin_migrates_through_the_full_chain(campaign):
     """Pinning the oldest marker walks v1 → v2 → v3 in one open."""
     _pin(campaign, "saturday.core.v1")
     assert db.query_one("SELECT value FROM meta WHERE key='schema_version'")["value"] \
-        == "saturday.core.v3"
+        == "saturday.core.v5"
     view = gm.campaign_view(campaign)
     assert view["character"]["name"]
     assert gm.run_turn(campaign, "The old road still holds.")["narration"]

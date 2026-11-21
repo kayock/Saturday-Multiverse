@@ -11,8 +11,8 @@ import os
 from pathlib import Path
 
 APP_NAME = "Saturday Multiverse"
-APP_VERSION = "0.3.2-shared-shore"
-SCHEMA_VERSION = "saturday.core.v3"
+APP_VERSION = "0.3.6-living-campaign"
+SCHEMA_VERSION = "saturday.core.v5"
 
 # Repository root: server/config.py -> server/ -> project root
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -23,6 +23,8 @@ WORLDPACKS_DIR = ROOT_DIR / "worldpacks"
 # Writable user-data directory (created on demand, kept out of git).
 DATA_DIR = Path(os.environ.get("SATURDAY_DATA_DIR", ROOT_DIR / "userdata")).resolve()
 DB_PATH = DATA_DIR / "saturday.db"
+LIBRARY_DIR = DATA_DIR / "library"
+PACKS_DATA_DIR = DATA_DIR / "worldpacks"
 BACKUP_DIR = DATA_DIR / "backups"
 EXPORT_DIR = DATA_DIR / "exports"
 
@@ -36,8 +38,9 @@ PORT = int(os.environ.get("SATURDAY_PORT", "8788"))
 HOST_TOKEN = os.environ.get("SATURDAY_TOKEN", "")
 
 # Rate limits (requests per minute per client IP).
-RATE_LIMIT_API = 120
-RATE_LIMIT_AI = 30
+RATE_LIMIT_MULT = float(os.environ.get("SATURDAY_RATE_MULT", "1"))
+RATE_LIMIT_API = int(120 * RATE_LIMIT_MULT)
+RATE_LIMIT_AI = int(30 * RATE_LIMIT_MULT)
 
 # AI request defaults (per-provider values live in settings; these are the
 # safety rails applied to every outgoing call).

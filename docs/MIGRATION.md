@@ -60,3 +60,29 @@ tables' data (it ignores them; M1 code never touches the new tables, and the
 `schema_version` marker will read v2, which M1 does not check). Your M1
 campaigns remain playable. For a strictly-clean rollback, restore a pre-upgrade
 backup.
+
+
+## v3 → v4 (Milestone 3.5, The Infinite Library)
+
+Adds `campaigns.ruleset` (default `undertow`) and the library/forge tables
+(`library_docs`, `library_chunks` + FTS5 index, `forge_drafts`). Purely
+additive: every v3 campaign keeps its id, state, party and multiplayer
+session. v1 and v2 saves walk the whole chain (v1→v2→v3→v4) in one open —
+verified by `tests/test_migrations.py`. New runtime data lives beside the
+database: `userdata/library/` (verbatim sources) and
+`userdata/worldpacks/` (approved forge packs).
+
+
+## v5 (0.3.6 — living campaign)
+
+Additive migration from v4 (and from v1/v2/v3 through the existing chain):
+- `characters.location_id` (split-party state; NULL = follows the party)
+- `mp_players.role` (`player` | `spectator`)
+- `dnd_encounters` — persistent player-controlled combat
+- `forge_jobs`, `forge_revisions`, `forge_contrib` — conversion jobs, draft
+  versioning, collaborative contributions
+- `forge_drafts.owner` / `forge_drafts.collab_json` — workshop ownership
+- `director_threads` — the Living Campaign Director
+- `campaign_checkpoints` — snapshot/restore-as-new
+
+Old saves migrate in place; tests cover v2.5 → v5 with content preserved.

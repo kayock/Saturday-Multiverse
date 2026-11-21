@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 import secrets
 
-from . import ai, config, db, gen, legacy, rules, worldpacks
+from . import ai, config, continuity, db, director, gen, legacy, rules, rules_dnd, worldpacks
 from .db import jdumps, jloads, new_id, utcnow
 
 VALID_SKILLS = ["notice", "lore", "persuade", "fight", "endure", "bind"]
@@ -81,10 +81,24 @@ def create_campaign(name: str, pack_id: str, character_spec: dict) -> str:
     char_name = (character_spec.get("name") or "").strip()[:40]
     if not char_name:
         raise ValueError("the wanderer needs a name")
-    archetype_id = character_spec.get("archetype", "")
-    arc = worldpacks.get_archetype(pack, archetype_id)
-    if not arc:
-        raise ValueError("pick a road: one of the pack's archetypes")
+    ruleset = str(character_spec.get("ruleset", "undertow")).lower()
+    if ruleset not in ("undertow", "dnd5e"):
+        ruleset = "undertow"
+    dnd_sheet = None
+    if ruleset == "dnd5e":
+        dnd_sheet = rules_dnd.build_character({
+            "class": character_spec.get("class", "fighter"),
+            "species": character_spec.get("species", "human"),
+            "background": character_spec.get("background", "folk_hero"),
+        })
+        archetype_id = dnd_sheet["class"]
+        arc = {"name": dnd_sheet["class_name"], "stats": {}, "palette": "tide",
+               "kit": [], "dnd": True}
+    else:
+        archetype_id = character_spec.get("archetype", "")
+        arc = worldpacks.get_archetype(pack, archetype_id)
+        if not arc:
+            raise ValueError("pick a road: one of the pack's archetypes")
 
     attrs = dict(arc.get("stats", {}))
     extra = character_spec.get("extra_stat", {})
@@ -100,9 +114,19 @@ def create_campaign(name: str, pack_id: str, character_spec: dict) -> str:
     cid = new_id("cmp")
     chid = new_id("chr")
     ts = utcnow()
-    vigor_max = 10 + attrs.get("might", 0)
-    nerve_max = 10 + attrs.get("mettle", 0)
-    skills = {s: (1 if s == specialty else 0) for s in VALID_SKILLS}
+    if ruleset == "dnd5e":
+        vigor_max = dnd_sheet["hp_max"]
+        nerve_max = 0
+        attrs = {k: dnd_sheet["ability_mods"][k] for k in ("wits", "might", "mettle", "bind")} \
+            if False else {"wits": dnd_sheet["ability_mods"]["int"],
+                           "might": dnd_sheet["ability_mods"]["str"],
+                           "mettle": dnd_sheet["ability_mods"]["wis"],
+                           "bind": dnd_sheet["ability_mods"]["cha"]}
+        skills = {}
+    else:
+        vigor_max = 10 + attrs.get("might", 0)
+        nerve_max = 10 + attrs.get("mettle", 0)
+        skills = {s: (1 if s == specialty else 0) for s in VALID_SKILLS}
 
     portrait = {
         "seed": character_spec.get("portrait_seed") or new_id("seed"),
@@ -116,13 +140,17 @@ def create_campaign(name: str, pack_id: str, character_spec: dict) -> str:
         (
             chid, cid, char_name, archetype_id, jdumps(portrait), jdumps(attrs),
             jdumps(skills), vigor_max, vigor_max, nerve_max, nerve_max,
-            jdumps({"specialty": specialty, "history": character_spec.get("history", "")[:400]}),
+            jdumps({"specialty": specialty, "history": character_spec.get("history", "")[:400],
+                    "dnd": dnd_sheet} if dnd_sheet else
+                   {"specialty": specialty, "history": character_spec.get("history", "")[:400]}),
         ),
     )
     hub = pack.get("hub_location") or (pack["locations"][0]["id"] if pack["locations"] else "")
+    hub_loc = worldpacks.get_location(pack, hub) or {}
+    start_adv = hub_loc.get("adventure")
     state = {
         "flags": {},
-        "adventure_id": None,
+        "adventure_id": start_adv or None,
         "beat": None,
         "deck_mode": "agent",
         "last_omen": None,
@@ -130,19 +158,29 @@ def create_campaign(name: str, pack_id: str, character_spec: dict) -> str:
         "weather": {"key": "mist", "desc": "Low sea mist."},
         "endings_seen": [],
     }
+    if start_adv:
+        adv0 = worldpacks.get_adventure(pack, start_adv)
+        if adv0 and adv0.get("entry"):
+            state["beat"] = adv0["entry"]
     db.execute(
         "INSERT INTO campaigns (id, name, pack_id, character_id, scene_id, location_id,"
-        " turn, drift, state_json, summary, status, created_at, updated_at)"
-        " VALUES (?,?,?,?,?, ?,0,0,?,?, 'active', ?, ?)",
-        (cid, name, pack_id, chid, "hub", hub, jdumps(state), "", ts, ts),
+        " turn, drift, ruleset, state_json, summary, status, created_at, updated_at)"
+        " VALUES (?,?,?,?,?, ?,0,0,?, ?, '', 'active', ?, ?)",
+        (cid, name, pack_id, chid, "hub", hub, ruleset, jdumps(state), ts, ts),
     )
-    for item_id in arc.get("kit", []):
+    for item_id in arc.get("kit", []) if not dnd_sheet else []:
         give_item(cid, pack, item_id, silent=True, chid=chid)
     for fact in pack.get("intro_facts", []):
         db.execute(
             "INSERT INTO facts (id, campaign_id, ts, text, scope, importance, source)"
             " VALUES (?,?,?,?,?,?,?)",
             (new_id("fct"), cid, ts, fact[:300], "visible", 2, "pack"),
+        )
+    for secret in pack.get("gm_secrets", []):
+        db.execute(
+            "INSERT INTO facts (id, campaign_id, ts, text, scope, importance, source)"
+            " VALUES (?,?,?,?,?,?,?)",
+            (new_id("fct"), cid, ts, secret[:300], "hidden", 3, "pack"),
         )
     for quest in pack.get("intro_quests", []):
         db.execute(
@@ -172,40 +210,63 @@ def create_character(cid: str, spec: dict) -> str:
     char_name = (spec.get("name") or "").strip()[:40]
     if not char_name:
         raise ValueError("the wanderer needs a name")
-    arc = worldpacks.get_archetype(pack, spec.get("archetype", ""))
-    if not arc:
-        raise ValueError("pick a road: one of the pack's archetypes")
-    attrs = dict(arc.get("stats", {}))
-    extra = spec.get("extra_stat") or {}
-    if extra:
-        stat = str(extra.get("stat", "")).lower()
-        if stat not in STATS:
-            raise ValueError("extra point must go to wits, might, mettle or bind")
-        attrs[stat] = attrs.get(stat, 0) + 1
-    skills = {s: (1 if s == spec.get("specialty") else 0) for s in VALID_SKILLS}
-    if spec.get("specialty") not in VALID_SKILLS:
-        raise ValueError(f"specialty must be one of {VALID_SKILLS}")
-    vigor_max = 10 + attrs.get("might", 0)
-    nerve_max = 10 + attrs.get("mettle", 0)
+    ruleset = _campaign_ruleset(cid)
+    dnd_sheet = None
+    if ruleset == "dnd5e":
+        dnd_sheet = rules_dnd.build_character({
+            "class": spec.get("class", "fighter"),
+            "species": spec.get("species", "human"),
+            "background": spec.get("background", "folk_hero"),
+        })
+        archetype_id = dnd_sheet["class"]
+        arc = {"name": dnd_sheet["class_name"], "stats": {}, "palette": "tide",
+               "kit": [], "dnd": True}
+        attrs = {"wits": dnd_sheet["ability_mods"]["int"],
+                 "might": dnd_sheet["ability_mods"]["str"],
+                 "mettle": dnd_sheet["ability_mods"]["wis"],
+                 "bind": dnd_sheet["ability_mods"]["cha"]}
+        skills = {}
+        vigor_max = dnd_sheet["hp_max"]
+        nerve_max = 0
+    else:
+        arc = worldpacks.get_archetype(pack, spec.get("archetype", ""))
+        if not arc:
+            raise ValueError("pick a road: one of the pack's archetypes")
+        archetype_id = spec.get("archetype")
+        attrs = dict(arc.get("stats", {}))
+        extra = spec.get("extra_stat") or {}
+        if extra:
+            stat = str(extra.get("stat", "")).lower()
+            if stat not in STATS:
+                raise ValueError("extra point must go to wits, might, mettle or bind")
+            attrs[stat] = attrs.get(stat, 0) + 1
+        skills = {s: (1 if s == spec.get("specialty") else 0) for s in VALID_SKILLS}
+        if spec.get("specialty") not in VALID_SKILLS:
+            raise ValueError(f"specialty must be one of {VALID_SKILLS}")
+        vigor_max = 10 + attrs.get("might", 0)
+        nerve_max = 10 + attrs.get("mettle", 0)
     chid = new_id("chr")
     ts = utcnow()
     portrait = {
         "seed": spec.get("portrait_seed") or new_id("seed"),
         "palette": arc.get("palette", "tide"),
-        "archetype": spec.get("archetype"),
+        "archetype": archetype_id,
     }
     db.execute(
         "INSERT INTO characters (id, campaign_id, name, archetype, portrait_json,"
         " attributes_json, skills_json, vigor, vigor_max, nerve, nerve_max, data_json)"
         " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
         (
-            chid, cid, char_name, spec.get("archetype"), jdumps(portrait), jdumps(attrs),
+            chid, cid, char_name, archetype_id, jdumps(portrait), jdumps(attrs),
             jdumps(skills), vigor_max, vigor_max, nerve_max, nerve_max,
             jdumps({"specialty": spec.get("specialty"),
+                    "history": (spec.get("history") or "")[:400],
+                    "dnd": dnd_sheet} if dnd_sheet else
+                   {"specialty": spec.get("specialty"),
                     "history": (spec.get("history") or "")[:400]}),
         ),
     )
-    for item_id in arc.get("kit", []):
+    for item_id in arc.get("kit", []) if not dnd_sheet else []:
         give_item(cid, pack, item_id, silent=True, chid=chid)
     db.add_transcript(cid, "system", f"{char_name} steps out of the sea-foam.")
     legacy.remember(cid, "tavern", "visitor", f"A newcomer named {char_name} arrived on the shore.")
@@ -221,6 +282,17 @@ def create_character(cid: str, spec: dict) -> str:
 def get_campaign(cid: str) -> dict | None:
     row = db.query_one("SELECT * FROM campaigns WHERE id=? AND status='active'", (cid,))
     return dict(row) if row else None
+
+
+def list_characters(cid: str) -> list[dict]:
+    """Every wanderer in the campaign, in join order (party play), each with
+    its parsed engine data like get_character()."""
+    out = []
+    for row in db.query("SELECT * FROM characters WHERE campaign_id=? ORDER BY rowid", (cid,)):
+        ch = dict(row)
+        ch["data"] = jloads(ch.get("data_json") or "{}", {})
+        out.append(ch)
+    return out
 
 
 def get_character(cid: str, chid: str | None = None) -> dict | None:
@@ -358,6 +430,15 @@ def apply_effects(cid: str, pack: dict, effects: dict, changes: list[str],
                   chid: str | None = None) -> dict:
     """Apply a validated effects dict; append human-readable change lines."""
     ch = get_character(cid, chid)
+    # idempotent retries: an effect declaring once:true and naming its flag is
+    # skipped when the flag is already set — a retried request never
+    # double-grants rewards or double-applies world changes
+    once_flag = effects.get("flag")
+    if effects.get("once") and once_flag:
+        st0 = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
+        if once_flag in st0.get("flags", []):
+            return changes
+
     if not isinstance(effects, dict):
         return {}
     safe = {}
@@ -392,6 +473,26 @@ def apply_effects(cid: str, pack: dict, effects: dict, changes: list[str],
     if isinstance(qu, dict) and qu.get("quest_id"):
         _quest_update(cid, qu)
         changes.append(f"Quest updated: {qu['quest_id']}.")
+    enc = effects.get("dnd_encounter")
+    if enc and isinstance(enc, dict) and _campaign_ruleset(cid) == "dnd5e":
+        # persistent, player-controlled combat: the encounter starts here and
+        # advances turn by turn; the engine resolves every outcome
+        from . import combat as _combat
+        try:
+            camp_row = db.query_one("SELECT location_id FROM campaigns WHERE id=?", (cid,))
+            started = _combat.start(cid, enc.get("monster", "goblin"),
+                                    enc.get("count", 1),
+                                    location=camp_row["location_id"] if camp_row else None)
+            state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?",
+                                        (cid,))["state_json"], {})
+            state["encounter_id"] = started["encounter_id"]
+            db.execute("UPDATE campaigns SET state_json=?, updated_at=? WHERE id=?",
+                       (jdumps(state), utcnow(), cid))
+            changes.append(started["log"][0] if started.get("log")
+                           else "Combat begins — the dice are yours.")
+        except _combat.CombatError as exc:
+            changes.append(f"(The {enc.get('monster', 'creature')} slinks back into the dark: {exc})")
+
     harm = effects.get("harm")
     if isinstance(harm, dict) and ch:
         amount = max(0, min(6, int(harm.get("amount", 1))))
@@ -524,6 +625,56 @@ def _persist_character(ch: dict) -> None:
 # Dice
 # ==========================================================================
 
+UNDERTOW_TO_DND = {
+    "notice": "perception", "lore": "history", "persuade": "persuasion",
+    "fight": "athletics", "endure": "athletics", "bind": "arcana",
+}
+
+
+def _effective_location(cid: str, ch: dict | None, campaign: dict | None = None) -> str:
+    """Split-party aware location: a character's override, else the party focus."""
+    if ch:
+        row = db.query_one("SELECT location_id FROM characters WHERE id=?", (ch["id"],))
+        if row and row["location_id"]:
+            return row["location_id"]
+    if campaign:
+        return campaign["location_id"]
+    row = db.query_one("SELECT location_id FROM campaigns WHERE id=?", (cid,))
+    return row["location_id"] if row else None
+
+
+def _campaign_ruleset(cid: str) -> str:
+    row = db.query_one("SELECT ruleset FROM campaigns WHERE id=?", (cid,))
+    return (row["ruleset"] if row else "undertow") or "undertow"
+
+
+def _dnd_sheet(ch: dict) -> dict | None:
+    sheet = ch_get(ch, "dnd")
+    return sheet if isinstance(sheet, dict) else None
+
+
+def _dnd_roll(cid: str, ch: dict, skill: str, hard: bool = False, risk: bool = False,
+              reason: str = "", sit_mod: int = 0) -> dict:
+    """A d20 check under the SRD ruleset, reported in the shared five-band
+    vocabulary so pack choices work identically for both systems."""
+    sheet = _dnd_sheet(ch)
+    if not sheet:
+        raise ValueError("this character has no D&D sheet")
+    mapped = UNDERTOW_TO_DND.get(skill, skill if skill in rules_dnd.SKILL_ABILITY else "perception")
+    roll = rules_dnd.check(sheet, mapped, dc=13, hard=hard, risk=risk, sit_mod=sit_mod)
+    db.execute(
+        "INSERT INTO dicelog (id, campaign_id, ts, kind, skill, stat_mod, dice_json, total,"
+        " difficulty, outcome, effect, note) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        (new_id("dce"), cid, utcnow(), "d20", mapped, roll["mod"], jdumps(roll["dice"]),
+         roll["total"], roll["dc"], roll["outcome"], 0, (reason or "")[:120]),
+    )
+    db.log_event(cid, "dice_roll", {"skill": mapped, "dice": roll["dice"], "total": roll["total"],
+                                    "outcome": roll["outcome"], "reason": reason[:120],
+                                    "ruleset": "dnd5e", "risk": bool(risk)})
+    _persist_character(ch)
+    return roll
+
+
 def _mods_for(ch: dict, skill: str) -> tuple[int, str]:
     stat = rules.skill_to_stat(skill)
     stat_mod = int(ch["attributes"].get(stat, 0))
@@ -597,6 +748,8 @@ def manual_check(cid: str, skill: str, hard: bool = False, risk: bool = False,
         raise ValueError(f"skill must be one of {VALID_SKILLS}")
     if ch_get(ch, "dead"):
         raise ValueError("This wanderer's story is concluded — begin a new voyage; the multiverse remembers.")
+    if _campaign_ruleset(cid) == "dnd5e":
+        return _dnd_roll(cid, ch, skill, hard=hard, risk=risk, reason="manual roll")
     shift = -1 if hard else 0
     sit = _consume_omen(ch, skill)
     roll = _roll_and_log(cid, ch, skill, shift=shift, sit_mod=sit, reason="manual roll", risk=risk)
@@ -779,6 +932,12 @@ def run_turn(cid: str, action_text: str, chid: str | None = None) -> dict:
     pack = worldpacks.load_pack(campaign["pack_id"])
     if not pack:
         raise ValueError("world pack missing")
+    eff_loc = _effective_location(cid, ch, campaign)
+    state0 = jloads(campaign["state_json"], {})
+    beat_here = (not state0.get("beat")) or eff_loc == state0.get("beat_location", campaign["location_id"])
+    if eff_loc != campaign["location_id"]:
+        # a split-off character acts where they stand; the party's beat stays put
+        campaign = {**campaign, "location_id": eff_loc}
     action_text = _trim(action_text, 800)
     if not action_text:
         raise ValueError("say what you do")
@@ -793,18 +952,58 @@ def run_turn(cid: str, action_text: str, chid: str | None = None) -> dict:
     legacy.check_washashore(cid, pack)
     state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
     omen = None
-    if state.get("deck_mode", "agent") == "agent" and campaign["turn"] % DECK_CADENCE == 0:
+    if beat_here and _campaign_ruleset(cid) != "dnd5e" \
+            and state.get("deck_mode", "agent") == "agent" \
+            and campaign["turn"] % DECK_CADENCE == 0:
         omen = _draw_omen(cid, pack, ch)
 
     cfg = ai.get_ai_config()
     meta = {"ai_used": False, "fallback_reason": None, "model": None, "latency_ms": None}
     contract = None
+    director_note = ""
+    try:
+        director.observe(cid, pack)
+        sugg = director.suggest(cid, pack)
+        if sugg:
+            director_note = ("\n\nLIVING DIRECTOR (optional pacing — ignore if the players "
+                             "drive elsewhere; never force an event):\n" +
+                             "\n".join(f"- {s['suggestion']}" for s in sugg[:2]))
+    except Exception:
+        director_note = ""
     if cfg.get("enabled"):
+        user_prompt = build_user_prompt(campaign, pack, ch, state, action_text)
+        user_prompt += director_note
+        doc_id = pack.get("license", {}).get("library_doc_id") or pack.get("library_doc_id")
+        if doc_id:
+            try:
+                from . import library as _library
+                scene = worldpacks.get_scene(pack, state.get("adventure_id"), state.get("beat")) \
+                    if hasattr(worldpacks, "get_scene") else None
+                loc_row = db.query_one("SELECT location_id FROM campaigns WHERE id=?", (cid,))
+                loc = worldpacks.get_location(pack, loc_row["location_id"]) if loc_row else None
+                context = {
+                    "action_text": action_text,
+                    "scene_title": (scene or {}).get("title", ""),
+                    "scene_brief": (scene or {}).get("brief", ""),
+                    "location_name": (loc or {}).get("name", ""),
+                    "npc_names": [n.get("name") for n in pack.get("npcs", [])
+                                  if n.get("location") == (loc_row["location_id"] if loc_row else None)],
+                    "quest_titles": [q.get("title") for q in pack.get("intro_quests", [])],
+                    "horizon": state.get("source_horizon"),
+                }
+                passages = _library.retrieve_for_prompt(doc_id, context, k=4)
+                if passages:
+                    user_prompt += "\n\nSOURCE CONTEXT (passages retrieved from the book this world "
+                    "is adapted from — stay consistent with them; never quote them verbatim; "
+                    "do not reveal beyond what the party has discovered):\n"
+                    user_prompt += "\n".join(f"- {p}" for p in passages)
+            except Exception:
+                pass  # retrieval must never break a turn
         messages = [
             {"role": "system", "content": build_system_prompt(
                 pack, ch, campaign, state, int(cfg.get("narration_words", 220)))},
             *_history(cid),
-            {"role": "user", "content": build_user_prompt(campaign, pack, ch, state, action_text)},
+            {"role": "user", "content": user_prompt},
         ]
         try:
             text, callmeta = ai.chat(messages, cfg)
@@ -835,11 +1034,15 @@ def run_turn(cid: str, action_text: str, chid: str | None = None) -> dict:
         # check request
         chk = contract.get("check")
         if isinstance(chk, dict) and chk.get("skill") in VALID_SKILLS:
-            shift = -1 if chk.get("hard") else 0
-            sit = _consume_omen(ch, chk["skill"])
-            harm_type = chk.get("harm_type") if chk.get("harm_type") in ("vigor", "nerve") else ""
-            dice = _roll_and_log(cid, ch, chk["skill"], shift=shift, sit_mod=sit,
-                                 harm_type=harm_type, reason=str(chk.get("reason", ""))[:120])
+            if _campaign_ruleset(cid) == "dnd5e":
+                dice = _dnd_roll(cid, ch, chk["skill"], hard=bool(chk.get("hard")),
+                                 reason=str(chk.get("reason", ""))[:120])
+            else:
+                shift = -1 if chk.get("hard") else 0
+                sit = _consume_omen(ch, chk["skill"])
+                harm_type = chk.get("harm_type") if chk.get("harm_type") in ("vigor", "nerve") else ""
+                dice = _roll_and_log(cid, ch, chk["skill"], shift=shift, sit_mod=sit,
+                                     harm_type=harm_type, reason=str(chk.get("reason", ""))[:120])
             state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
             # Cinematic dice reaction: the result is authoritative; the GM
             # describes the moment (never re-decides it).
@@ -1108,6 +1311,12 @@ def _set_beat(cid: str, state: dict, beat: str | None) -> None:
 
 def choose(cid: str, choice_id: str, chid: str | None = None) -> dict:
     campaign = get_campaign(cid)
+    ch0 = get_character(cid, chid)
+    if ch0:
+        eff0 = _effective_location(cid, ch0, campaign)
+        state0 = jloads(campaign["state_json"], {})
+        if state0.get("beat") and eff0 != state0.get("beat_location", campaign["location_id"]):
+            raise ValueError("the story's thread is elsewhere — regroup with the party to rejoin it")
     if not campaign:
         raise ValueError("campaign not found")
     pack = worldpacks.load_pack(campaign["pack_id"])
@@ -1136,10 +1345,14 @@ def choose(cid: str, choice_id: str, chid: str | None = None) -> dict:
         skill = chk.get("skill")
         if skill not in VALID_SKILLS:
             raise ValueError("bad check skill in pack data")
-        shift = -1 if chk.get("hard") else 0
-        sit = _consume_omen(ch, skill)
-        dice = _roll_and_log(cid, ch, skill, shift=shift, sit_mod=sit,
+        if _campaign_ruleset(cid) == "dnd5e":
+            dice = _dnd_roll(cid, ch, skill, hard=bool(chk.get("hard")),
                              reason=choice.get("label", "")[:120])
+        else:
+            shift = -1 if chk.get("hard") else 0
+            sit = _consume_omen(ch, skill)
+            dice = _roll_and_log(cid, ch, skill, shift=shift, sit_mod=sit,
+                                 reason=choice.get("label", "")[:120])
         band = dice["outcome"]
         passed = band in ("clean", "surge")
         if band == "riptide" and chk.get("riptide_counts_pass"):
@@ -1318,6 +1531,7 @@ def travel(cid: str, location_id: str, chid: str | None = None) -> dict:
         if not adv:
             raise ValueError("adventure pack data missing")
         state["adventure_id"] = adv["id"]
+        state["beat_location"] = loc["id"]
         resume = (
             state.get("beat") in adv.get("scenes", {})
             and not state.get("adventure_done")
@@ -1338,6 +1552,8 @@ def travel(cid: str, location_id: str, chid: str | None = None) -> dict:
             "UPDATE campaigns SET location_id=?, scene_id=?, state_json=?, updated_at=? WHERE id=?",
             (location_id, state["beat"], jdumps(state), utcnow(), cid),
         )
+        # shared travel moves the whole party: clear split overrides
+        db.execute("UPDATE characters SET location_id=NULL WHERE campaign_id=?", (cid,))
     else:
         db.execute(
             "UPDATE campaigns SET location_id=?, scene_id='hub', updated_at=? WHERE id=?",
@@ -1374,6 +1590,20 @@ def rest(cid: str, chid: str | None = None) -> dict:
     if not rest_spec:
         raise ValueError("This is no place to rest.")
     ch = get_character(cid, chid)
+    if _campaign_ruleset(cid) == "dnd5e":
+        sheet = _dnd_sheet(ch)
+        if not sheet:
+            raise ValueError("this wanderer has no D&D sheet")
+        healed = rules_dnd.long_rest(sheet)["healed"]
+        ch["vigor"] = sheet["hp_max"]
+        ch["nerve"] = ch["nerve_max"]
+        _persist_character(ch)
+        advance_time(campaign, 8)
+        db.add_journal(cid, f"{ch['name']} keeps a long rest at {loc['name']}.", "rest")
+        db.log_event(cid, "rest", {"healed": healed, "ruleset": "dnd5e", "character_id": ch["id"]})
+        return {"narration": loc.get("rest_text", "You rest, and the shore allows it.")
+                + " A long rest: wounds close, spells return.",
+                "healed": {"vigor": max(0, sheet["hp_max"] - ch["vigor"] + healed), "nerve": 0}}
     owned = set(legacy.owned_upgrades(cid))
     dv = int(rest_spec.get("vigor", 2))
     dn = int(rest_spec.get("nerve", 2))
@@ -1540,6 +1770,16 @@ def campaign_view(cid: str, chid: str | None = None) -> dict:
         "pending_roll": legacy.get_pending_roll(cid, ch["id"]),
         "dead": bool(ch_get(ch, "dead", False)),
         "character_id": ch["id"],
+        "ruleset": _campaign_ruleset(cid),
+        "dnd": (lambda s: {
+            "class": s["class_name"], "species": s["species_name"],
+            "background": s["background_name"], "level": s["level"],
+            "xp": s["xp"], "xp_next": rules_dnd.XP_BY_LEVEL.get(s["level"] + 1, s["xp"]),
+            "ac": s["ac"], "hp_max": s["hp_max"], "abilities": s["abilities"],
+            "skills_prof": s["skills_prof"], "weapon": s["weapon"],
+            "weapon_dmg": s["weapon_dmg"], "spells": s["spells"],
+            "slots": s["slots"], "speed": s["speed"],
+        })(_dnd_sheet(ch)) if _dnd_sheet(ch) else None,
         "world": ({
             "id": world["id"], "name": world["identity"].get("name", ""),
             "seed": world["seed"], "tint": world["identity"].get("tint", 0),

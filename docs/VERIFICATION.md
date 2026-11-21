@@ -1,126 +1,193 @@
-# Milestone verification report — The Shared Shore (3.0 / 3.1 / 3.2)
+# Milestone verification report — The Infinite Library (3.5)
 
-Build under verification: `0.3.2-shared-shore`, schema `saturday.core.v3`.
-Every claim below distinguishes **executed** verification from what could
-not be run in this environment. The Milestone 1.5–2.5 report it replaces is
-preserved in git history and its results are summarized here as still
-passing (the solo suite is part of the 110).
+Build under verification: `0.3.5-infinite-library`, schema `saturday.core.v4`.
+Previous milestones' verification (1.5–3.2) remains valid and its suites
+are included in the totals below. This report distinguishes **executed**
+verification from what could not be run here.
 
 ## 1. Automated tests — executed, all passing
 
-`python -m pytest tests/ -q` → **110 tests, 0 failures** (81 pre-existing
-solo/multi-milestone tests + 29 new multiplayer tests), plus the solo smoke
-walk (`scripts/smoke_test.py`, 35 checks) passing.
+`python -m pytest tests/ -q` → **131 tests, 0 failures**
+(110 from Milestones 1–3.2 + 21 new for 3.5, including 3 parametrized
+starter-pack playthroughs), plus the solo smoke walk passing.
 
-Multiplayer coverage (all executed through a multi-client harness — each
-client is an independent HTTP caller with its own session token against the
-same Flask app; concurrency is real, not simulated):
-
-| Area | Tests |
+| Area (all executed) | Tests |
 |---|---|
-| Host opens session, adopts the solo character (no duplication) | 1 |
-| Invitation → join flow creates independent characters & purses | 1 |
-| Invitation expiry, revocation, use-limit enforcement | 1 |
-| Party limit + case-insensitive duplicate-name rejection | 1 |
-| Token stored hashed at rest (raw token absent from DB) | 1 |
-| Missing/forged tokens rejected on gameplay endpoints (403) | 1 |
-| Guest isolation: settings/AI/creation/campaign admin refused (403); stripped guest settings view leaks no keys or URLs | 1 |
-| Shared scene sync: one client's action appears in the other's event stream; shared turn/drift | 1 |
-| Event replay from `last_seq`: only new events, ordered, identical on retry (no duplicates) | 1 |
-| Concurrent actions from two clients serialize into an ordered log | 1 (threaded) |
-| SSE endpoint: ticket auth, one-time use, live frames | 1 |
-| Party travel: proposal → waiting-for-votes → unanimous execution (exactly once); decline cancels | 2 |
-| Per-player dice with own characters; separate pending windows (host cannot push guest's roll) | 2 |
-| Death is personal; fallen player refused, host unaffected | 1 |
-| Structured turn mode enforced server-side; out-of-turn refused; pass-lantern | 1 |
-| Chat rate limit (10/30s) + durable history | 1 |
-| Trade: consent required, stranger cannot answer, atomic move | 1 |
-| Bead gifts atomic and bounded (1–10) | 1 |
-| Shared upgrade contributions pool and purchase exactly once | 1 |
-| Party legacy recorded on a shared ending (members + consequence) | 1 |
-| Reconnect: same player, same character, catch-up; presence sweep marks offline; no character duplication | 1 |
-| Process restart (fresh app on same DB): sessions and both tokens survive | 1 |
-| Banned player refused | 1 |
-| Hostile input: oversized chat, wrong types, script text stored as data, unknown endpoints | 1 |
-| Hidden GM facts never broadcast to party streams or views | 1 |
-| Solo regression: no token, no lobby, full solo flow untouched | 1 |
-| Save migration: v2.5 save → v3 with per-character state moved (purse, deck, inventory owners) | 3 |
+| Import of every format — TXT/MD, HTML, DOCX (headings preserved), EPUB (metadata into the record), PDF (reportlab-generated fixture via pypdf) | 1 |
+| Source verbatim storage + library delete removes the original | 1 |
+| Long-document retrieval: 300-chapter book; the "chapter 217" needle surfaces; rotating-window fallback | 1 |
+| Hostile inputs: fake DOCX (not a zip), XXE-entity DOCX, 41 MB upload, garbage base64 — refused or handled, never 500 | 1 |
+| Hidden GM secrets from packs become hidden facts, absent from views/streams | 1 |
+| Forge pipeline end-to-end with a mock model: extract → synthesize → validate CLEAN → approve → installed pack loads in the engine → the story plays headless to an ending | 1 |
+| Forge alternate mode + section regeneration keeps packs valid | 1 |
+| Forge refuses to approve a sabotaged draft (validation blocks) | 1 |
+| Forge requires a configured model and says so honestly | 1 |
+| Private-manuscript flow (Roanoke path): private flag, stored under userdata, host-only visibility | 1 |
+| D&D character creation on a library pack; d20 checks; band mapping (nat20/nat1/DC bands) | 1 |
+| D&D long rest restores slots + HP; XP → level 2 | 1 |
+| Ruleset isolation: Undertow unchanged (omens, views, dnd=None) | 1 |
+| Starter packs play to endings: Dracula (beacon), Rue Morgue (exoneration), Time Machine (home) | 3 |
+| Starter-pack licensing: author, public-domain status, Gutenberg source URL embedded | 1 |
+| Hidden-information boundary on a library pack: secrets absent from events and views | 1 |
+| Multiplayer aboard an imported adventure: two clients, serialized actions, chat, party travel by vote | 1 |
+| Multiplayer join into a D&D campaign: both sheets correct | 1 |
+| v4 migration preserves campaigns and the library tables work | 1 |
+| Prior-milestone suites (solo, multiplayer, migrations, security) | unchanged, all passing |
 
-## 2. Browser-level verification — executed (Chromium + independent HTTP client)
+## 2. Live end-to-end gameplay — executed
 
-The decisive demonstration was **genuinely synchronized two-client play**:
+- **Imported literary adventure, engine-only**: each starter pack was
+  created as a campaign and walked choice-by-choice to a real ending
+  (sunrise in Whitby, exoneration in Paris, home in 802,701) in the
+  parameterized tests above — genuine mechanical playthroughs, not demos.
+- **Multiplayer + library pack**: a hosted *Dracula* session with two
+  independent clients acting, chatting, and traveling by vote.
+- **D&D on a literary pack**: a cleric created directly on *Dracula*,
+  d20 checks, long rest at the sanatorium restoring spell slots.
+- **Forge with a live model**: NOT run here — the sandbox has no live
+  LLM configured. The pipeline was verified with a deterministic mock
+  model through every stage, including the honest no-model refusal.
+  Live-model verification follows the same contract as the mock (JSON
+  contracts, bounded calls) but is explicitly **not claimed**.
 
-- **Host in the browser**: title → *Host a Shared Voyage* → campaign picked →
-  lobby (portrait card, ready button, invitation link box) → *Begin the
-  voyage* → the shared Living Shore with the multiplayer HUD.
-- **Guest from an independent client** (separate HTTP caller, own token):
-  joined via the invitation token, acted, chatted, rolled.
-- **The host browser received everything live over SSE**: party chip updated
-  (⚓ 1/3 → 2/4), the guest's chat line appeared in the party drawer, the
-  guest's action produced a GM narration line in the host's dock, and dice
-  announcements arrived. Screenshots retained (`download/screenshots/`).
-- **Reconnection**: returning to the site and pressing Continue restored the
-  host's session automatically (token resume → stream reconnect → catch-up).
+## 3. Browser verification — executed (Chromium)
 
-Bugs found during browser verification — all **fixed and re-verified**:
-stale module caching broke upgrades of the running client (solved with
-versioned asset URLs across the whole import chain, plus a release rule:
-one `?v=N` for every module); a lobby element id mismatch aborted the
-enter-branch (renderLobby died silently inside a swallowed catch — errors
-are now surfaced); hosting twice collided on the host's display name (host
-re-hand now re-issues a token to the existing row); Continue on a shared
-campaign 403'd before the resume could set the token (resume now runs
-first); manual checks announced their roll text twice (dice-only emit
-added); an SSE test consumed an infinite stream in the buffered client
-(test bounded; production clients use EventSource).
+- Title screen shows **The Infinite Library**; the Library screen lists
+  installed adventures (starter packs) and the stacks.
+- The adventure preview shows places, cast, story shape, and the
+  licensing block with source URL.
+- Campaign creation offers the **pack picker** (every installed adventure
+  is a door) and the **ruleset toggle** (Undertow 2d6 / D&D-compatible)
+  with class/species/background fields for D&D.
 
-## 3. Not run in this environment (stated honestly)
+## 4. Not tested in this environment (stated honestly)
 
-- **Two separate physical browsers/machines.** The browser demo used one
-  real browser as host plus a genuinely independent HTTP client (own
-  credentials, own connection) — synchronization is real HTTP+SSE, but
-  pixel-level rendering of a *second* browser was not captured.
-- **A live LLM as Game Master** (mock model server used, as in solo).
-- **Windows**: Linux only; launch scripts and the waitress production path
-  are written for both but Windows was not exercised.
-- **Remote/internet deployment**: LAN-style localhost verification only;
-  TLS/reverse-proxy guidance is documented but not executed here.
-- Voice chat remains deliberately out of scope (future candidate).
+- **A live LLM in the Forge/GM**: mock-model verification only; no live
+  model was available in the sandbox.
+- **A real large PDF/EPUB** (actual Gutenberg downloads): exercised with
+  format-accurate generated fixtures instead; Gutenberg URLs are recorded
+  but the books were not downloaded in the sandbox.
+- **Windows**: Linux only; launchers and waitress production mode written
+  for both but not executed on Windows.
+- **Roanoke**: no manuscript was supplied; per instructions nothing was
+  fabricated — the private-import flow is built and documented.
+- Cross-server federation remains out of scope (Milestone 4).
 
-## 4. Acceptance criteria self-check
+## 5. Acceptance self-check
 
 | Criterion | Status |
 |---|---|
-| Friends can securely join a hosted campaign (hashed invites, tickets) | ✅ |
-| Independent characters with server-side ownership | ✅ |
-| Players see each other on the Living Shore (canvas presence) | ✅ |
-| Campaign state synchronizes reliably (sequenced events + replay) | ✅ |
-| Explore and enter adventures together (shared scenes, party travel) | ✅ |
-| One AI GM narrates shared actions consistently (serialized, single narration) | ✅ |
-| Host remains the sole rules authority | ✅ |
-| Players roll and spend their own resources | ✅ |
-| Parties coordinate travel and decisions (votes, turn order) | ✅ |
-| Shared chat and interactions (trades, gifts, clue sharing) | ✅ |
-| Important actions persist (events, ledger, party legacy) | ✅ |
-| Disconnected players return safely (tokens, replay, no duplicates) | ✅ |
-| Party adventures create lasting memories | ✅ |
-| Solo gameplay unchanged (regression suite) | ✅ |
-| Old saves compatible (v3 migration tested) | ✅ |
-| Works without an AI connection | ✅ |
-| Host/guest permissions enforced | ✅ |
-| Genuinely independent clients tested | ✅ (browser + independent HTTP client; two physical machines not available) |
-| Documentation and deployment instructions complete | ✅ |
-| Complete ZIP delivered | ✅ `saturday-multiverse-shared-shore-m3.2.zip` |
+| Ordinary user: import a book without editing code | ✅ (Library → Import) |
+| Convert it into a playable campaign | ✅ (Forge → approve → door) |
+| Open a portal and begin, solo or multiplayer | ✅ (preview → portal → creation; shared sessions verified) |
+| Preserve every existing system (solo, multiplayer, Undertow, saves) | ✅ (131 tests incl. all prior suites) |
+| Engine authoritative; AI narrates/proposes only | ✅ (forge drafts require human approval; GM never writes state) |
+| Save compatibility | ✅ (additive v4 migration, full chain tested) |
+| Licensing recorded and separated (SRD vs literature vs private) | ✅ (LICENSES.md + per-pack blocks) |
+| Distribution | ✅ `saturday-multiverse-infinite-library-m3.5.zip` |
 
-## 5. Known limitations
 
-- Party splitting is out of scope by design: the party shares one location
-  and one adventure beat (cooperative travel is the supported model).
-- The host cannot yet migrate a session between machines (Milestone 4
-  territory); recovery after a restart works on the same host.
-- Observers/read-only seats are not implemented (every seat is a player).
-- The structured turn timeout auto-advances on stream ticks and requests;
-  an idle party with nobody connected will not see timeouts fire until
-  someone reconnects.
-- Voice chat is not implemented.
-- The second browser's rendering was not captured (see honesty note above).
+# v0.3.6 — Living Campaign verification (2026-11-21)
+
+**159 tests green** (`python3 -m pytest tests/ -q`), including 28 new v0.3.6
+tests. Two suites run everything from engine rules to full multiplayer
+scenarios with real HTTP clients against a real server instance.
+
+## What was verified
+
+### Critical D&D repairs (Part 2 of the assignment)
+- HP persistence: damage carries between encounters; the next encounter
+  starts from current HP, never `hp_max` (dedicated test + manual runs).
+- Player control: initiative order, own-turn-only actions, attack / cast
+  (slot consumption) / defend / item / retreat / stabilize all exercised.
+- Death without resurrection: death saves, stabilisation, death, and a dead
+  character refused re-entry to combat. The old auto-resolver path is gone.
+- Rewards exactly once (XP + level-up), including a direct double-finish probe.
+- Timeout: an idle turn is auto-defended by the sweep and the turn passes.
+- Restart survival: an active encounter is playable from a brand-new app
+  instance (process restart), state intact.
+- Coverage table served at `/api/rules/dnd/coverage`; unsupported options are
+  never offered.
+
+### Multiplayer (Part 3)
+- Split party: per-character locations, location-scoped narration (a split
+  character's discovery is invisible to the party focus and to spectators),
+  regroup (self and host-forced), shared travel regroups by default.
+- Spectators: observe only — action/choose/check/travel refused (400/403);
+  reconnect works; secrets never appear in their event stream.
+- Shared combat: turn-by-turn multi-player control, forged ownership refused
+  (403), reinforcements round one.
+- Watchdog: expired structured turns advance server-side; combat idle turns
+  auto-defend; both survive restart.
+- Duplicate actions: `once`-flagged effects re-applied do not double-grant.
+
+### Infinite Library (Part 4)
+- Full-novel coverage: a 300-chapter source processed 300/300 chunks across
+  13 windows; early/middle/late material all extracted; the world bible
+  records the source's ending; flow validation clean; installed and playable.
+- Resumable jobs: a failed bible stage preserves the extraction; retry
+  resumes with ≤3 model calls instead of re-reading the book.
+- Duplicate characters (name/alias/case variants) merge deterministically.
+- Manual editing: ops apply, every save is a revision, restore returns the
+  earlier state, compare reports changes; broken flow graphs are detected
+  (missing targets, unreachable scenes, no reachable ending).
+- Safe retrieval: matching context returns the needle chapter; no-match
+  context returns NOTHING (the rotating-window fallback is gone); a story
+  horizon blocks future chapters.
+- Private content: private imports stay in `userdata/library`, never in the
+  redistributable packs.
+
+### Director & continuity (Part 5)
+- Threads seeded from quests/secrets move only on authoritative events, with
+  evidence; suggestions are advisory and silenced in `off` mode; continuity
+  catches dead-then-speaking and quest reversals.
+
+### Collaborative worldbuilding (steering addition)
+- Three participants (locations / NPCs / quests) on existing multiplayer
+  identities; creator reviews and applies; a review-time conflict is refused
+  until explicitly force-applied, and BOTH contributions survive (nothing
+  silently overwritten); AI suggestions never auto-apply; a contributor sees
+  their own GM secret while another contributor does not; approval is
+  creator-only and gated; the installed world appears as a playable pack and
+  hosts a multiplayer voyage; contributions persist across a restart; private
+  sources stay private and no publishing path exists.
+
+### The Dracula acceptance scenario (phases 1–8)
+Four genuine independent API clients (plus a fifth spectator connection) run
+the whole mandated scenario: arrival with four owned sheets → split party
+with private discoveries → Director tracking → regroup → tactical D&D combat
+with individual control and ownership enforcement → spectator observation
+with secret filtering → disconnect/reconnect with watchdog recovery and no
+duplicated characters → ending path, ledger, memories, checkpoint.
+
+**Reported limitation:** the sandbox has no graphical desktop, so the four
+clients are real HTTP/API clients through the production server rather than
+four browser windows. Every engine path, permission boundary and persistence
+effect they exercise is the same one the browser uses.
+
+## Environment limitations, reported honestly
+1. **No live AI model** in this environment. Model-dependent stages (GM
+   narration, forge extraction/bible/adventure, suggestions) are verified
+   against a deterministic mock bound to the same JSON contracts the real
+   client uses; the offline storyteller keeps everything playable without a
+   model.
+2. **Project Gutenberg was down for maintenance** during the build (all
+   mirrors tried: gutenberg.org, files, aleph, uwaterloo — maintenance page
+   or 404). The real-book pipeline was therefore verified at novel scale with
+   a generated 300-chapter source plus the user-supplied-file import path;
+   the attempt is reproducible with `scripts/` once Gutenberg returns, or
+   immediately with any local .txt/.md/.pdf/.epub via Library → Import.
+3. The four-client acceptance uses API clients (see above), not four
+   graphical sessions.
+
+
+## Independent maintenance review — v0.3.6 startup / Workshop patch
+
+This additional source-level review follows the original release report and does **not** replace its 159-test claim.
+
+Two defects in the shipped code were corrected:
+
+1. `server.app` previously called an undefined module-scope `app.run(host=HOST, port=PORT)` in `__main__`, bypassing `main()` and breaking both normal launch scripts. The patched entrypoint uses `main()` in both serving modes and starts the in-process watchdog before the server blocks.
+2. `forge.collab_view()` previously redacted `ops_json` for secret-containing proposals but still exposed the original parsed `ops`. The patched view redacts the returned operations and note for other contributors; nested secret paths are covered and creator/author visibility is retained.
+
+Regression tests added to `tests/test_release_fixes.py`. In the independent review environment, two Workshop privacy tests passed. Three Flask-dependent tests were skipped because Flask was not installed; an isolated startup/watchdog smoke test using stub server interfaces confirmed `main()` calls the watchdog in both development and production modes and the tick calls both timeout sweepers. Python source compilation also passed. This is **not** a substitute for a real Flask/Waitress launch and the full 159+ test suite in a proper runtime, which remain unverified in this environment.

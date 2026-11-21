@@ -12,6 +12,7 @@ import { attachScanner } from "./qr.js?v=30";
 import { openPanel, openSettings, closeSettings, initPanelChrome,
          openSeedGate, openTalk, showEchoOffers, openEchoShelf } from "./ui.js?v=30";
 import * as mpui from "./mp.js?v=30";
+import * as libui from "./library.js?v=30";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -119,16 +120,27 @@ async function refreshCampaignList() {
 window.__refreshCampaignList = refreshCampaignList;
 
 // ---------- character creation ----------
-let createSel = { archetype: "sensitive", stat: "bind", specialty: "bind", seed: "", echoes: [] };
+let createSel = { archetype: "sensitive", stat: "bind", specialty: "bind", seed: "",
+  echoes: [], pack: "living_shore", ruleset: "undertow",
+  dndClass: "fighter", dndSpecies: "human", dndBackground: "folk_hero" };
 
-async function showCreate() {
+const DND_CLASSES = { fighter: "Fighter — steel and second wind", rogue: "Rogue — locks, shadows, escape",
+  cleric: "Cleric — healing and sacred flame", wizard: "Wizard — missile, shield, fire bolt" };
+const DND_SPECIES = { human: "Human — versatile", elf: "Elf — keen senses", dwarf: "Dwarf — stout",
+  halfling: "Halfling — lucky" };
+const DND_BACKGROUNDS = { folk_hero: "Folk Hero", sage: "Sage", soldier: "Soldier", charlatan: "Charlatan" };
+
+async function showCreate(preselectPack) {
   showScreen("screen-create");
   try {
     const res = await apiGet("/api/packs");
     state.packs = res.packs;
   } catch (e) { toast(e.message, "bad"); return; }
-  const pack = state.packs.find((p) => p.id === "living_shore") || state.packs[0];
-  const detail = await fetchPackDetail(pack.id);
+  if (preselectPack) createSel.pack = preselectPack;
+  if (!state.packs.some((p) => p.id === createSel.pack)) {
+    createSel.pack = (state.packs.find((p) => p.id === "living_shore") || state.packs[0]).id;
+  }
+  const detail = await fetchPackDetail(createSel.pack);
   renderCreate(detail);
   renderEchoChoices();
 }
@@ -173,6 +185,65 @@ async function renderEchoChoices() {
 }
 
 function renderCreate(pack) {
+  // pack picker (every installed adventure is a door)
+  const packChips = state.packs.map((p) =>
+    `<span class="chip ${createSel.pack === p.id ? "selected" : ""}" data-pack="${esc(p.id)}">${esc(p.name)}</span>`).join("");
+  const packBox = $("create-packs") || (() => {
+    const box = document.createElement("div");
+    box.id = "create-packs";
+    $("create-archetypes").before(box);
+    return box;
+  })();
+  packBox.innerHTML = `<label class="field-label">Your door — which story do you walk into?</label>
+    <div class="chip-row">${packChips}</div>
+    <label class="field-label">Ruleset</label>
+    <div class="chip-row">
+      <span class="chip ${createSel.ruleset === "undertow" ? "selected" : ""}" data-ruleset="undertow">Undertow 2d6</span>
+      <span class="chip ${createSel.ruleset === "dnd5e" ? "selected" : ""}" data-ruleset="dnd5e">D&amp;D-compatible (SRD)</span>
+    </div>`;
+  packBox.querySelectorAll("[data-pack]").forEach((el) => el.addEventListener("click", async () => {
+    createSel.pack = el.dataset.pack; audio.ui();
+    renderCreate(await fetchPackDetail(createSel.pack));
+  }));
+  packBox.querySelectorAll("[data-ruleset]").forEach((el) => el.addEventListener("click", () => {
+    createSel.ruleset = el.dataset.ruleset; audio.ui(); renderCreate(pack);
+  }));
+
+  // D&D mode replaces the Undertow roads with class/species/background
+  if (createSel.ruleset === "dnd5e") {
+    const chipRow = (label, options, key) => `
+      <label class="field-label">${label}</label>
+      <div class="chip-row">${Object.entries(options).map(([k, v]) =>
+        `<span class="chip ${createSel[key] === k ? "selected" : ""}" data-dnd="${key}:${k}">${esc(v)}</span>`).join("")}</div>`;
+    const dndBox = $("create-dnd") || (() => {
+      const box = document.createElement("div");
+      box.id = "create-dnd";
+      $("create-archetypes").after(box);
+      return box;
+    })();
+    dndBox.innerHTML = chipRow("Class", DND_CLASSES, "dndClass")
+      + chipRow("Species", DND_SPECIES, "dndSpecies")
+      + chipRow("Background", DND_BACKGROUNDS, "dndBackground");
+    dndBox.querySelectorAll("[data-dnd]").forEach((el) => el.addEventListener("click", () => {
+      const [key, val] = el.dataset.dnd.split(":");
+      createSel[key] = val; audio.ui(); renderCreate(pack);
+    }));
+    $("create-archetypes").style.display = "none";
+    const statBox = $("create-stat-boost");
+    if (statBox) statBox.style.display = "none";
+    const specBox = $("create-specialty");
+    if (specBox) specBox.closest("label") ? ($("create-specialty").style.display = "none") : ($("create-specialty").style.display = "none");
+    updatePortrait();
+    return;
+  }
+  $("create-archetypes").style.display = "";
+  const statBox0 = $("create-stat-boost");
+  if (statBox0) statBox0.style.display = "";
+  const specBox0 = $("create-specialty");
+  if (specBox0) specBox0.style.display = "";
+  const dndBox0 = $("create-dnd");
+  if (dndBox0) dndBox0.remove();
+
   const archs = pack.archetypes;
   $("create-archetypes").innerHTML = archs.map((a) => `
     <div class="archetype-card ${createSel.archetype === a.id ? "selected" : ""}" data-arch="${esc(a.id)}">
@@ -244,6 +315,8 @@ function enterGame(view, shared = false) {
   showScreen("screen-game");
   ensureHub();
   setView(view);
+  window.__campaignId = view.id;
+  window.__refreshCombatPanel?.();
   refreshView();
   if (shared) {
     $("nav-chat").hidden = false;
@@ -571,6 +644,40 @@ function wireMultiplayer() {
 
 function wireMultiplayerScreens() {
   $("btn-mp-host").addEventListener("click", () => { audio.ensure(); mpui.showHostScreen(); });
+  $("btn-library").addEventListener("click", () => { audio.ensure(); libui.showLibrary(); });
+  $("btn-library-back").addEventListener("click", () => libui.leaveLibrary());
+  $("btn-library-import").addEventListener("click", () => libui.showImport());
+  $("btn-import-go").addEventListener("click", () => libui.doImport());
+  window.__startPortal = (packId) => showCreate(packId);
+  $("btn-forge-open").addEventListener("click", () => libui.showForge());
+  $("btn-workshop-open").addEventListener("click", () => libui.showWorkshop());
+  window.__openCombatPanel = () => {
+    const b = document.getElementById("nav-combat");
+    if (b) { b.hidden = false; b.click(); }
+  };
+  window.__refreshCombatPanel = () => import("./ui.js?v=30").then((ui) => ui.refreshCombatPanel?.());
+  window.__combatAct = async (act) => {
+    try {
+      const enc = await apiGet(`/api/campaigns/${window.__campaignId}/combat`);
+      if (!enc.encounter) { toast("No encounter runs.", ""); return; }
+      const res = await apiSend(`/api/campaigns/${window.__campaignId}/combat`, "POST",
+        { encounter_id: enc.encounter.encounter_id, ...act });
+      if (res.log) toast(res.log[res.log.length - 1] || "", "");
+      window.__refreshCombatPanel?.();
+      refreshView();
+    } catch (e) { toast(e.message, "bad"); }
+  };
+  // arm the Combat nav chip whenever an encounter exists
+  setInterval(async () => {
+    try {
+      if (document.getElementById("screen-game")?.classList.contains("active") && window.__campaignId) {
+        const res = await apiGet(`/api/campaigns/${window.__campaignId}/combat`);
+        const b = document.getElementById("nav-combat");
+        if (b) b.hidden = !(res.encounter && res.encounter.status === "active");
+      }
+    } catch { /* ignore */ }
+  }, 8000);
+  window.__refreshPackList = () => {};
   $("btn-mp-host-back").addEventListener("click", () => mpui.leaveLobbyBack());
   $("btn-mp-join").addEventListener("click", () => mpui.confirmJoin());
   $("btn-mp-invite").addEventListener("click", () => mpui.makeInvite());
@@ -629,9 +736,16 @@ async function boot() {
     if (!name) { toast("Every wanderer needs a name.", "bad"); return; }
     try {
       const res = await apiSend("/api/campaigns", "POST", {
-        name: `${name}: a Saturday voyage`,
-        pack_id: "living_shore",
-        character: {
+        name: `${name}: a voyage into ${state.packs.find((p) => p.id === createSel.pack)?.name || "the story"}`,
+        pack_id: createSel.pack,
+        character: createSel.ruleset === "dnd5e" ? {
+          name,
+          ruleset: "dnd5e",
+          class: createSel.dndClass,
+          species: createSel.dndSpecies,
+          background: createSel.dndBackground,
+          portrait_seed: $("create-seed").value.trim() || name,
+        } : {
           name, archetype: createSel.archetype,
           extra_stat: { stat: createSel.stat },
           specialty: createSel.specialty,

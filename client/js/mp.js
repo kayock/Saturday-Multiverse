@@ -307,6 +307,11 @@ function applyEvent(ev) {
     case "system":
       pushChatLine("system", d);
       break;
+    case "combat":
+      pushChatLine("combat", d);
+      window.__openCombatPanel?.();
+      window.__refreshCombatPanel?.();
+      break;
     case "presence":
       pushChatLine("presence", d);
       window.__refreshView?.();

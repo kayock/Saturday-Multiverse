@@ -8,12 +8,14 @@ player's character. Guests never see the host's AI configuration.
 """
 from __future__ import annotations
 
+import base64
 import time
 from collections import defaultdict, deque
 
 from flask import Blueprint, Response, jsonify, request
 
-from . import ai, config, db, gen, gm, legacy, mp, qr, worldpacks
+from .db import jdumps, jloads, new_id, utcnow
+from . import ai, config, continuity, db, director, forge, gen, gm, legacy, library, mp, qr, rules_dnd, combat, worldpacks
 
 api = Blueprint("api", __name__, url_prefix="/api")
 
@@ -117,11 +119,21 @@ def _mp_emit_dice_only(cid: str, player, res: dict) -> None:
     })
 
 
-def _mp_emit_result(cid: str, player, res: dict, kind: str) -> None:
-    """Broadcast one authoritative result to the party."""
+def _mp_emit_result(cid: str, player, res: dict, kind: str, chid: str | None = None) -> None:
+    """Broadcast one authoritative result. Split parties see their own group's
+    narrations; world-level events stay party-wide."""
     session = mp._session(cid)
     if not session:
         return
+    visibility = "party"
+    if chid:
+        row = db.query_one("SELECT location_id FROM characters WHERE id=?", (chid,))
+        if row and row["location_id"]:
+            visibility = f"loc:{row['location_id']}"
+    elif player:
+        eff = mp.char_location(cid, player)
+        if eff:
+            visibility = f"loc:{eff}"
     name = player["display_name"] if player else "the shore"
     d = res.get("dice")
     if d:
@@ -136,7 +148,7 @@ def _mp_emit_result(cid: str, player, res: dict, kind: str) -> None:
         "name": name,
         "text": (res.get("narration") or res.get("text") or "")[:1200],
         "changes": res.get("changes", []),
-    })
+    }, visibility=visibility)
 
 
 def _forbid_guest_admin():
@@ -281,10 +293,11 @@ def campaign_action(cid):
     body = request.get_json(silent=True) or {}
     try:
         player, chid = _mp_resolve(cid)
+        mp.require_player(player)
         _mp_turn(cid, player)
         with _mp_locked(cid):
             res = gm.run_turn(cid, body.get("text", ""), chid)
-            _mp_emit_result(cid, player, res, "narration")
+            _mp_emit_result(cid, player, res, "narration", chid=chid)
         return jsonify(res)
     except (ValueError, mp.MpDenied) as exc:
         return _err(exc)
@@ -298,7 +311,7 @@ def campaign_choose(cid):
         _mp_turn(cid, player)
         with _mp_locked(cid):
             res = gm.choose(cid, body.get("choice_id", ""), chid)
-            _mp_emit_result(cid, player, res, "narration")
+            _mp_emit_result(cid, player, res, "narration", chid=chid)
         return jsonify(res)
     except (ValueError, mp.MpDenied) as exc:
         return _err(exc)
@@ -309,6 +322,7 @@ def campaign_check(cid):
     body = request.get_json(silent=True) or {}
     try:
         player, chid = _mp_resolve(cid)
+        mp.require_player(player)
         _mp_turn(cid, player)
         with _mp_locked(cid):
             res = gm.manual_check(cid, body.get("skill", ""), bool(body.get("hard")),
@@ -324,6 +338,7 @@ def campaign_travel(cid):
     body = request.get_json(silent=True) or {}
     try:
         player, chid = _mp_resolve(cid)
+        mp.require_player(player)
         _mp_turn(cid, player)
         with _mp_locked(cid):
             if player and mp._session(cid) and mp._session(cid)["status"] == "active" \
@@ -782,7 +797,10 @@ def mp_reconnect():
             if not row:
                 return _err(mp.MpDenied("no voyage remembers that token"), 403)
             cid = row["campaign_id"]
-        player = _mp_auth(cid)
+        # a reconnecting client may present the token in the body (it lost its
+        # session state); the header still works for live clients
+        token = request.headers.get("X-MP-Token") or str(body.get("token", ""))
+        player = mp.auth(cid, token)
         view = mp.session_view(cid, player)
         return jsonify({"campaign_id": cid, "player_id": player["id"],
                         "view": view, "resume_view": gm.campaign_view(cid, player["character_id"])})
@@ -1024,4 +1042,603 @@ def mp_player_approve(cid, target_id=None):
         mp.approve_player(cid, player, target_id or body.get("player_id", ""))
         return jsonify({"ok": True})
     except (ValueError, mp.MpDenied) as exc:
+        return _err(exc)
+
+
+# --------------------------------------------------------------------------
+# The Infinite Library + Campaign Forge (Milestone 3.5)
+# --------------------------------------------------------------------------
+
+@api.get("/library")
+def library_list():
+    import base64
+    _forbid_guest_admin()
+    token = request.headers.get("X-MP-Token", "")
+    is_guest = False
+    if token:
+        row = db.query_one("SELECT is_host FROM mp_players WHERE token_hash=?",
+                           (mp.hash_token(token),))
+        is_guest = bool(row and not row["is_host"])
+    docs = library.list_docs(include_private=not is_guest)
+    packs = [p for p in worldpacks.list_packs() if p.get("id") != "living_shore"]
+    return jsonify({"docs": docs, "packs": packs})
+
+
+@api.post("/library/import")
+def library_import():
+    _forbid_guest_admin()
+    body = _mp_body()
+    try:
+        data = base64.b64decode(body.get("data_b64", "") or "")
+        doc = library.import_document(
+            data, body.get("filename", ""),
+            title=body.get("title", ""), author=body.get("author", ""),
+            source_url=body.get("source_url", ""), license=body.get("license", "Private"),
+            attribution=body.get("attribution", ""),
+            private=bool(body.get("private")),
+        )
+        return jsonify(doc)
+    except (ValueError, library.LibraryError) as exc:
+        return _err(exc)
+    except Exception as exc:
+        return _err(ValueError(f"import failed: {exc}"))
+
+
+@api.post("/library/search")
+def library_search_ep():
+    _forbid_guest_admin()
+    body = _mp_body()
+    return jsonify({"hits": library.search(body.get("query", ""),
+                                           doc_id=body.get("doc_id") or None,
+                                           k=int(body.get("k", 8) or 8))})
+
+
+@api.get("/library/<doc_id>/retrieve")
+def library_retrieve(doc_id):
+    _forbid_guest_admin()
+    text = request.args.get("text", "")
+    return jsonify({"passages": library.retrieve_for_prompt(doc_id, text, k=4)})
+
+
+@api.delete("/library/<doc_id>")
+def library_delete(doc_id):
+    _forbid_guest_admin()
+    try:
+        library.delete_doc(doc_id)
+        return jsonify({"ok": True})
+    except (ValueError, library.LibraryError) as exc:
+        return _err(exc)
+
+
+@api.get("/forge/drafts")
+def forge_list():
+    _forbid_guest_admin()
+    return jsonify({"drafts": forge.list_drafts()})
+
+
+@api.post("/forge/drafts")
+def forge_create():
+    _forbid_guest_admin()
+    body = _mp_body()
+    try:
+        return jsonify(forge.create_draft(body.get("doc_id", ""),
+                                          body.get("mode", "faithful")))
+    except (ValueError, forge.ForgeError) as exc:
+        return _err(exc)
+
+
+@api.get("/forge/drafts/<draft_id>")
+def forge_get(draft_id):
+    _forbid_guest_admin()
+    try:
+        return jsonify(forge.draft_view(draft_id))
+    except (ValueError, forge.ForgeError) as exc:
+        return _err(exc, 404)
+
+
+@api.post("/forge/drafts/<draft_id>/regen")
+def forge_regen(draft_id):
+    _forbid_guest_admin()
+    body = _mp_body()
+    try:
+        return jsonify(forge.regenerate_section(draft_id, body.get("section", ""),
+                                                body.get("notes", "")))
+    except (ValueError, forge.ForgeError) as exc:
+        return _err(exc)
+
+
+@api.post("/forge/drafts/<draft_id>/approve")
+def forge_approve(draft_id):
+    _forbid_guest_admin()
+    try:
+        return jsonify(forge.approve_draft(draft_id))
+    except (ValueError, forge.ForgeError) as exc:
+        return _err(exc)
+
+
+@api.get("/packs/<pack_id>/preview")
+def pack_preview(pack_id):
+    """Adventure preview + encyclopedia + licensing for one pack."""
+    pack = worldpacks.load_pack(pack_id)
+    if not pack:
+        return _err(ValueError("no such world pack"), 404)
+    advs = []
+    for adv in pack.get("adventures", []):
+        scenes = adv.get("scenes", {})
+        scenes = scenes.values() if isinstance(scenes, dict) else scenes
+        advs.append({
+            "id": adv.get("id"), "title": adv.get("title"),
+            "summary": adv.get("summary", ""), "entry": adv.get("entry"),
+            "scenes": [{"id": s.get("id"), "title": s.get("title"),
+                        "brief": s.get("brief", "")} for s in scenes],
+            "endings": list(adv.get("endings", {}).keys())
+            if isinstance(adv.get("endings"), dict) else
+            [e.get("id") for e in adv.get("endings", [])],
+        })
+    return jsonify({
+        "id": pack["id"], "name": pack["name"], "summary": pack.get("summary", ""),
+        "genre_tags": pack.get("genre_tags", []), "gm_style": pack.get("gm_style", ""),
+        "license": pack.get("license", {}),
+        "supports_rulesets": pack.get("supports_rulesets", ["undertow"]),
+        "locations": [{"id": l["id"], "name": l["name"], "short": l.get("short", "")}
+                      for l in pack.get("locations", [])],
+        "npcs": [{"id": n["id"], "name": n["name"], "role": n.get("role", ""),
+                  "desc": n.get("desc", "")} for n in pack.get("npcs", [])],
+        "adventures": advs,
+        "n_omens": len(pack.get("omens", [])),
+        "n_items": len(pack.get("items", [])),
+    })
+
+
+# --------------------------------------------------------------------------
+# Milestone 3.6: party splitting, spectators, player-controlled combat
+# --------------------------------------------------------------------------
+
+@api.post("/campaigns/<cid>/mp/invite-spectator")
+def mp_invite_spectator(cid):
+    body = request.get_json(silent=True) or {}
+    try:
+        player = mp.auth(cid, request.headers.get("X-MP-Token", ""))
+        mp.require_host(player)
+        return jsonify(mp.create_invite(cid, player, body.get("label", "watch"),
+                                        int(body.get("uses", 1) or 1), spectator=True))
+    except (ValueError, mp.MpError, mp.MpDenied) as exc:
+        return _err(exc)
+
+
+@api.post("/campaigns/<cid>/mp/split")
+def mp_split(cid):
+    body = request.get_json(silent=True) or {}
+    try:
+        player = mp.auth(cid, request.headers.get("X-MP-Token", ""))
+        return jsonify(mp.set_location(cid, player, body.get("location_id", "")))
+    except (ValueError, mp.MpError, mp.MpDenied) as exc:
+        return _err(exc)
+
+
+@api.post("/campaigns/<cid>/mp/regroup")
+def mp_regroup(cid):
+    body = request.get_json(silent=True) or {}
+    try:
+        player = mp.auth(cid, request.headers.get("X-MP-Token", ""))
+        return jsonify(mp.regroup(cid, player, everyone=bool(body.get("everyone"))))
+    except (ValueError, mp.MpError, mp.MpDenied) as exc:
+        return _err(exc)
+
+
+@api.get("/campaigns/<cid>/combat")
+def combat_view(cid):
+    try:
+        player, chid = _mp_resolve(cid)
+        if not chid:  # solo play: view from the campaign's own character
+            ch = gm.get_character(cid)
+            chid = ch["id"] if ch else None
+        v = combat.view(cid, for_chid=chid)
+        return jsonify({"encounter": v})
+    except (ValueError, mp.MpDenied) as exc:
+        return _err(exc)
+
+
+@api.post("/campaigns/<cid>/combat")
+def combat_act(cid):
+    """A player-controlled combat action. Only the character's own turn,
+    only their own sheet: forged actions for others are impossible here."""
+    body = request.get_json(silent=True) or {}
+    try:
+        player, chid = _mp_resolve(cid)
+        mp.require_player(player)
+        if not chid:
+            raise mp.MpDenied("you have no character in this fight")
+        if body.get("chid") and body["chid"] != chid:
+            raise mp.MpDenied("you may act only for your own character")
+        with _mp_locked(cid):
+            if body.get("type") == "join":
+                v = combat.join(cid, body.get("encounter_id", ""), chid,
+                                location=mp.char_location(cid, player))
+            else:
+                v = combat.action(cid, body.get("encounter_id", ""), chid, body)
+            if v is None:  # the action ended the encounter
+                v = combat.last_view(cid) or {}
+        _mp_emit_result(cid, player, {"narration": " | ".join(v.get("log", [])[-2:]),
+                                      "changes": []}, "combat", chid=chid)
+        return jsonify(v)
+    except (ValueError, mp.MpError, mp.MpDenied, combat.CombatError) as exc:
+        return _err(exc)
+
+
+# --------------------------------------------------------------------------
+# Milestone 3.6: Campaign Director, continuity, checkpoints, forge jobs
+# --------------------------------------------------------------------------
+
+@api.get("/campaigns/<cid>/director")
+def director_view(cid):
+    try:
+        pack = worldpacks.load_pack(gm.get_campaign(cid)["pack_id"])
+        return jsonify(director.campaign_view(cid, pack))
+    except ValueError as exc:
+        return _err(exc, 404)
+
+
+@api.post("/campaigns/<cid>/director/mode")
+def director_mode(cid):
+    body = request.get_json(silent=True) or {}
+    try:
+        return jsonify(director.set_mode(cid, body.get("mode", "gentle")))
+    except ValueError as exc:
+        return _err(exc)
+
+
+@api.get("/campaigns/<cid>/continuity")
+def continuity_view(cid):
+    return jsonify({"findings": continuity.check(cid)})
+
+
+@api.post("/campaigns/<cid>/checkpoints")
+def checkpoint_create(cid):
+    body = request.get_json(silent=True) or {}
+    try:
+        export = gm.export_campaign(cid)
+        cp_id = new_id("ckp")
+        db.execute("INSERT INTO campaign_checkpoints (id, campaign_id, name, export_json,"
+                   " created_at) VALUES (?,?,?,?,?)",
+                   (cp_id, cid, (body.get("name") or "checkpoint")[:80],
+                    jdumps(export), utcnow()))
+        db.log_event(cid, "checkpoint_created", {"checkpoint_id": cp_id})
+        return jsonify({"checkpoint_id": cp_id})
+    except ValueError as exc:
+        return _err(exc)
+
+
+@api.get("/campaigns/<cid>/checkpoints")
+def checkpoint_list(cid):
+    rows = [dict(r) for r in db.query(
+        "SELECT id, name, created_at FROM campaign_checkpoints WHERE campaign_id=?"
+        " ORDER BY created_at DESC", (cid,))]
+    return jsonify({"checkpoints": rows})
+
+
+@api.post("/campaigns/<cid>/checkpoints/<cp_id>/restore")
+def checkpoint_restore(cid, cp_id):
+    """Restoration creates a NEW campaign from the checkpoint (no automatic
+    rollback of shared state, no reward duplication, ownership preserved)."""
+    row = db.query_one("SELECT export_json FROM campaign_checkpoints WHERE id=? AND campaign_id=?",
+                       (cp_id, cid))
+    if not row:
+        return _err(ValueError("no such checkpoint"), 404)
+    data = jloads(row["export_json"], {})
+    new_cid = gm.import_campaign(data)
+    return jsonify({"campaign_id": new_cid})
+
+
+@api.get("/forge/jobs")
+def forge_jobs_list():
+    _forbid_guest_admin()
+    return jsonify({"jobs": forge.list_jobs()})
+
+
+@api.post("/forge/jobs")
+def forge_job_create():
+    _forbid_guest_admin()
+    body = _mp_body()
+    try:
+        return jsonify(forge.create_job(body.get("doc_id", ""), body.get("mode", "faithful"),
+                                        body.get("scope", "short")))
+    except (ValueError, forge.JobError, forge.ForgeError) as exc:
+        return _err(exc)
+
+
+@api.get("/forge/jobs/<job_id>")
+def forge_job_get(job_id):
+    _forbid_guest_admin()
+    try:
+        return jsonify(forge.job_view(job_id))
+    except (ValueError, forge.JobError) as exc:
+        return _err(exc, 404)
+
+
+@api.post("/forge/jobs/<job_id>/cancel")
+def forge_job_cancel(job_id):
+    _forbid_guest_admin()
+    try:
+        return jsonify(forge.cancel_job(job_id))
+    except (ValueError, forge.JobError) as exc:
+        return _err(exc)
+
+
+@api.post("/forge/jobs/<job_id>/retry")
+def forge_job_retry(job_id):
+    _forbid_guest_admin()
+    try:
+        return jsonify(forge.retry_job(job_id))
+    except (ValueError, forge.JobError) as exc:
+        return _err(exc)
+
+
+@api.post("/forge/jobs/<job_id>/run")
+def forge_job_run(job_id):
+    """Run/resume a job synchronously (the worker thread also claims queued jobs)."""
+    _forbid_guest_admin()
+    try:
+        return jsonify(forge.run_job(job_id))
+    except (ValueError, forge.JobError) as exc:
+        return _err(exc)
+
+
+@api.post("/forge/jobs/<job_id>/approve")
+def forge_job_approve(job_id):
+    _forbid_guest_admin()
+    try:
+        return jsonify(forge.approve_job(job_id))
+    except (ValueError, forge.JobError, forge.ForgeError) as exc:
+        return _err(exc)
+
+
+@api.post("/forge/drafts/<draft_id>/edit")
+def forge_draft_edit(draft_id):
+    _forbid_guest_admin()
+    body = _mp_body()
+    try:
+        return jsonify(forge.edit_draft(draft_id, body.get("ops", []), body.get("note", "")))
+    except (ValueError, forge.ForgeError) as exc:
+        return _err(exc)
+
+
+@api.get("/forge/drafts/<draft_id>/history")
+def forge_draft_history(draft_id):
+    _forbid_guest_admin()
+    return jsonify({"history": forge.draft_history(draft_id)})
+
+
+@api.post("/forge/drafts/<draft_id>/restore")
+def forge_draft_restore(draft_id):
+    _forbid_guest_admin()
+    body = _mp_body()
+    try:
+        return jsonify(forge.restore_revision(draft_id, int(body.get("seq", 0))))
+    except (ValueError, forge.ForgeError) as exc:
+        return _err(exc)
+
+
+@api.get("/forge/drafts/<draft_id>/compare")
+def forge_draft_compare(draft_id):
+    _forbid_guest_admin()
+    try:
+        a = int(request.args.get("a", 0))
+        b = int(request.args.get("b", 0))
+        return jsonify(forge.compare_revisions(draft_id, a, b))
+    except (ValueError, forge.ForgeError) as exc:
+        return _err(exc)
+
+
+@api.post("/forge/drafts/<draft_id>/duplicate")
+def forge_draft_duplicate(draft_id):
+    _forbid_guest_admin()
+    try:
+        return jsonify(forge.duplicate_draft(draft_id))
+    except (ValueError, forge.ForgeError) as exc:
+        return _err(exc)
+
+
+@api.get("/forge/drafts/<draft_id>/export")
+def forge_draft_export(draft_id):
+    _forbid_guest_admin()
+    try:
+        return jsonify(forge.export_draft(draft_id))
+    except (ValueError, forge.ForgeError) as exc:
+        return _err(exc)
+
+
+@api.get("/forge/drafts/<draft_id>/flow")
+def forge_draft_flow(draft_id):
+    _forbid_guest_admin()
+    try:
+        draft = forge.draft_view(draft_id)
+        return jsonify({"findings": forge.validate_flow(draft["pack"])})
+    except (ValueError, forge.ForgeError) as exc:
+        return _err(exc, 404)
+
+
+@api.get("/rules/dnd/coverage")
+def dnd_coverage():
+    return jsonify(rules_dnd.COVERAGE)
+
+
+@api.post("/library/match-source")
+def library_match_source():
+    """Find the indexed document matching a pack's source title/author.
+    Links survive restarts and reindexing because matching happens at
+    use-time, not by stored document ids."""
+    body = _mp_body()
+    title = (body.get("title") or "").strip()
+    author = (body.get("author") or "").strip()
+    docs = library.list_docs()
+    best, score = None, 0
+    for d in docs:
+        s = 0
+        if title and title.lower()[:40] in (d["title"] or "").lower():
+            s += 2
+        if author and author.lower()[:30] in (d["author"] or "").lower():
+            s += 2
+        if d["source_url"] and body.get("source_url") and d["source_url"] == body["source_url"]:
+            s += 3
+        if s > score:
+            best, score = d, s
+    if best and score >= 2:
+        return jsonify({"doc_id": best["id"], "title": best["title"],
+                        "author": best["author"], "score": score,
+                        "n_chunks": best["n_chunks"]})
+    return jsonify({"doc_id": None, "score": score or 0})
+
+
+@api.get("/packs/<pack_id>/source-link")
+def pack_source_link(pack_id):
+    pack = worldpacks.load_pack(pack_id)
+    if not pack:
+        return _err(ValueError("no such world pack"), 404)
+    lic = pack.get("license", {})
+    return jsonify({"source_title": lic.get("source_title"), "author": lic.get("author"),
+                    "source_url": lic.get("source_url"), "license": lic.get("license"),
+                    "attribution": lic.get("attribution"),
+                    "linked_doc_id": lic.get("library_doc_id")})
+
+
+# --------------------------------------------------------------------------
+# Milestone 3.6 steering update: collaborative worldbuilding on the same
+# universal Forge. Identity = existing multiplayer session tokens; the local
+# player is the creator when no session is open. No new accounts or keys.
+# --------------------------------------------------------------------------
+
+def _collab_is_creator(row, actor_id: str) -> bool:
+    collab = jloads(row["collab_json"] or "{}", {})
+    return bool(actor_id) and (actor_id == row["owner"] or actor_id == collab.get("creator"))
+
+
+def _collab_actor(cid_hint: str | None = None):
+    """(player_id, player_name, workshop_campaign_id) from existing identities.
+    The header token resolves its own campaign — no new accounts, no new keys."""
+    body_raw = request.get_json(silent=True) or {}
+    token = request.headers.get("X-MP-Token") or str(body_raw.get("campaign_token", ""))
+    cid = body_raw.get("campaign_id") or cid_hint
+    if token:
+        if not cid:
+            row = db.query_one("SELECT campaign_id FROM mp_players WHERE token_hash=?",
+                               (mp.hash_token(token),))
+            cid = row["campaign_id"] if row else None
+        if cid:
+            try:
+                player = mp.auth(cid, token)
+                return player["id"], player["display_name"], cid
+            except (mp.MpDenied, mp.MpError):
+                pass
+    return "local", "the local player", None
+
+
+@api.post("/forge/collab")
+def forge_collab_create():
+    _forbid_guest_admin()
+    body = _mp_body()
+    try:
+        pid, pname, _sess = _collab_actor(body.get("workshop_cid") or body.get("campaign_id"))
+        return jsonify(forge.create_collab(body.get("name", ""), pid, pname,
+                                           body.get("from_campaign_id")))
+    except (ValueError, forge.ForgeError) as exc:
+        return _err(exc)
+
+
+@api.get("/forge/collab/<draft_id>")
+def forge_collab_view(draft_id):
+    try:
+        token = request.headers.get("X-MP-Token", "")
+        viewer = "local"
+        if token:
+            row = db.query_one("SELECT campaign_id FROM mp_players WHERE token_hash=?",
+                               (mp.hash_token(token),))
+            if row:
+                try:
+                    player = mp.auth(row["campaign_id"], token)
+                    viewer = player["id"]
+                except (mp.MpDenied, mp.MpError):
+                    viewer = "local"
+        return jsonify(forge.collab_view(draft_id, viewer))
+    except (ValueError, forge.ForgeError) as exc:
+        return _err(exc, 404)
+
+
+@api.post("/forge/collab/<draft_id>/contribute")
+def forge_collab_contribute(draft_id):
+    body = _mp_body()
+    try:
+        pid, pname, sess = _collab_actor()
+        # collaborators join through the workshop session, or the local player
+        if sess is None:
+            token = request.headers.get("X-MP-Token") or str(body.get("campaign_token", ""))
+            if token and body.get("workshop_cid"):
+                player = mp.auth(body["workshop_cid"], token)
+                pid, pname = player["id"], player["display_name"]
+        return jsonify(forge.contrib_propose(draft_id, pid, pname, body.get("ops", []),
+                                             body.get("note", ""), body.get("base_rev")))
+    except (ValueError, forge.ForgeError, mp.MpDenied, mp.MpError) as exc:
+        return _err(exc)
+
+
+@api.post("/forge/collab/<draft_id>/proposals/<pid2>/apply")
+def forge_collab_apply(draft_id, pid2):
+    body = _mp_body()
+    try:
+        actor_id, _pname, sess = _collab_actor()
+        if sess and body.get("workshop_cid"):
+            player = mp.auth(body["workshop_cid"],
+                             request.headers.get("X-MP-Token") or str(body.get("campaign_token", "")))
+            actor_id = player["id"]
+        row = db.query_one("SELECT owner, collab_json FROM forge_drafts WHERE id=?", (draft_id,))
+        is_creator = bool(row) and _collab_is_creator(row, actor_id)
+        if not is_creator:
+            _forbid_guest_admin()  # non-creators keep the guest boundary
+        return jsonify(forge.contrib_apply(draft_id, pid2, actor_id,
+                                           bool(body.get("force"))))
+    except (ValueError, forge.ForgeError, mp.MpDenied, mp.MpError) as exc:
+        return _err(exc)
+
+
+@api.post("/forge/collab/<draft_id>/proposals/<pid2>/reject")
+def forge_collab_reject(draft_id, pid2):
+    body = _mp_body()
+    try:
+        actor_id, _pname, sess = _collab_actor()
+        if sess and body.get("workshop_cid"):
+            player = mp.auth(body["workshop_cid"],
+                             request.headers.get("X-MP-Token") or str(body.get("campaign_token", "")))
+            actor_id = player["id"]
+        row = db.query_one("SELECT owner, collab_json FROM forge_drafts WHERE id=?", (draft_id,))
+        if not (bool(row) and _collab_is_creator(row, actor_id)):
+            _forbid_guest_admin()
+        return jsonify(forge.contrib_reject(draft_id, pid2, actor_id))
+    except (ValueError, forge.ForgeError, mp.MpDenied, mp.MpError) as exc:
+        return _err(exc)
+
+
+@api.post("/forge/collab/<draft_id>/suggest")
+def forge_collab_suggest(draft_id):
+    body = _mp_body()
+    try:
+        return jsonify(forge.collab_suggest(draft_id, body.get("kind", "npc"),
+                                            body.get("prompt", ""), ai.get_ai_config()))
+    except (ValueError, forge.ForgeError) as exc:
+        return _err(exc)
+
+
+@api.post("/forge/collab/<draft_id>/approve")
+def forge_collab_approve(draft_id):
+    body = _mp_body()
+    try:
+        actor_id, _pname, sess = _collab_actor()
+        if sess and body.get("workshop_cid"):
+            player = mp.auth(body["workshop_cid"],
+                             request.headers.get("X-MP-Token") or str(body.get("campaign_token", "")))
+            actor_id = player["id"]
+        row = db.query_one("SELECT owner, collab_json FROM forge_drafts WHERE id=?", (draft_id,))
+        if not (bool(row) and _collab_is_creator(row, actor_id)):
+            _forbid_guest_admin()
+        return jsonify(forge.collab_approve(draft_id, actor_id))
+    except (ValueError, forge.ForgeError, mp.MpDenied, mp.MpError) as exc:
         return _err(exc)

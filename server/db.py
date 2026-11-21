@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS campaigns (
   location_id TEXT,
   turn INTEGER NOT NULL DEFAULT 0,
   drift INTEGER NOT NULL DEFAULT 0,
+  ruleset TEXT NOT NULL DEFAULT 'undertow',   -- undertow | dnd5e (SRD)
   state_json TEXT NOT NULL DEFAULT '{}',
   summary TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'active',
@@ -81,6 +82,7 @@ CREATE TABLE IF NOT EXISTS characters (
   campaign_id TEXT NOT NULL,
   name TEXT NOT NULL,
   archetype TEXT NOT NULL,
+  location_id TEXT,
   portrait_json TEXT NOT NULL DEFAULT '{}',
   attributes_json TEXT NOT NULL DEFAULT '{}',
   skills_json TEXT NOT NULL DEFAULT '{}',
@@ -344,6 +346,135 @@ CREATE TABLE IF NOT EXISTS mp_events (
   data_json TEXT NOT NULL DEFAULT '{}'
 );
 CREATE INDEX IF NOT EXISTS idx_mp_events_campaign ON mp_events (campaign_id, seq);
+
+-- ==========================================================================
+-- Milestone 3.5: The Infinite Library. Source documents stay verbatim on
+-- disk (userdata/library/<id>.orig); the database holds metadata + chunks.
+-- ==========================================================================
+
+CREATE TABLE IF NOT EXISTS library_docs (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  author TEXT NOT NULL DEFAULT '',
+  doc_type TEXT NOT NULL DEFAULT 'txt',       -- txt|md|html|docx|epub|pdf|worldpack
+  source_url TEXT NOT NULL DEFAULT '',
+  license TEXT NOT NULL DEFAULT 'Private',
+  attribution TEXT NOT NULL DEFAULT '',
+  file_hash TEXT NOT NULL DEFAULT '',
+  original_path TEXT NOT NULL DEFAULT '',
+  n_chunks INTEGER NOT NULL DEFAULT 0,
+  n_words INTEGER NOT NULL DEFAULT 0,
+  private INTEGER NOT NULL DEFAULT 0,
+  meta_json TEXT NOT NULL DEFAULT '{}',
+  added_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS library_chunks (
+  id TEXT PRIMARY KEY,
+  doc_id TEXT NOT NULL,
+  seq INTEGER NOT NULL,
+  heading TEXT NOT NULL DEFAULT '',
+  text TEXT NOT NULL,
+  word_count INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_library_chunks_doc ON library_chunks (doc_id, seq);
+
+CREATE TABLE IF NOT EXISTS forge_drafts (
+  id TEXT PRIMARY KEY,
+  doc_id TEXT NOT NULL,                        -- '' for from-scratch homebrew
+  mode TEXT NOT NULL DEFAULT 'faithful',      -- faithful | rewrite | homebrew
+  status TEXT NOT NULL DEFAULT 'drafting',    -- drafting | draft | approved
+  pack_json TEXT NOT NULL DEFAULT '{}',
+  profile_json TEXT NOT NULL DEFAULT '{}',    -- extracted raw material
+  notes_json TEXT NOT NULL DEFAULT '[]',
+  owner TEXT,                                  -- collaborative worldbuilding creator
+  collab_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+-- Milestone 3.6: player-controlled encounters, forge jobs, revisions,
+-- the Living Campaign Director, and campaign checkpoints.
+CREATE TABLE IF NOT EXISTS dnd_encounters (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active',      -- active | complete
+  round INTEGER NOT NULL DEFAULT 1,
+  turn_index INTEGER NOT NULL DEFAULT 0,
+  state_json TEXT NOT NULL DEFAULT '{}',
+  rewards_granted INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_dnd_enc_campaign ON dnd_encounters (campaign_id, status);
+
+CREATE TABLE IF NOT EXISTS forge_jobs (
+  id TEXT PRIMARY KEY,
+  doc_id TEXT NOT NULL,
+  mode TEXT NOT NULL DEFAULT 'faithful',      -- faithful | rewrite
+  scope TEXT NOT NULL DEFAULT 'short',        -- short | multi_session | extended
+  status TEXT NOT NULL DEFAULT 'queued',      -- queued|analyzing|bible|generating|validating|review|approved|failed|cancelled
+  stage TEXT NOT NULL DEFAULT '',             -- human-readable stage line
+  progress REAL NOT NULL DEFAULT 0,           -- 0..1
+  coverage_json TEXT NOT NULL DEFAULT '{}',
+  profile_json TEXT NOT NULL DEFAULT '{}',
+  bible_json TEXT NOT NULL DEFAULT '{}',
+  pack_json TEXT NOT NULL DEFAULT '{}',
+  notes_json TEXT NOT NULL DEFAULT '[]',
+  error TEXT,
+  cancel INTEGER NOT NULL DEFAULT 0,
+  draft_id TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_forge_jobs_doc ON forge_jobs (doc_id, status);
+
+CREATE TABLE IF NOT EXISTS forge_contrib (
+  id TEXT PRIMARY KEY,
+  draft_id TEXT NOT NULL,
+  author_id TEXT NOT NULL,                    -- mp player id or 'local'
+  author_name TEXT NOT NULL,
+  ops_json TEXT NOT NULL DEFAULT '[]',
+  note TEXT NOT NULL DEFAULT '',
+  base_rev INTEGER NOT NULL DEFAULT 1,
+  status TEXT NOT NULL DEFAULT 'proposed',    -- proposed|applied|rejected
+  applied_rev INTEGER,
+  conflicts_json TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_forge_contrib_draft ON forge_contrib (draft_id, status);
+
+CREATE TABLE IF NOT EXISTS forge_revisions (
+  id TEXT PRIMARY KEY,
+  draft_id TEXT NOT NULL,
+  seq INTEGER NOT NULL,
+  pack_json TEXT NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_forge_rev_draft ON forge_revisions (draft_id, seq);
+
+CREATE TABLE IF NOT EXISTS director_threads (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'quest',         -- quest|mystery|threat|arc|faction|consequence
+  title TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'introduced',  -- introduced|active|dormant|resolved|failed|abandoned
+  detail_json TEXT NOT NULL DEFAULT '{}',
+  evidence_json TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_director_campaign ON director_threads (campaign_id, status);
+
+CREATE TABLE IF NOT EXISTS campaign_checkpoints (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  export_json TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
 """
 
 SEARCH_SQL = """
@@ -366,6 +497,15 @@ def init_db() -> None:
     with _LOCK:
         conn.executescript(SCHEMA_SQL)
         conn.executescript(SEARCH_SQL)
+        # Infinite Library full-text index (FTS5 when the build supports it)
+        try:
+            conn.executescript("""
+CREATE VIRTUAL TABLE IF NOT EXISTS library_fts USING fts5(
+  doc_id UNINDEXED, seq UNINDEXED, heading, text
+);
+""")
+        except Exception:
+            pass  # LIKE search still works without FTS5
         row = conn.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()
         if row is None:
             conn.execute(
@@ -400,6 +540,25 @@ def _migrate(conn: sqlite3.Connection, from_version: str) -> None:
         from_version = "saturday.core.v2"
     if from_version in ("saturday.core.v2",):
         _migrate_v2_to_v3(conn)
+        _migrate_v3_to_v4(conn)
+        _migrate_v4_to_v5(conn)
+        conn.execute(
+            "UPDATE meta SET value=? WHERE key='schema_version'",
+            (config.SCHEMA_VERSION,),
+        )
+        conn.commit()
+        return
+    if from_version in ("saturday.core.v3",):
+        _migrate_v3_to_v4(conn)
+        _migrate_v4_to_v5(conn)
+        conn.execute(
+            "UPDATE meta SET value=? WHERE key='schema_version'",
+            (config.SCHEMA_VERSION,),
+        )
+        conn.commit()
+        return
+    if from_version in ("saturday.core.v4",):
+        _migrate_v4_to_v5(conn)
         conn.execute(
             "UPDATE meta SET value=? WHERE key='schema_version'",
             (config.SCHEMA_VERSION,),
@@ -411,6 +570,149 @@ def _migrate(conn: sqlite3.Connection, from_version: str) -> None:
         f"database schema {from_version} is newer than this build "
         f"({config.SCHEMA_VERSION}); restore a matching backup instead"
     )
+
+
+def _migrate_v3_to_v4(conn: sqlite3.Connection) -> None:
+    """Infinite Library migration: ruleset column + library/forge tables."""
+    camp_cols = {r[1] for r in conn.execute("PRAGMA table_info(campaigns)")}
+    if "ruleset" not in camp_cols:
+        conn.execute("ALTER TABLE campaigns ADD COLUMN ruleset TEXT NOT NULL DEFAULT 'undertow'")
+    conn.executescript("""
+CREATE TABLE IF NOT EXISTS library_docs (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  author TEXT NOT NULL DEFAULT '',
+  doc_type TEXT NOT NULL DEFAULT 'txt',
+  source_url TEXT NOT NULL DEFAULT '',
+  license TEXT NOT NULL DEFAULT 'Private',
+  attribution TEXT NOT NULL DEFAULT '',
+  file_hash TEXT NOT NULL DEFAULT '',
+  original_path TEXT NOT NULL DEFAULT '',
+  n_chunks INTEGER NOT NULL DEFAULT 0,
+  n_words INTEGER NOT NULL DEFAULT 0,
+  private INTEGER NOT NULL DEFAULT 0,
+  meta_json TEXT NOT NULL DEFAULT '{}',
+  added_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS library_chunks (
+  id TEXT PRIMARY KEY,
+  doc_id TEXT NOT NULL,
+  seq INTEGER NOT NULL,
+  heading TEXT NOT NULL DEFAULT '',
+  text TEXT NOT NULL,
+  word_count INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_library_chunks_doc ON library_chunks (doc_id, seq);
+CREATE TABLE IF NOT EXISTS forge_drafts (
+  id TEXT PRIMARY KEY,
+  doc_id TEXT NOT NULL,
+  mode TEXT NOT NULL DEFAULT 'faithful',
+  status TEXT NOT NULL DEFAULT 'drafting',
+  pack_json TEXT NOT NULL DEFAULT '{}',
+  profile_json TEXT NOT NULL DEFAULT '{}',
+  notes_json TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+""")
+
+
+def _migrate_v4_to_v5(conn: sqlite3.Connection) -> None:
+    """Living Campaign migration: split-party locations, spectator roles,
+    encounter/jobs/revisions/director/checkpoint tables."""
+    char_cols = {r[1] for r in conn.execute("PRAGMA table_info(characters)")}
+    if "location_id" not in char_cols:
+        conn.execute("ALTER TABLE characters ADD COLUMN location_id TEXT")
+    if "mp_players" in {r[0] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'")}:
+        mp_cols = {r[1] for r in conn.execute("PRAGMA table_info(mp_players)")}
+        if "role" not in mp_cols:
+            conn.execute("ALTER TABLE mp_players ADD COLUMN role TEXT NOT NULL DEFAULT 'player'")
+    draft_cols = set()
+    if "forge_drafts" in {r[0] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'")}:
+        draft_cols = {r[1] for r in conn.execute("PRAGMA table_info(forge_drafts)")}
+        if "owner" not in draft_cols:
+            conn.execute("ALTER TABLE forge_drafts ADD COLUMN owner TEXT")
+        if "collab_json" not in draft_cols:
+            conn.execute("ALTER TABLE forge_drafts ADD COLUMN collab_json TEXT NOT NULL DEFAULT '{}'")
+    conn.executescript("""
+CREATE TABLE IF NOT EXISTS forge_contrib (
+  id TEXT PRIMARY KEY,
+  draft_id TEXT NOT NULL,
+  author_id TEXT NOT NULL,
+  author_name TEXT NOT NULL,
+  ops_json TEXT NOT NULL DEFAULT '[]',
+  note TEXT NOT NULL DEFAULT '',
+  base_rev INTEGER NOT NULL DEFAULT 1,
+  status TEXT NOT NULL DEFAULT 'proposed',
+  applied_rev INTEGER,
+  conflicts_json TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_forge_contrib_draft ON forge_contrib (draft_id, status);
+CREATE TABLE IF NOT EXISTS dnd_encounters (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active',
+  round INTEGER NOT NULL DEFAULT 1,
+  turn_index INTEGER NOT NULL DEFAULT 0,
+  state_json TEXT NOT NULL DEFAULT '{}',
+  rewards_granted INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_dnd_enc_campaign ON dnd_encounters (campaign_id, status);
+CREATE TABLE IF NOT EXISTS forge_jobs (
+  id TEXT PRIMARY KEY,
+  doc_id TEXT NOT NULL,
+  mode TEXT NOT NULL DEFAULT 'faithful',
+  scope TEXT NOT NULL DEFAULT 'short',
+  status TEXT NOT NULL DEFAULT 'queued',
+  stage TEXT NOT NULL DEFAULT '',
+  progress REAL NOT NULL DEFAULT 0,
+  coverage_json TEXT NOT NULL DEFAULT '{}',
+  profile_json TEXT NOT NULL DEFAULT '{}',
+  bible_json TEXT NOT NULL DEFAULT '{}',
+  pack_json TEXT NOT NULL DEFAULT '{}',
+  notes_json TEXT NOT NULL DEFAULT '[]',
+  error TEXT,
+  cancel INTEGER NOT NULL DEFAULT 0,
+  draft_id TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_forge_jobs_doc ON forge_jobs (doc_id, status);
+CREATE TABLE IF NOT EXISTS forge_revisions (
+  id TEXT PRIMARY KEY,
+  draft_id TEXT NOT NULL,
+  seq INTEGER NOT NULL,
+  pack_json TEXT NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_forge_rev_draft ON forge_revisions (draft_id, seq);
+CREATE TABLE IF NOT EXISTS director_threads (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'quest',
+  title TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'introduced',
+  detail_json TEXT NOT NULL DEFAULT '{}',
+  evidence_json TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_director_campaign ON director_threads (campaign_id, status);
+CREATE TABLE IF NOT EXISTS campaign_checkpoints (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  export_json TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+""")
 
 
 def _migrate_v2_to_v3(conn: sqlite3.Connection) -> None:

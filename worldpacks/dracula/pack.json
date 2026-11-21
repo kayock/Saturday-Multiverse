@@ -1,0 +1,1144 @@
+{
+ "id": "dracula",
+ "name": "Dracula: The White Ship",
+ "summary": "Whitby, 1897. A Russian ship wrecks under the East Cliff with a dead crew and one living passenger. The hunt begins.",
+ "version": 1,
+ "genre_tags": [
+  "gothic",
+  "supernatural horror",
+  "literary"
+ ],
+ "gm_style": "Stoker's dread: letters, fog and implication. Horror is patient and polite. Violence is rare and terrible. Victorian restraint, modern stakes.",
+ "theme": {
+  "bg": "#0b0e14",
+  "deep": "#141126",
+  "purple": "#7c5cff",
+  "glow": "#9b8cff",
+  "teal": "#43e8d8",
+  "gold": "#e8b46b",
+  "text": "#e9e4f2"
+ },
+ "hub_location": "whitby_harbour",
+ "license": {
+  "source_title": "Dracula",
+  "author": "Bram Stoker (1847-1912)",
+  "source_url": "https://www.gutenberg.org/ebooks/345",
+  "license": "Public Domain (published 1897; author died 1912)",
+  "attribution": "Adapted from Bram Stoker's Dracula (1897), public domain. This pack's original text, choices and engine content: Saturday Multiverse, released with the project under its own license.",
+  "library_doc_id": null
+ },
+ "locations": [
+  {
+   "id": "whitby_harbour",
+   "name": "Whitby Harbour",
+   "known": true,
+   "adventure": "the_white_ship",
+   "short": "Fishing boats, jet streets, and the wreck under the cliff.",
+   "desc": "The harbor town sits between river and sea, dominated by the ruins of Whitby Abbey on the East Cliff. Ninety-nine steps climb from the jet to the churchyard. Tonight the Demeter lies on the sand below, run aground in a storm, her crew gone.",
+   "flavor": [
+    "The churchyard cross leans like a man listening at a door.",
+    "Gulls refuse to land on the wreck.",
+    "Every clock in town runs a few minutes slow since the storm."
+   ],
+   "rest": {
+    "vigor": 2,
+    "nerve": 2
+   }
+  },
+  {
+   "id": "east_cliff",
+   "name": "The East Cliff Churchyard",
+   "known": true,
+   "short": "Ninety-nine steps, suicides' graves, and Suzy's seat.",
+   "desc": "The abbey ruin towers over graves and a bench facing the sea. The newest grave, recently cut, has been disturbed from below — or from above. From here the whole harbour and the wreck are visible.",
+   "flavor": [
+    "Something white sits on Suzy's seat at dusk and is gone by morning.",
+    "The wind reads the headstones aloud, softly.",
+    "Dogs will not climb past step sixty."
+   ]
+  },
+  {
+   "id": "carfax",
+   "name": "Carfax Estate",
+   "known": false,
+   "short": "The Count's purchased house: chapel, boxes of earth.",
+   "desc": "A ruined estate near Purfleet bought through solicitors, its windows boarded. The old chapel below the house holds fifty boxes of Plymouth earth, and one of them is not empty.",
+   "flavor": [
+    "The keys smell of graves and mildew.",
+    "Rats keep to the walls. Even they are afraid of something here.",
+    "One box is newer than the others."
+   ]
+  },
+  {
+   "id": "sanatorium",
+   "name": "Dr Seward's Sanatorium",
+   "known": false,
+   "short": "An asylum outside town; one patient is counting things.",
+   "desc": "Dr Seward's house of minds. R. M. Renfield, the zoophagous maniac, begs admittance to the nearest estate and counts sparrows, then rats, then — he says — lives.",
+   "flavor": [
+    "The patient knows what you had for breakfast.",
+    "Moths gather at one particular window all night.",
+    "Seward's phonograph diary whispers in the dark of his study."
+   ],
+   "rest": {
+    "vigor": 3,
+    "nerve": 3
+   }
+  },
+  {
+   "id": "borgo_pass",
+   "name": "The Borgo Pass",
+   "known": false,
+   "short": "The road to Castle Dracula, if you dare carry the box home.",
+   "desc": "Snow, pine, and a road the Caleche once traveled. The castle stands above the pass, doorless to any visitor the Master invites. Gypsies guard the boxes that travel the road.",
+   "flavor": [
+    "The cold here is not weather. It is attention.",
+    "Wolves sing in rounds, like a choir that learned music badly.",
+    "The Caleche driver never shows his face, and his palms face backward."
+   ]
+  },
+  {
+   "id": "demeter",
+   "name": "Aboard the Demeter",
+   "known": true,
+   "short": "The wrecked Russian schooner, her log the only witness.",
+   "desc": "Rigging like entrails, holds full of sand and sloped earth. The captain's log tells of a crew vanishing one by one, of a tall thin man the helmsman saw at the bow, of words scratched by a dying hand: the monster is in the box.",
+   "flavor": [
+    "Salt has dried into the shape of fingerprints on the hatch.",
+    "The log's last entry is in two handwritings.",
+    "Bullets passed through one man of the crew and harmed him not at all."
+   ]
+  }
+ ],
+ "archetypes": [
+  {
+   "id": "solicitor",
+   "name": "The Solicitor's Clerk",
+   "blurb": "You carried the papers that gave the Count his houses. Now you carry the debt of it.",
+   "stats": {
+    "wits": 2,
+    "might": 0,
+    "mettle": 1,
+    "bind": 0
+   },
+   "palette": "gold",
+   "kit": [
+    "legal_satchel",
+    "grandmothers_journal"
+   ]
+  },
+  {
+   "id": "doctor",
+   "name": "The Alienist",
+   "blurb": "You study madmen. The madmen have started agreeing with each other.",
+   "stats": {
+    "wits": 1,
+    "might": -1,
+    "mettle": 2,
+    "bind": 1
+   },
+   "palette": "teal",
+   "kit": [
+    "laudanum_bottle",
+    "chalk"
+   ]
+  },
+  {
+   "id": "sea_widow",
+   "name": "The Sea-Widow",
+   "blurb": "The harbor knows you; you know what waits in wrecks.",
+   "stats": {
+    "wits": 0,
+    "might": 1,
+    "mettle": 2,
+    "bind": 1
+   },
+   "palette": "violet",
+   "kit": [
+    "salt_charm",
+    "iron_lantern"
+   ]
+  },
+  {
+   "id": "occultist",
+   "name": "The Occultist",
+   "blurb": "You have read the old books. They were right, which is worse.",
+   "stats": {
+    "wits": 1,
+    "might": -1,
+    "mettle": 1,
+    "bind": 2
+   },
+   "palette": "ember",
+   "kit": [
+    "crucifix_wafer",
+    "grandmothers_journal"
+   ]
+  }
+ ],
+ "npcs": [
+  {
+   "id": "mina",
+   "name": "Mina Murray",
+   "role": "schoolmistress; friend to the wrecked",
+   "location": "whitby_harbour",
+   "desc": "Practical, brave, learning shorthand to be useful to the men she loves. She memorizes train timetables for comfort.",
+   "greeting": "\"I have copied the timetable by heart. If we must run, we will run punctually.\"",
+   "rumors": [
+    "\"The sea has been giving things back that we did not bury.\""
+   ]
+  },
+  {
+   "id": "lucy",
+   "name": "Lucy Westenra",
+   "role": "the Count's first mark",
+   "location": "east_cliff",
+   "desc": "Sweet-natured, sleepwalking, growing pale by the day. Two punctures at her throat that her doctors call a pin.",
+   "greeting": "\"I cannot remember where I walk at night. Why do you look at my throat so?\"",
+   "rumors": [
+    "\"Miss Lucy walks in her sleep up the ninety-nine steps.\""
+   ]
+  },
+  {
+   "id": "seward",
+   "name": "Dr Seward",
+   "role": "alienist, proprietor of the sanatorium",
+   "location": "sanatorium",
+   "desc": "A rational man recording irrational things on wax cylinders. He has begun, quietly, to believe his patient.",
+   "greeting": "\"I diagnose what I can see. What I cannot see, I am learning to fear.\"",
+   "rumors": [
+    "\"He cut a healthy man's throat and called it science. He was right.\""
+   ]
+  },
+  {
+   "id": "renfield",
+   "name": "R. M. Renfield",
+   "role": "zoophagous patient",
+   "location": "sanatorium",
+   "desc": "He eats lives to add to his own: flies to spiders, spiders to sparrows. He knows the Master is near, and begs to be let out.",
+   "greeting": "\"The Master is at hand! Let me go — the blood is the life!\"",
+   "rumors": [
+    "\"He counts. He is always counting.\""
+   ]
+  },
+  {
+   "id": "van_helsing",
+   "name": "Professor Van Helsing",
+   "role": "the man who knows",
+   "location": "sanatorium",
+   "desc": "Dutch polymath, garlic-wreathed, terrible and kind. He knows what preys on Lucy and has the tools, if anyone will believe him.",
+   "greeting": "\"Do you know why we wrap the wounds in garlic? No? Then believe me a little longer.\"",
+   "rumors": [
+    "\"He pays for the graves to be dressed in wild flowers.\""
+   ]
+  },
+  {
+   "id": "swales",
+   "name": "Old Mr Swales",
+   "role": "churchyard talker",
+   "location": "east_cliff",
+   "desc": "An old fisherman who sits among the graves and tells the truth no one wants. He says the sea gives back what it should keep.",
+   "greeting": "\"Petted things come to grief, missy. And there's more petted by death than by life.\"",
+   "rumors": [
+    "\"I found the ship's crew. They had faces like dying men that see the wrong heaven.\""
+   ]
+  },
+  {
+   "id": "dracula",
+   "name": "Count Dracula",
+   "role": "the Un-Dead",
+   "location": "carfax",
+   "desc": "Courteous, cold, and patient. He has crossed the sea in a box of his native earth. He buys houses near asylums. He does not cast a reflection, and he thanks you for your curiosity.",
+   "greeting": "\"Welcome. Enter freely and of your own will. Leave some of the happiness you bring.\"",
+   "rumors": [
+    "\"He came ashore in a ship that killed its own crew.\""
+   ]
+  }
+ ],
+ "items": [
+  {
+   "id": "crucifix_wafer",
+   "name": "Crucifix and Wafer",
+   "kind": "charm",
+   "desc": "A small crucifix; a communion wafer for sealing thresholds.",
+   "use": {
+    "text": "Faith, held firmly, is a kind of wall.",
+    "heal": {
+     "nerve": 1
+    }
+   }
+  },
+  {
+   "id": "wild_rose",
+   "name": "Wild-Rose Garland",
+   "kind": "charm",
+   "desc": "A garland of wild roses for a tomb. A flower older than the curse.",
+   "use": {
+    "text": "The garland settles like a hand on a sleeper's brow.",
+    "heal": {
+     "vigor": 1
+    }
+   }
+  },
+  {
+   "id": "laudanum_bottle",
+   "name": "Laudanum Bottle",
+   "kind": "tool",
+   "desc": "Sleep in a brown bottle. Price: the morning.",
+   "use": {
+    "text": "Dreamless, for a while.",
+    "heal": {
+     "vigor": 2
+    },
+    "consume": true
+   }
+  },
+  {
+   "id": "legal_satchel",
+   "name": "Legal Satchel",
+   "kind": "tool",
+   "desc": "Deeds, maps of purchased estates, and one page you did not expect: a list of boxes.",
+   "use": {
+    "text": "Paper trails still lead somewhere.",
+    "heal": {}
+   }
+  },
+  {
+   "id": "iron_lantern",
+   "name": "Iron Lantern",
+   "kind": "tool",
+   "desc": "Oil, wick, and the oldest remedy for what hides in dark rooms.",
+   "use": {
+    "text": "The flame stands up straight, whatever breathes past it.",
+    "heal": {}
+   }
+  },
+  {
+   "id": "captains_log",
+   "name": "Captain's Log (copy)",
+   "kind": "relic",
+   "desc": "The Demeter's story, in two hands. Evidence, if anyone survives to care.",
+   "use": {
+    "text": "You reread the last entry and understand one word more than before.",
+    "heal": {}
+   }
+  },
+  {
+   "id": "silver_crucifix_lucy",
+   "name": "Lucy's Silver Crucifix",
+   "kind": "charm",
+   "desc": "Given in friendship; she wears it and it burns her faintly.",
+   "use": {
+    "text": "She flinches, then thanks you. Both are true.",
+    "heal": {}
+   }
+  },
+  {
+   "id": "box_of_earth",
+   "name": "Phial of Grave-Earth",
+   "kind": "relic",
+   "desc": "Soil from the Count's box. Where it lies, he may rest — and you may learn.",
+   "use": {
+    "text": "The earth is warm, and moves faintly, like a sleeping thing's chest.",
+    "heal": {}
+   }
+  }
+ ],
+ "omens": [
+  {
+   "id": "om1",
+   "kind": "edge",
+   "title": "Shorthand Memory",
+   "text": "You transcribe what others forget within the hour.",
+   "boost": "notice"
+  },
+  {
+   "id": "om2",
+   "kind": "edge",
+   "title": "Old Belief",
+   "text": "Your grandmother's remedies are correct, again.",
+   "boost": "bind"
+  },
+  {
+   "id": "om3",
+   "kind": "edge",
+   "title": "Steady Hands",
+   "text": "Your hands do not shake, even at the window.",
+   "boost": "endure"
+  },
+  {
+   "id": "om4",
+   "kind": "turn",
+   "title": "The Dog Refused",
+   "text": "Animals refuse to follow you tonight. Whatever hunts, hunts blind.",
+   "boost": "notice"
+  },
+  {
+   "id": "om5",
+   "kind": "complication",
+   "title": "The Sleepwalk",
+   "text": "You wake on the ninety-ninth step with no memory and a taste of salt."
+  },
+  {
+   "id": "om6",
+   "kind": "complication",
+   "title": "News from the Papers",
+   "text": "A reporter asks you about the wreck — in print, tomorrow, wrongly."
+  },
+  {
+   "id": "om7",
+   "kind": "turn",
+   "title": "Cheap Coffins",
+   "text": "The undertaker owes you a favor and cuts a lid to measure, tonight.",
+   "boost": "fight"
+  },
+  {
+   "id": "om8",
+   "kind": "edge",
+   "title": "Timetable Heart",
+   "text": "You have memorized the trains. The chase runs on rails.",
+   "boost": "endure"
+  }
+ ],
+ "weather": [
+  {
+   "key": "fog",
+   "weight": 4,
+   "desc": "Sea fog that carries voices it should not carry."
+  },
+  {
+   "key": "storm",
+   "weight": 2,
+   "desc": "The after-storm: gulls silent, boats still bailing."
+  },
+  {
+   "key": "moon",
+   "weight": 3,
+   "desc": "A hard clear night. The moon is a witness, not a lamp."
+  }
+ ],
+ "washashore": [
+  {
+   "id": "glass_beads",
+   "kind": "beads",
+   "label": "a scatter of glassbeads",
+   "text": "Sea-glass beads in the hull-sand of the Demeter. The shore pays for attention.",
+   "effects": {
+    "beads": 2
+   },
+   "weight": 3
+  },
+  {
+   "id": "crew_medallion",
+   "kind": "clue",
+   "label": "a crewman's medallion",
+   "text": "A cheap medallion, gripped so hard the chain snapped. The hand that held it is still aboard, somewhere.",
+   "effects": {
+    "fact": "A crewman's medallion came ashore, gripped by a hand that did not let go in life."
+   },
+   "weight": 2
+  },
+  {
+   "id": "loose_page",
+   "kind": "item",
+   "label": "a page in a woman's hand",
+   "text": "A page of shorthand, water-swollen: someone kept a diary aboard the Demeter.",
+   "effects": {
+    "item_give": "captains_log"
+   },
+   "weight": 2
+  }
+ ],
+ "portals": [
+  {
+   "id": "door_dracula",
+   "label": "Door of the White Ship",
+   "target_location": "whitby_harbour",
+   "door_index": 0,
+   "hint": "Gothic horror — Stoker's Dracula, 1897"
+  }
+ ],
+ "adventures": [
+  {
+   "id": "the_white_ship",
+   "title": "The White Ship",
+   "summary": "A wreck, a wasting girl, a counting madman, and fifty boxes of earth. Learn what came ashore before it finishes coming ashore.",
+   "genre": "gothic horror",
+   "entry": "wreck_scene",
+   "on_enter": [],
+   "portal_id": "door_dracula",
+   "scenes": {
+    "wreck_scene": {
+     "title": "The Wreck of the Demeter",
+     "brief": "Examine the wreck, the log, and the living passenger who walked ashore.",
+     "gm_directive": "Establish dread through testimony and detail. The Count is courteous, never visible at first. Do not confirm vampirism until Van Helsing's scene.",
+     "intro": "The storm that brought the Demeter in is gone as if ashamed. She lies keel-up on the sand below the East Cliff, her name written in barnacle and rope-end. The harbourmaster has counted the crew twice: none. And yet the mate's memorandum says the hands fell one by one, and the last entry is not in the captain's hand. In town, a tall thin man was seen stepping over the ship's side, before any boat could put out.",
+     "flavor": [
+      "The hold smells of sloped earth, not cargo.",
+      "The ship's dog is missing. So is its chain, from the inside."
+     ],
+     "hotspots": [
+      {
+       "id": "log",
+       "label": "the captain's log",
+       "x": 55,
+       "y": 60,
+       "text": "Two handwritings share the final page: 'the monster is in the box' — and beneath it, in a neater hand: 'he thanks you for your interest.'"
+      },
+      {
+       "id": "hold",
+       "label": "the sloped earth in the hold",
+       "x": 30,
+       "y": 68,
+       "text": "Great boxes of earth, one open, one dragged toward the bow. The drag-marks lead up the beach, into the fog."
+      }
+     ],
+     "choices": [
+      {
+       "id": "read_log",
+       "label": "Read the captain's log aloud",
+       "hint": "Notice — find what the two hands hide.",
+       "check": {
+        "skill": "notice",
+        "hard": false,
+        "riptide_counts_pass": false
+       },
+       "on_pass": {
+        "goto": "cliff_scene",
+        "effects": {
+         "journal": "The log's last page is in two hands: the dying captain's cry, and a courteous reply.",
+         "fact": "Something replied to the dying captain in the log itself."
+        }
+       },
+       "on_fail": {
+        "goto": "cliff_scene",
+        "effects": {
+         "journal": "The log ends mid-word. The cold came off the page.",
+         "harm": {
+          "amount": 1,
+          "type": "nerve"
+         }
+        }
+       }
+      },
+      {
+       "id": "follow_drag",
+       "label": "Follow the drag-marks up the beach",
+       "hint": "Fight — a hard climb through fog.",
+       "check": {
+        "skill": "fight",
+        "hard": true,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "cliff_scene",
+        "effects": {
+         "journal": "Drag-marks, then footprints, then none at all — halfway up the cliff face.",
+         "fact": "The marks leave the ground halfway up the cliff."
+        }
+       },
+       "on_fail": {
+        "goto": "cliff_scene",
+        "effects": {
+         "journal": "The fog turned me around twice. The footprints were my own, going both ways.",
+         "harm": {
+          "amount": 1,
+          "type": "vigor"
+         }
+        }
+       }
+      },
+      {
+       "id": "ask_town",
+       "label": "Ask the harbour town what walked ashore",
+       "hint": "Persuade the fisherfolk to speak.",
+       "check": {
+        "skill": "persuade",
+        "hard": false,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "cliff_scene",
+        "effects": {
+         "journal": "Old Mr Swales told the truth at the graves: the sea gives back what it should keep.",
+         "fact": "Swales says the crew died of fear before they died."
+        }
+       },
+       "on_fail": {
+        "goto": "cliff_scene",
+        "effects": {
+         "journal": "The town closes like a hand. Talk of the wreck is not welcome."
+        }
+       }
+      }
+     ]
+    },
+    "cliff_scene": {
+     "title": "The East Cliff at Dusk",
+     "brief": "Lucy wastes. Swales warns. Something white sits on the bench.",
+     "gm_directive": "The horror is not the Un-Dead girl; it is the politeness of the thing that visits her. Let the players choose belief or skepticism.",
+     "intro": "Ninety-nine steps, and the churchyard at the top. Miss Lucy Westenra grows whiter each day; her fiance writes frantic letters. Old Swales, who sits with the graves, tips his hat and tells you the newest grave has been disturbed from below. On the bench called Suzy's seat, something white watches the sea, and it is gone when the fog clears from the bay.",
+     "flavor": [
+      "The dogs of Whitby howl at nothing, all night, in one long note.",
+      "Garlic in the florist's window: someone has been buying it all."
+     ],
+     "hotspots": [
+      {
+       "id": "new_grave",
+       "label": "the disturbed grave",
+       "x": 48,
+       "y": 40,
+       "text": "Fresh-turned earth, from inside. The child-thing that did it left small, sharp marks."
+      },
+      {
+       "id": "bench",
+       "label": "Suzy's seat",
+       "x": 70,
+       "y": 35,
+       "text": "The white thing sits here at dusk. It has Miss Lucy's patience and none of her warmth."
+      }
+     ],
+     "choices": [
+      {
+       "id": "watch_bench",
+       "label": "Watch Suzy's seat until dusk",
+       "hint": "Notice — what sits there, and what it does.",
+       "check": {
+        "skill": "notice",
+        "hard": true,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "sanatorium_scene",
+        "effects": {
+         "journal": "The white thing rose, and below it in the dusk the something larger rose to meet it: the Master, calling her gently.",
+         "fact": "The Un-Dead child answers the Master like a dog called home.",
+         "hidden_fact": "The Master calls his children in their own voices, learned in life."
+        }
+       },
+       "on_fail": {
+        "goto": "sanatorium_scene",
+        "effects": {
+         "journal": "I watched until the fog took the bench. Something watched me back, kindly.",
+         "harm": {
+          "amount": 1,
+          "type": "nerve"
+         }
+        }
+       }
+      },
+      {
+       "id": "guard_lucy",
+       "label": "Sit with Lucy through the night",
+       "hint": "Endure — keep wake when sleep calls wrongly.",
+       "check": {
+        "skill": "endure",
+        "hard": false,
+        "riptide_counts_pass": false
+       },
+       "on_pass": {
+        "goto": "sanatorium_scene",
+        "effects": {
+         "journal": "I kept the vigil. At the window, a bat with a face I knew circled twice and left, cheated.",
+         "fact": "A bat with a man's face circled Lucy's window."
+        }
+       },
+       "on_fail": {
+        "goto": "sanatorium_scene",
+        "effects": {
+         "journal": "I slept at the worst hour. She slept too. We both dreamed of the same waves.",
+         "harm": {
+          "amount": 1,
+          "type": "vigor"
+         }
+        }
+       }
+      },
+      {
+       "id": "bury_swales_truth",
+       "label": "Hear Swales out at the graves",
+       "hint": "Lore — the old knowledge of the coast.",
+       "check": {
+        "skill": "lore",
+        "hard": false,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "sanatorium_scene",
+        "effects": {
+         "journal": "Swales told me which graves walk, and why. He asked me to remember him kindly, and I mean to.",
+         "fact": "Swales knows which graves disturb themselves.",
+         "item_give": "wild_rose"
+        }
+       },
+       "on_fail": {
+        "goto": "sanatorium_scene",
+        "effects": {
+         "journal": "Swales talked of petted things and grief, and I understood too late."
+        }
+       }
+      }
+     ]
+    },
+    "sanatorium_scene": {
+     "title": "Dr Seward's Sanatorium",
+     "brief": "Renfield counts, Seward records, Van Helsing believes for you.",
+     "gm_directive": "This is the evidence scene. Renfield's plea, Seward's phonograph, Van Helsing's knowledge. The players leave with a plan or with fear — both are correct.",
+     "intro": "The sanatorium stands back from the town among pines. Dr Seward plays you a wax cylinder of Renfield begging to be moved anywhere — anywhere — but nearer the Carfax estate. Then Renfield himself, calm as arithmetic: 'The Master is at hand. The blood is the life.' And in the doorway, a Dutch professor stands wreathed in garlic flowers, holding out to you a wafer and a terrible kindness.",
+     "flavor": [
+      "Renfield's counting has changed: sparrows to rats, rats to lives.",
+      "Seward's phonograph records his own voice doubting himself."
+     ],
+     "hotspots": [
+      {
+       "id": "renfield_cell",
+       "label": "Renfield's cell",
+       "x": 35,
+       "y": 55,
+       "text": "Lines of counts on the wall: flies, spiders, sparrows, rats — then a new column, unnumbered, titled 'lives'."
+      },
+      {
+       "id": "seward_study",
+       "label": "Seward's phonograph",
+       "x": 65,
+       "y": 45,
+       "text": "The diary cylinders tell the case better than any file. The last one records breathing, not speech."
+      }
+     ],
+     "choices": [
+      {
+       "id": "hear_renfield",
+       "label": "Hear Renfield's counting to its end",
+       "hint": "Bind — meet a madman's truth without flinching.",
+       "check": {
+        "skill": "bind",
+        "hard": false,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "carfax_scene",
+        "effects": {
+         "journal": "Renfield drew me the estate in mud: Carfax, the chapel, and fifty boxes. He wept that he could not warn anyone properly.",
+         "fact": "Renfield's mud map shows fifty boxes of earth at Carfax."
+        }
+       },
+       "on_fail": {
+        "goto": "carfax_scene",
+        "effects": {
+         "journal": "Renfield seized my wrist and whispered the count aloud until I left. My wrist still remembers.",
+         "harm": {
+          "amount": 1,
+          "type": "vigor"
+         }
+        }
+       }
+      },
+      {
+       "id": "accept_helsing",
+       "label": "Accept Van Helsing's terrible kindness",
+       "hint": "Lore — believe the old knowledge.",
+       "check": {
+        "skill": "lore",
+        "hard": false,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "carfax_scene",
+        "effects": {
+         "journal": "The Professor showed me what Miss Lucy is becoming, kindly, with evidence. I chose to be useful.",
+         "fact": "Van Helsing proves the Un-Dead with patience and garlic.",
+         "item_give": "crucifix_wafer"
+        }
+       },
+       "on_fail": {
+        "goto": "carfax_scene",
+        "effects": {
+         "journal": "I laughed at the Professor once, badly. He forgave me at once, which was worse.",
+         "harm": {
+          "amount": 1,
+          "type": "nerve"
+         }
+        }
+       }
+      },
+      {
+       "id": "read_phonograph",
+       "label": "Read Seward's cylinders for the pattern",
+       "hint": "Notice — the case across the wax.",
+       "check": {
+        "skill": "notice",
+        "hard": false,
+        "riptide_counts_pass": false
+       },
+       "on_pass": {
+        "goto": "carfax_scene",
+        "effects": {
+         "journal": "Pattern in the cylinders: every symptom begins at dusk and ends at dawn, wherever Lucy's window faces.",
+         "fact": "The wasting follows dusk and dawn, not medicine.",
+         "item_give": "laudanum_bottle"
+        }
+       },
+       "on_fail": {
+        "goto": "carfax_scene",
+        "effects": {
+         "journal": "Cylinders of breathing. The pattern is there and my eyes are not."
+        }
+       }
+      }
+     ]
+    },
+    "carfax_scene": {
+     "title": "Carfax Estate",
+     "brief": "Fifty boxes of earth in a ruined chapel. Search, sanctify, or parley.",
+     "gm_directive": "The Count may appear here, courteous and terrible. If the players sanctify boxes, he is weakened later. If they parley, honor every promise he keeps — and every threat.",
+     "intro": "The estate the solicitors opened like a wound: boarded windows, a chapel below the house, and in the chapel, boxes of Plymouth earth in rows, some old, one new, one open and empty and cold as a held breath. Down the dark aisle the air moves the way a sleeping man's chest moves. Somewhere above, Renfield's voice is counting, and the count is going wrong.",
+     "flavor": [
+      "The keys to the house smell of graves.",
+      "Rats in the thousands rise and fall like a tide, and at some sign they all go still."
+     ],
+     "hotspots": [
+      {
+       "id": "boxes",
+       "label": "the boxes of earth",
+       "x": 50,
+       "y": 62,
+       "text": "Fifty boxes. Sanctify one and the Count has one fewer place to sleep. Open one and you learn what earth does when he is away."
+      },
+      {
+       "id": "chapel_dais",
+       "label": "the chapel dais",
+       "x": 30,
+       "y": 40,
+       "text": "A great shape gathers here at night, politely, like a host arriving late to his own table."
+      }
+     ],
+     "choices": [
+      {
+       "id": "sanctify_boxes",
+       "label": "Sanctify the boxes with wafer and prayer",
+       "hint": "Bind — hold the faith steady in the dark.",
+       "check": {
+        "skill": "bind",
+        "hard": true,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "hunt_scene",
+        "effects": {
+         "journal": "We sealed box after box until dawn. The air got colder and angrier, and then the Count was simply there, thanking us for tidying.",
+         "fact": "Most of Carfax's boxes are sealed with the wafer.",
+         "flag": "boxes_sanctified"
+        }
+       },
+       "on_fail": {
+        "goto": "hunt_scene",
+        "effects": {
+         "journal": "The wafer burned my hand on the last box and the Count was already watching from the dais, applauding quietly.",
+         "harm": {
+          "amount": 2,
+          "type": "nerve"
+         }
+        }
+       }
+      },
+      {
+       "id": "search_boxes",
+       "label": "Search the boxes for what he keeps",
+       "hint": "Notice — the earth will tell you things.",
+       "check": {
+        "skill": "notice",
+        "hard": false,
+        "riptide_counts_pass": false
+       },
+       "on_pass": {
+        "goto": "hunt_scene",
+        "effects": {
+         "journal": "In the new box: earth still warm, and a phial I took as evidence. In the old ones: names scratched inside lids, names of ships.",
+         "fact": "The Count's boxes carry the names of the ships that carried him.",
+         "item_give": "box_of_earth"
+        }
+       },
+       "on_fail": {
+        "goto": "hunt_scene",
+        "effects": {
+         "journal": "The boxes held only earth, and the earth held only me, somehow, for a moment.",
+         "harm": {
+          "amount": 1,
+          "type": "nerve"
+         }
+        }
+       }
+      },
+      {
+       "id": "parley_count",
+       "label": "Speak with the Count before dawn",
+       "hint": "Persuade — a hard bargain with a courteous host.",
+       "check": {
+        "skill": "persuade",
+        "hard": true,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "hunt_scene",
+        "effects": {
+         "journal": "We spoke as equals for one hour. He asked after my health. He promised to leave the town — after Lucy's funeral, he said, which was already arranged.",
+         "fact": "The Count keeps his promises to the letter and no further.",
+         "flag": "parleyed"
+        }
+       },
+       "on_fail": {
+        "goto": "hunt_scene",
+        "effects": {
+         "journal": "He thanked me for coming, gave me his carriage, and I woke on the cliff steps with no memory of the ride.",
+         "harm": {
+          "amount": 2,
+          "type": "vigor"
+         }
+        }
+       }
+      }
+     ]
+    },
+    "hunt_scene": {
+     "title": "The Hunt Runs on Rails",
+     "brief": "Timetables, telegrams, and the boxes he needs to reach. End it at his grave or in his house.",
+     "gm_directive": "The chase is Victorian-modern: trains, telegrams, team-work. Endings must be earned by what the players actually established: sanctified boxes, the parley, Renfield's warning.",
+     "intro": "It becomes arithmetic: a Count who must sleep in his own earth, boxes moving by rail and by sea, a timetable copied in a schoolmistress's careful hand. You are no longer deciding whether he exists. You are deciding where he will be when the sun is high.",
+     "flavor": [
+      "The train office clerk has sold a coffin passage twice this month.",
+      "Renfield's window faces the direction the boxes travel. He is the railway map of the hunt."
+     ],
+     "hotspots": [
+      {
+       "id": "timetable",
+       "label": "Mina's timetable",
+       "x": 55,
+       "y": 45,
+       "text": "Every box's route in her neat hand. One route runs through the Borgo Pass."
+      },
+      {
+       "id": "telegram",
+       "label": "the telegram desk",
+       "x": 30,
+       "y": 60,
+       "text": "Send word ahead and the whole hunt moves at the speed of light, almost."
+      }
+     ],
+     "choices": [
+      {
+       "id": "chase_boxes",
+       "label": "Ride ahead of the boxes to the Pass",
+       "hint": "Endure — snow, wolves, and a road that watches.",
+       "check": {
+        "skill": "endure",
+        "hard": true,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "ending_choices",
+        "effects": {
+         "journal": "We out-ran the boxes to the Pass and stood at the castle gate before the gypsies arrived.",
+         "fact": "We reached the Borgo Pass ahead of the boxes.",
+         "dnd_encounter": {
+          "monster": "wolf",
+          "count": 3
+         }
+        }
+       },
+       "on_fail": {
+        "goto": "ending_choices",
+        "effects": {
+         "journal": "The wolves arrived with the boxes. We kept our lives, and spent everything else.",
+         "harm": {
+          "amount": 2,
+          "type": "vigor"
+         },
+         "dnd_encounter": {
+          "monster": "wolf",
+          "count": 2
+         }
+        }
+       }
+      },
+      {
+       "id": "guard_home",
+       "label": "Guard the town while the boxes travel",
+       "hint": "Notice — he always tries for home soil.",
+       "check": {
+        "skill": "notice",
+        "hard": false,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "ending_choices",
+        "effects": {
+         "journal": "He came for the last local box at dusk, and we were there. His face when he saw the wafer was the first honest thing I saw in him.",
+         "fact": "The Count tried for the last local box and was refused."
+        }
+       },
+       "on_fail": {
+        "goto": "ending_choices",
+        "effects": {
+         "journal": "He moved the last box past us in the shape of fog and a polite railway clerk. We lost a night.",
+         "harm": {
+          "amount": 1,
+          "type": "nerve"
+         }
+        }
+       }
+      }
+     ]
+    },
+    "ending_choices": {
+     "title": "Where the Sun Is High",
+     "brief": "The last decisions: the grave under the crescent, the chapel at Carfax, or the bargain he will keep.",
+     "gm_directive": "Let the players state their plan. Route by what they built: sanctified boxes and belief make stake_and_wafer available; a kept parley makes the_bargain possible; failure or fear finds the_unfinished_night.",
+     "intro": "All the evidence is gathered. The Count is moving, the girl is failing or saved by the work already done, and every road ends in earth, fire, or a promise. Choose where you will be standing when the sun is high.",
+     "flavor": [
+      "The horizon is the color of a held breath.",
+      "Every clock in town is a few minutes slow, and you know now what they are waiting for."
+     ],
+     "hotspots": [],
+     "choices": [
+      {
+       "id": "stake_and_wafer",
+       "label": "End it: the grave, the stake, the wafer",
+       "hint": "Requires sanctified boxes and belief.",
+       "effects": {
+        "ending": "beacon_ending",
+        "flag": "chose_grave_end"
+       }
+      },
+      {
+       "id": "the_bargain",
+       "label": "Hold him to the bargain he made",
+       "hint": "Requires a kept parley.",
+       "effects": {
+        "ending": "bargain_ending",
+        "flag": "chose_bargain_end"
+       }
+      },
+      {
+       "id": "withdraw",
+       "label": "Withdraw and gird for another night",
+       "hint": "Always available. The Count is patient too.",
+       "effects": {
+        "ending": "unfinished_ending"
+       }
+      }
+     ]
+    }
+   },
+   "endings": {
+    "beacon_ending": {
+     "text": "The stake goes in at the instant the sun clears the horizon, and the thing in the grave is a monster for one moment and then only a decayed corpse, at peace at last. The wafer seals the lid. Whitby's clocks, all of them, run true from that hour — a minute fast, if anything, as if the town had waited long enough. Old Cardo is not there to meet you at the Door of the White Ship, but a garland of wild roses has been left on the lintel in a hand you know.",
+     "return_location": "whitby_harbour",
+     "effects": {
+      "ending": "beacon_ending",
+      "beads": 4,
+      "heal": {
+       "vigor": 2,
+       "nerve": 2
+      }
+     },
+     "consequence": "Dracula's grave was ended at sunrise; the town's clocks run true."
+    },
+    "bargain_ending": {
+     "text": "You hold him to his word at the chapel door, wafer in one hand and his own signed promise in the other, and the courtesy that is his oldest habit binds him where the stake could not. The boxes leave England. The town is spared. The Professor says you have bought a peace, not an ending, and hands you the phial of grave-earth as a receipt. On the Door of the White Ship, the fog parts like a curtain drawn by a courteous hand.",
+     "return_location": "whitby_harbour",
+     "effects": {
+      "ending": "bargain_ending",
+      "beads": 3
+     },
+     "consequence": "The Count keeps his bargain: a peace, not an ending. The phial of grave-earth remains."
+    },
+    "unfinished_ending": {
+     "text": "You step back through the Door of the White Ship with the evidence safe and the hunt unfinished. The fog follows you to the threshold like a polite guest seeing you to your coat. Somewhere behind, in the dark between the boxes, the Count is already writing your name in a ledger he keeps of debts and debtors. The multiverse remembers — and so does he.",
+     "return_location": "whitby_harbour",
+     "effects": {
+      "ending": "unfinished_ending",
+      "beads": 1
+     },
+     "consequence": "The hunt is unfinished; the Count's ledger carries the player's name."
+    }
+   },
+   "echo_offers": {
+    "beacon_ending": [
+     {
+      "kind": "achievement",
+      "title": "Sunrise Warden",
+      "detail": "Ended the Un-Dead at the moment the sun cleared the horizon.",
+      "data": {
+       "trait_skill": "fight",
+       "trait_delta": 1
+      }
+     }
+    ],
+    "bargain_ending": [
+     {
+      "kind": "achievement",
+      "title": "The Courteous Contract",
+      "detail": "Bound a Count with his own courtesy and a wafer.",
+      "data": {
+       "trait_skill": "persuade",
+       "trait_delta": 1
+      }
+     }
+    ],
+    "unfinished_ending": [
+     {
+      "kind": "achievement",
+      "title": "Named in the Ledger",
+      "detail": "Survived a hunt left unfinished. The Count remembers.",
+      "data": {
+       "trait_skill": "endure",
+       "trait_delta": 1
+      }
+     }
+    ]
+   }
+  }
+ ],
+ "intro_facts": [
+  "A Russian schooner, the Demeter, wrecked below the East Cliff with her entire crew missing.",
+  "Miss Lucy Westenra grows pale by the day, and sleeps in strange places.",
+  "A patient at Dr Seward's sanatorium has been counting, and begging to be moved away from the Carfax estate.",
+  "A tall thin man was seen stepping over the ship's side before any boat could put out."
+ ],
+ "intro_quests": [
+  {
+   "id": "learn_what_came_ashore",
+   "title": "Learn what came ashore with the Demeter"
+  },
+  {
+   "id": "save_lucy",
+   "title": "Learn what preys on Lucy Westenra"
+  }
+ ],
+ "gm_secrets": [
+  "Count Dracula arrived in a box of his native earth aboard the Demeter; he must sleep in that earth by day.",
+  "He purchased Carfax and other houses around asylums to stage his feeding ground.",
+  "Lucy Westenra is being drawn to the Un-Dead night by night; her sleepwalking takes her to the East Cliff bench.",
+  "Renfield is already bound to the Master as a servant; his counting is a report, not a symptom.",
+  "Van Helsing knows the whole of it and carries the means: wafer, garlic, stake, and the patience to be disbelieved.",
+  "The fifty boxes of earth are the Count's sanctuaries; destroying or sanctifying them narrows where he can rest.",
+  "If pressed to the Borgo Pass, his enemies find him at his strongest: wolves, gypsies, snow, and his own soil."
+ ],
+ "dnd": {
+  "encounters": {
+   "wolves": {
+    "monster": "wolf",
+    "count": 3
+   }
+  },
+  "note": "Wolves of the Pass and Un-Dead servitors resolve as SRD creatures under the D&D-compatible ruleset. The Count himself is a story, not a stat block."
+ },
+ "supports_rulesets": [
+  "undertow",
+  "dnd5e"
+ ],
+ "foreshadow_threads": [],
+ "qr_events": [],
+ "qr_lore": [],
+ "fallback_flavor": []
+}

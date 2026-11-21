@@ -17,15 +17,29 @@ export function openPanel(name) {
   panelTitle.textContent = { map: "Map of the Shore", journal: "Journal Log", inventory: "Pack",
     quests: "Quests & Mysteries", dice: "Dice Log", character: "Character",
     ledger: "The Memory Ledger", omens: "The Omen Deck", shore: "The Growing Shore",
-    worlds: "Known Worlds", party: "The Party" }[name] || "Panel";
+    worlds: "Known Worlds", party: "The Party", combat: "Combat",
+    director: "The Living Director" }[name] || "Panel";
   panelBody.innerHTML = { map: panelMap, journal: panelJournal, inventory: panelInventory,
     quests: panelQuests, dice: panelDice, character: panelCharacter,
     ledger: panelLedger, omens: panelOmens, shore: panelShore, worlds: panelWorlds,
-    party: panelParty }[name]?.() || "";
+    party: panelParty, combat: panelCombat, director: panelDirector }[name]?.() || "";
   wirePanel(name);
   root.hidden = false;
   audio.ui();
   if (name === "ledger" || name === "shore" || name === "party") refreshPanelExtras(name);
+  if (name === "ledger") {
+    refreshCheckpoints?.();
+    document.querySelector("[data-cp-save]")?.addEventListener("click", async () => {
+      try {
+        await apiSend(`/api/campaigns/${window.__campaignId}/checkpoints`, "POST", { name: "manual checkpoint" });
+        window.__toast?.("Checkpoint saved.", "good");
+        refreshCheckpoints?.();
+      } catch (e) { window.__toast?.(e.message, "bad"); }
+    });
+  }
+  if (name === "combat") refreshCombatPanel();
+  if (name === "director") refreshDirectorPanel();
+  if (name === "party") refreshPartySplit?.();
 }
 
 export function closePanel() { root.hidden = true; }
@@ -273,6 +287,17 @@ function partyHTML(v) {
       <button class="btn btn-small btn-primary" data-offer-accept="${esc(o.id)}">Accept</button>
       <button class="btn btn-small btn-ghost" data-offer-decline="${esc(o.id)}">Decline</button>
     </div>`).join("");
+  const splitControls = `
+    <div class="sect"><h4>Walk apart / gather</h4>
+      <div class="fact-line">Splitting is individual; shared travel always regroups the party.</div>
+      <div class="chip-row" id="split-locations"></div>
+      <div class="setting-row">
+        <button class="btn btn-small" data-split="1">Walk apart to the chosen place</button>
+        <button class="btn btn-small btn-ghost" data-regroup="1">Return to the party</button>
+        ${me.is_host ? `<button class="btn btn-small btn-ghost" data-regroup-all="1">Gather everyone (host)</button>` : ""}
+        ${me.is_host ? `<button class="btn btn-small btn-ghost" data-spectator-invite="1">Invite a spectator</button>` : ""}
+      </div>
+    </div>`;
   const hostTools = me.is_host ? `
     <div class="sect"><h4>Host controls</h4>
       <div class="chip-row">
@@ -363,7 +388,10 @@ Enter the number:`);
 }
 
 function panelLedger() {
-  return `<div id="ledger-body"><div class="fact-line">Opening the ledger…</div></div>`;
+  return `<div id="ledger-body"><div class="fact-line">Opening the ledger…</div></div>
+    <div class="sect"><h4>Checkpoints</h4>
+      <div class="setting-row"><button class="btn btn-small" data-cp-save="1">Save a checkpoint</button></div>
+      <div id="checkpoint-body"><div class="fact-line">…</div></div></div>`;
 }
 
 function ledgerHTML(led) {
@@ -613,6 +641,45 @@ export async function openEchoShelf() {
 }
 
 function wirePanel(name) {
+  if (name === "party") {
+    (async () => {
+      try {
+        const v = await apiGet(`/api/campaigns/${window.__campaignId}/view`);
+        const pack = await apiGet("/api/packs");
+        const box = document.getElementById("split-locations");
+        if (box && pack) {
+          box.innerHTML = (pack.packs || []).flatMap((pk) => (pk.locations || [])).length
+            ? (pack.packs || []).filter((pk) => pk.id === (v.pack_id || "")).flatMap((pk) => (pk.locations || []))
+                .map((l) => `<span class="chip" data-loc="${esc(l.id)}">${esc(l.name)}</span>`).join("")
+            : "";
+          let chosen = null;
+          box.querySelectorAll("[data-loc]").forEach((c) => c.addEventListener("click", () => {
+            box.querySelectorAll("[data-loc]").forEach((x) => x.classList.remove("selected"));
+            c.classList.add("selected");
+            chosen = c.dataset.loc;
+          }));
+          const act = (url, payload) => apiSend(url, "POST", payload)
+            .then(() => { window.__toast?.("Done.", "good"); openPanel("party"); })
+            .catch((e) => window.__toast?.(e.message, "bad"));
+          document.querySelector("[data-split]")?.addEventListener("click", () => {
+            if (!chosen) { window.__toast?.("Choose a place to walk to.", "bad"); return; }
+            act(`/api/campaigns/${window.__campaignId}/mp/split`, { location_id: chosen });
+          });
+          document.querySelector("[data-regroup]")?.addEventListener("click", () =>
+            act(`/api/campaigns/${window.__campaignId}/mp/regroup`, {}));
+          document.querySelector("[data-regroup-all]")?.addEventListener("click", () =>
+            act(`/api/campaigns/${window.__campaignId}/mp/regroup`, { everyone: true }));
+          document.querySelector("[data-spectator-invite]")?.addEventListener("click", async () => {
+            try {
+              const inv = await apiSend(`/api/campaigns/${window.__campaignId}/mp/invite-spectator`, "POST", { uses: 3 });
+              window.__toast?.(`Spectator link created (tell a friend): ${inv.token.slice(0, 8)}…`, "good");
+            } catch (e) { window.__toast?.(e.message, "bad"); }
+          });
+        }
+      } catch { /* not in a session */ }
+    })();
+  }
+
   panelBody.querySelectorAll("[data-use]").forEach((b) => b.addEventListener("click", async () => {
     try {
       const res = await apiSend(`/api/campaigns/${state.view.id}/use_item`, "POST", { item_id: b.dataset.use });
@@ -867,6 +934,62 @@ async function refreshBackups() {
   } catch { /* offline */ }
 }
 
+async function refreshCheckpoints() {
+  const box = document.getElementById("checkpoint-body");
+  if (!box) return;
+  try {
+    const res = await apiGet(`/api/campaigns/${window.__campaignId}/checkpoints`);
+    box.innerHTML = (res.checkpoints || []).map((cp) => `
+      <div class="setting-row"><span style="flex:1;color:var(--dim);font-size:0.85em">${esc(cp.name)} · ${esc(cp.created_at)}</span>
+      <button class="btn btn-small btn-ghost" data-cp-restore="${esc(cp.id)}">Restore as new</button></div>`).join("")
+      || "<div class='fact-line'>No checkpoints yet — save one before big decisions.</div>";
+    box.querySelectorAll("[data-cp-restore]").forEach((b) => b.addEventListener("click", async () => {
+      try {
+        const r = await apiSend(`/api/campaigns/${window.__campaignId}/checkpoints/${b.dataset.cpRestore}/restore`, "POST", {});
+        window.__toast?.(`Restored as a new campaign (${r.campaign_id}).`, "good");
+      } catch (e) { window.__toast?.(e.message, "bad"); }
+    }));
+  } catch { /* ignore */ }
+}
+window.__refreshCheckpoints = refreshCheckpoints;
+
+async function refreshLedgerViews() { /* reserved: additional ledger views render via panelLedger */ }
+
+async function refreshPartySplit() {
+  const box = document.getElementById("split-locations");
+  if (!box) return;
+  try {
+    const v = await apiGet(`/api/campaigns/${window.__campaignId}/view`);
+    const pack = await apiGet("/api/packs");
+    const pk = (pack.packs || []).find((p) => p.id === v.pack_id) || {};
+    box.innerHTML = (pk.locations || []).map((l) =>
+      `<span class="chip" data-loc="${esc(l.id)}">${esc(l.name)}</span>`).join("");
+    let chosen = null;
+    box.querySelectorAll("[data-loc]").forEach((cl) => cl.addEventListener("click", () => {
+      box.querySelectorAll("[data-loc]").forEach((x) => x.classList.remove("selected"));
+      cl.classList.add("selected");
+      chosen = cl.dataset.loc;
+    }));
+    const act = (url, payload) => apiSend(url, "POST", payload)
+      .then(() => { window.__toast?.("Done.", "good"); openPanel("party"); })
+      .catch((e) => window.__toast?.(e.message, "bad"));
+    document.querySelector("[data-split]")?.addEventListener("click", () => {
+      if (!chosen) { window.__toast?.("Choose a place to walk to.", "bad"); return; }
+      act(`/api/campaigns/${window.__campaignId}/mp/split`, { location_id: chosen });
+    });
+    document.querySelector("[data-regroup]")?.addEventListener("click", () =>
+      act(`/api/campaigns/${window.__campaignId}/mp/regroup`, {}));
+    document.querySelector("[data-regroup-all]")?.addEventListener("click", () =>
+      act(`/api/campaigns/${window.__campaignId}/mp/regroup`, { everyone: true }));
+    document.querySelector("[data-spectator-invite]")?.addEventListener("click", async () => {
+      try {
+        const inv = await apiSend(`/api/campaigns/${window.__campaignId}/mp/invite-spectator`, "POST", { uses: 3 });
+        window.__toast?.("Spectator link created — share it with a friend.", "good");
+      } catch (e) { window.__toast?.(e.message, "bad"); }
+    });
+  } catch { /* not in a session */ }
+}
+
 export function initPanelChrome() {
   document.querySelectorAll("[data-close-panel]").forEach((el) => el.addEventListener("click", closePanel));
   document.querySelectorAll("[data-close-settings]").forEach((el) => el.addEventListener("click", closeSettings));
@@ -878,4 +1001,103 @@ export function initPanelChrome() {
       else openPanel(b.dataset.panel);
     }));
   document.getElementById("hud-char").addEventListener("click", () => openPanel("character"));
+}
+
+
+// ---------- v0.3.6 panels: combat, director, split-party ----------
+function panelCombat() {
+  return `<div id="combat-body"><div class="fact-line">The field is quiet — no encounter runs.</div></div>`;
+}
+
+function panelDirector() {
+  return `<div id="director-body"><div class="fact-line">Consulting the Director…</div></div>`;
+}
+
+export async function refreshCombatPanel() {
+  const body = document.getElementById("combat-body");
+  if (!body) return;
+  try {
+    const res = await apiGet(`/api/campaigns/${window.__campaignId}/combat`);
+    const enc = res.encounter;
+    if (!enc) { body.innerHTML = "<div class='fact-line'>The field is quiet — no encounter runs.</div>"; return; }
+    const me = enc.players.find((p) => p.is_me);
+    const hpBar = (hp, max) => `<span class="bar bar-vigor" style="width:90px"><i style="width:${max ? Math.max(0, Math.min(100, hp / max * 100)) : 0}%"></i></span>`;
+    const players = enc.players.map((p) => `
+      <div class="fact-line"><strong>${esc(p.name)}${p.is_me ? " (you)" : ""}</strong> — ♥${p.hp}/${p.hp_max}
+        ${hpBar(p.hp, p.hp_max)} ${p.conditions.length ? esc(p.conditions.join(", ")) : ""}</div>`).join("");
+    const monsters = enc.monsters.map((m) => `
+      <div class="fact-line">${m.alive ? "⚔" : "☠"} <strong>${esc(m.name)}</strong> — AC ${m.ac} ·
+        <span style="color:var(--dim)">${esc(m.hp_word)}</span>${m.conditions.length ? " · " + esc(m.conditions.join(", ")) : ""}
+        ${m.alive && enc.my_turn ? `<button class="btn btn-small" data-attack="${m.idx}">Strike</button>` : ""}</div>`).join("");
+    const log = enc.log.map((l) => `<div class="fact-line">• ${esc(l)}</div>`).join("");
+    const spells = (enc.spells || []).map((s) => {
+      const sp = { }[s] || s;
+      return `<span class="chip" data-cast="${esc(s)}">${esc(String(sp).replace(/_/g, " "))}</span>`;
+    }).join(" ");
+    const items = (window.__combatItems || []).map((i) =>
+      `<span class="chip" data-use-item="${esc(i.item_id || i.id)}">${esc(i.name || i.item_id)}</span>`).join(" ");
+    const acts = enc.my_turn ? `
+      <div class="sect"><h4>Your turn — round ${enc.round}</h4>
+        <div class="chip-row">
+          <span class="chip" data-act="defend">Defend</span>
+          <span class="chip" data-act="retreat">Retreat</span>
+          <span class="chip" data-act="second_wind">Second wind</span>
+          <span class="chip" data-act="breath_weapon">Breath weapon</span>
+        </div>
+        ${spells ? `<div class="fact-line">cast: ${spells}</div>` : ""}
+        ${items ? `<div class="fact-line">use: ${items}</div>` : ""}
+      </div>` : `<div class="fact-line">${enc.status === "complete" ? "The encounter is over." : "Not your turn — " + esc(enc.turn?.name || "waiting") + " acts."}</div>`;
+    body.innerHTML = `
+      <div class="sect"><h4>${esc(enc.monster_name)} — round ${enc.round}</h4>${players}<div class="sect"></div>${monsters}</div>
+      ${acts}
+      <div class="sect"><h4>Log</h4>${log}</div>`;
+    body.querySelectorAll("[data-attack]").forEach((b) => b.addEventListener("click", () =>
+      window.__combatAct({ type: "attack", target: parseInt(b.dataset.attack, 10) })));
+    body.querySelectorAll("[data-act]").forEach((b) => b.addEventListener("click", () =>
+      window.__combatAct({ type: b.dataset.act })));
+    body.querySelectorAll("[data-cast]").forEach((b) => b.addEventListener("click", () =>
+      window.__combatAct({ type: "cast", spell: b.dataset.cast,
+                           target: body.querySelector("[data-attack]") ? 0 : null })));
+    body.querySelectorAll("[data-use-item]").forEach((b) => b.addEventListener("click", () =>
+      window.__combatAct({ type: "item", item: b.dataset.useItem })));
+  } catch (e) {
+    body.innerHTML = `<div class='fact-line'>${esc(e.message)}</div>`;
+  }
+}
+
+export async function refreshDirectorPanel() {
+  const body = document.getElementById("director-body");
+  if (!body) return;
+  try {
+    const d = await apiGet(`/api/campaigns/${window.__campaignId}/director`);
+    const threads = (d.threads || []).map((t) => `
+      <div class="fact-line"><strong>${esc(t.title)}</strong>
+        <span class="chip">${esc(t.status)}</span> <span class="lc-kind">${esc(t.kind)}</span></div>`).join("")
+      || "<div class='fact-line'>No threads yet — the story is young.</div>";
+    const sugg = (d.suggestions || []).map((s) =>
+      `<div class="ledger-card"><div class="lc-kind">optional pacing</div>${esc(s.suggestion)}</div>`).join("");
+    body.innerHTML = `
+      <div class="sect"><h4>Story threads (what actually happened)</h4>${threads}</div>
+      ${sugg ? `<div class="sect"><h4>Optional beats — your call, always</h4>${sugg}</div>` : ""}
+      <div class="sect"><h4>Intervention</h4>
+        <div class="chip-row">
+          ${["off", "gentle", "active"].map((m) => `<span class="chip ${d.mode === m ? "selected" : ""}" data-dmode="${m}">${m}</span>`).join("")}
+        </div>
+        <div class="fact-line">The Director suggests; it never forces, never rewrites history, never touches dice.</div>
+      </div>
+      <div class="sect"><h4>Continuity flags</h4><div id="continuity-body"><div class="fact-line">…</div></div></div>`;
+    body.querySelectorAll("[data-dmode]").forEach((b) => b.addEventListener("click", async () => {
+      await apiSend(`/api/campaigns/${window.__campaignId}/director/mode`, "POST", { mode: b.dataset.dmode });
+      window.__toast?.(`Director: ${b.dataset.dmode}`, "good");
+      refreshDirectorPanel();
+    }));
+    try {
+      const cont = await apiGet(`/api/campaigns/${window.__campaignId}/continuity`);
+      const cb = document.getElementById("continuity-body");
+      cb.innerHTML = (cont.findings || []).map((f) =>
+        `<div class="fact-line">⚠ ${esc(f.detail)}</div>`).join("") || "<div class='fact-line'>The story holds together.</div>";
+    } catch { /* ignore */ }
+  } catch (e) {
+    body.innerHTML = `<div class='fact-line'>${esc(e.message)}</div>`;
+  }
 }

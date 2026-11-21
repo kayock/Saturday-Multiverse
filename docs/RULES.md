@@ -141,3 +141,19 @@ Multiplayer changes no baseline numbers. It adds party-level structure:
 - **Party memory** — an adventure ended while a party shares the shore is
   recorded as a company moment (who sailed together, what they did); it
   feeds tavern gossip, the Ledger, and future visitors' discoveries.
+
+
+## v0.3.6 — Living combat and the coverage table
+
+Encounters are persistent and player-controlled (`server/combat.py`). An
+encounter starts from each character's CURRENT HP, runs on initiative, waits
+for each player's chosen action, resolves enemy turns deterministically when
+the turn passes to them, and ends in victory (XP/levels granted exactly
+once), defeat, retreat or stalemate. Death saving throws, stabilisation and
+death are engine-authoritative — there is no accidental resurrection.
+
+The full honest coverage table ships with the app and the API:
+`GET /api/rules/dnd/coverage`. It lists what is implemented (10 classes,
+8 species, 20 spells, saves, difficulty thresholds, class features) and what
+is deliberately not (levels above 5, feats, spell preparation, grids,
+attunement) — the UI never offers unsupported options.

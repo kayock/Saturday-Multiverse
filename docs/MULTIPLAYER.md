@@ -120,3 +120,36 @@ adventure additionally records what the company did together.
   campaign creation/deletion or exports — those endpoints reject guest
   tokens server-side. The AI model endpoint is called only by the host's
   server, never by guests.
+
+
+## v0.3.6 — Party splitting, spectators, and the watchdog
+
+### Party splitting
+- `POST /api/campaigns/<cid>/mp/split {"location_id": ...}` — your character
+  walks apart. Narration you cause while split is emitted with `loc:<place>`
+  visibility: only characters standing in the same place see it. Private
+  discoveries stay private.
+- `POST .../mp/regroup` — return yourself; with `{"everyone": true}` (host)
+  gather the whole party.
+- Shared travel still moves the party **as one** by default and clears split
+  overrides. The story's thread (an active adventure beat) belongs to the
+  place where it lives; characters elsewhere act freely but cannot advance
+  the beat until they regroup (`choose` refuses with a clear message).
+
+### Spectators
+- Host creates a spectator invite (`POST /campaigns/<cid>/mp/invite-spectator`).
+  Spectators see party-wide events only (never split-group narrations), can
+  reconnect, and cannot act, roll, trade, travel or touch combat — the engine
+  refuses, not just the UI.
+
+### Shared D&D combat
+- Encounters span the session: initiative across all participants, each
+  player acts on their own character's turn through
+  `POST /campaigns/<cid>/combat`, ownership enforced server-side (acting for
+  another character is impossible). Reinforcements may join in round one.
+
+### The watchdog
+An in-process daemon thread (no extra service) sweeps every 15 seconds:
+expired structured-mode turns auto-advance with a visible system line, and
+idle combat turns are auto-defended. Sweeps are idempotent, timestamp-driven
+and therefore safe across restarts.

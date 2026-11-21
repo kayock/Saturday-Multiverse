@@ -5,7 +5,9 @@ the API and the static browser client on one local port.
 """
 from __future__ import annotations
 
+import logging
 import os
+import threading
 
 from flask import Flask, send_from_directory
 
@@ -44,6 +46,7 @@ def create_app() -> Flask:
 
 def main() -> None:
     app = create_app()
+    _start_watchdog()
     url = f"http://{config.HOST}:{config.PORT}"
     print(f"""
   SATURDAY MULTIVERSE — the shore is listening.
@@ -61,6 +64,55 @@ def main() -> None:
               channel_timeout=300)
     else:
         app.run(host=config.HOST, port=config.PORT, threaded=True, debug=False)
+
+
+
+
+def _watchdog_tick(busy: dict) -> None:
+    """Run one sweep, keeping each subsystem's failures independent.
+
+    Imports belong here rather than in a hidden exception: the production
+    watchdog must resolve both multiplayer and combat modules before use.
+    """
+    from . import combat, forge, mp
+
+    for label, sweep in (("multiplayer turns", mp.sweep_turns),
+                         ("combat turns", combat.sweep_timeouts)):
+        try:
+            sweep()
+        except Exception:
+            logging.exception("Saturday Multiverse watchdog: %s sweep failed", label)
+
+    try:
+        job = busy.get("job")
+        if job is None or not job.is_alive():
+            row = db.query_one("SELECT id FROM forge_jobs WHERE status='queued'"
+                               " AND cancel=0 ORDER BY created_at LIMIT 1")
+            if row:
+                worker = threading.Thread(target=forge.run_job, args=(row["id"],),
+                                          name="sm-forge-job", daemon=True)
+                busy["job"] = worker
+                worker.start()
+    except Exception:
+        logging.exception("Saturday Multiverse watchdog: Forge job scheduling failed")
+
+
+def _start_watchdog() -> None:
+    """Background turn and queued-Forge-job sweeps in both launch modes.
+
+    The launcher owns one daemon thread per process; no external service
+    or new configuration is required.
+    """
+    import time as _time
+
+    def _loop():
+        busy = {"job": None}
+        while True:
+            _time.sleep(15)
+            _watchdog_tick(busy)
+
+    t = threading.Thread(target=_loop, name="sm-watchdog", daemon=True)
+    t.start()
 
 
 if __name__ == "__main__":

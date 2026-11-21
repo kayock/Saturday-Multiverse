@@ -1,0 +1,912 @@
+{
+ "id": "rue_morgue",
+ "name": "The Rue Morgue Affair",
+ "summary": "Paris, 1841. Two women are murdered behind a locked door, and the police are accusing the wrong man. Reason must outrun rumor.",
+ "version": 1,
+ "genre_tags": [
+  "mystery",
+  "detective",
+  "literary"
+ ],
+ "gm_style": "Poe's analytic dusk: gaslight, reasoning aloud, the terrible made orderly by deduction. The truth is strange but exact.",
+ "theme": {
+  "bg": "#0b0e14",
+  "deep": "#141126",
+  "purple": "#7c5cff",
+  "glow": "#9b8cff",
+  "teal": "#43e8d8",
+  "gold": "#e8b46b",
+  "text": "#e9e4f2"
+ },
+ "hub_location": "rue_morgue_apartment",
+ "license": {
+  "source_title": "The Murders in the Rue Morgue",
+  "author": "Edgar Allan Poe (1809-1849)",
+  "source_url": "https://www.gutenberg.org/ebooks/2148",
+  "license": "Public Domain (published 1841; author died 1849)",
+  "attribution": "Adapted from Edgar Allan Poe's The Murders in the Rue Morgue (1841), public domain. Original pack text, choices and engine content: Saturday Multiverse.",
+  "library_doc_id": null
+ },
+ "locations": [
+  {
+   "id": "rue_morgue_apartment",
+   "name": "The Rue Morgue Apartment",
+   "known": true,
+   "adventure": "locked_room",
+   "short": "A fourth-floor apartment sealed from within by murder.",
+   "desc": "The rooms where the ladies L'Espanaye died. Doors locked, windows latched, chimneys too narrow. Gendarmes have taken everything and understood nothing. The apartment itself is a witness: drawers pulled out, a razor bloodied, hair pulled from a scalp, and money left untouched.",
+   "flavor": [
+    "A mirror reflects only the questions you bring to it.",
+    "The neighbors heard two voices: one French, one shrill and foreign.",
+    "The springs of the bed have been bent by a weight, and bent wrongly."
+   ],
+   "rest": {
+    "vigor": 2,
+    "nerve": 1
+   }
+  },
+  {
+   "id": "faubourg_st_germain",
+   "name": "Faubourg St. Germain",
+   "known": true,
+   "short": "Coffee-houses where the Prefect's failures are the entertainment.",
+   "desc": "The district of clubs and gossip. The Prefect of Police G— is famous for ingenuity, and notorious for mistaking ingenuity for method. Here, rumor hangs Le Bon by the neck before any trial.",
+   "flavor": [
+    "Three separate wits are selling three separate solutions over coffee.",
+    "A sailor's laugh carries from a café near the quay.",
+    "Every storyteller adds one detail and drops another."
+   ],
+   "rest": {
+    "vigor": 1,
+    "nerve": 2
+   }
+  },
+  {
+   "id": "the_prefecture",
+   "name": "The Prefecture of Police",
+   "known": false,
+   "short": "Files, an obstinate Prefect, and a suspect already condemned.",
+   "desc": "The machinery of Parisian justice. Adolphe Le Bon, the bank clerk who escorted the ladies home once, sits in a cell because he was seen. The Prefect G— explains his case: it is elaborate, and it is wrong.",
+   "flavor": [
+    "The cells smell of pen, lye, and haste.",
+    "A clerk apologizes for the competence of the paperwork on a bad case.",
+    "The Prefect's dossier is very thick and very certain."
+   ]
+  },
+  {
+   "id": "notre_dame",
+   "name": "The Cathedral of Notre Dame",
+   "known": false,
+   "short": "Towers, a lightning rod, and a window an orang-outang could reach.",
+   "desc": "The towers above the Seine. A lightning rod runs up one spire. From a window near it, a man of improbable strength and worse manners might climb into any apartment in the quarter.",
+   "flavor": [
+    "The bells are loud enough to swallow any scream.",
+    "A sailor waits below the tower, hat in hand, rehearsing a confession.",
+    "Pigeons know a route the gendarmes do not."
+   ]
+  },
+  {
+   "id": "morgue_hall",
+   "name": "The Morgue",
+   "known": true,
+   "short": "The bodies of the ladies L'Espanaye, and the truth in the wounds.",
+   "desc": "Cold slabs under gaslight. The daughter's body was found head downward in a chimney; the mother's throat so mutilated that the head came off in carrying. One set of wounds is human; the other is not.",
+   "flavor": [
+    "The surgeon keeps saying 'impossible' in three languages.",
+    "A tuft of tawny hair clenched so tightly it tore the scalp.",
+    "Strength that could strangle a woman and carry her up a chimney is not in any surgeon's books."
+   ],
+   "rest": {
+    "vigor": 2,
+    "nerve": 2
+   }
+  }
+ ],
+ "archetypes": [
+  {
+   "id": "analyst",
+   "name": "The Analyst",
+   "blurb": "You observe, and observation is a kind of courage.",
+   "stats": {
+    "wits": 2,
+    "might": 0,
+    "mettle": 1,
+    "bind": 0
+   },
+   "palette": "teal",
+   "kit": [
+    "notebook",
+    "chalk"
+   ]
+  },
+  {
+   "id": "gendarmerie",
+   "name": "The Honest Gendarme",
+   "blurb": "You wear the uniform. You would like it to mean something.",
+   "stats": {
+    "wits": 1,
+    "might": 2,
+    "mettle": 1,
+    "bind": 0
+   },
+   "palette": "gold",
+   "kit": [
+    "whistle_and_manacles"
+   ]
+  },
+  {
+   "id": "portress",
+   "name": "The Portress",
+   "blurb": "Every door in the quarter opens before you knock.",
+   "stats": {
+    "wits": 1,
+    "might": 0,
+    "mettle": 2,
+    "bind": 1
+   },
+   "palette": "violet",
+   "kit": [
+    "salt_charm"
+   ]
+  },
+  {
+   "id": "gallows_crooner",
+   "name": "The Gallows-Crooner",
+   "blurb": "You narrate the horrible to anyone who will buy a paper.",
+   "stats": {
+    "wits": 1,
+    "might": -1,
+    "mettle": 1,
+    "bind": 2
+   },
+   "palette": "ember",
+   "kit": [
+    "grandmothers_journal"
+   ]
+  }
+ ],
+ "npcs": [
+  {
+   "id": "dupin",
+   "name": "C. Auguste Dupin",
+   "role": "the man of reason",
+   "location": "faubourg_st_germain",
+   "desc": "He walks the night streets with his hands behind his back and sees through the city as through glass. He will assist a fellow reasoner, socratically, and without fee.",
+   "greeting": "\"It is not too much to say that I neither expect nor solicit belief. Let us reason together, and see what remains.\"",
+   "rumors": [
+    "\"He once reconstructed a whole mind from a single shrug.\""
+   ]
+  },
+  {
+   "id": "prefect",
+   "name": "The Prefect G-",
+   "role": "head of the Parisian police",
+   "location": "the_prefecture",
+   "desc": "Ingenuity without imagination. He has decided Le Bon is guilty because the theory is finished and printing it is easier than re-opening it.",
+   "greeting": "\"The affair is concluded in all but the formality. You waste your time, monsieur.\"",
+   "rumors": [
+    "\"He calls his failures 'cunning crimes' and his blind spots 'circumstances.'\""
+   ]
+  },
+  {
+   "id": "le_bon",
+   "name": "Adolphe Le Bon",
+   "role": "bank clerk, suspect",
+   "location": "the_prefecture",
+   "desc": "He escorted the ladies home once, in a professional capacity, and is now the man the city has decided did it. He is not guilty. He is simply available.",
+   "greeting": "\"I carried parcels for those ladies once. Now I carry the whole city's certainty on my neck.\"",
+   "rumors": [
+    "\"The evidence against him is that he exists.\""
+   ]
+  },
+  {
+   "id": "the_sailor",
+   "name": "The Maltese Sailor",
+   "role": "witness, owner of an ape",
+   "location": "notre_dame",
+   "desc": "He owns an ourang-outang caught in Borneo, kept aboard his Borneo ship. It escaped with a razor and imitated what it had seen him do. He watched the whole thing through the window and fled.",
+   "greeting": "\"God forgive me — I saw it all, through the window. And I ran. God forgive me, I ran.\"",
+   "rumors": [
+    "\"He paid a boy to whistle the ape back from the rooftops.\""
+   ]
+  },
+  {
+   "id": "portress_ladies",
+   "name": "The Portress of the Rue Morgue",
+   "role": "witness",
+   "location": "rue_morgue_apartment",
+   "desc": "She carried the parcels up, heard the voices behind the door, and can recite the morning of the murders hour by hour.",
+   "greeting": "\"Two voices, monsieur. One French, saying 'sacré'. The other — I have never heard its like, and I say so to everyone.\"",
+   "rumors": [
+    "\"The old lady carried savings enough to make any neighbor greedy. And none of it was taken.\""
+   ]
+  }
+ ],
+ "items": [
+  {
+   "id": "notebook",
+   "name": "Analyst's Notebook",
+   "kind": "tool",
+   "desc": "Observations cross-indexed nightly. The truth hides in arrangements.",
+   "use": {
+    "text": "Rereading your own notes, one page contradicts another helpfully.",
+    "heal": {}
+   }
+  },
+  {
+   "id": "whistle_and_manacles",
+   "name": "Whistle and Manacles",
+   "kind": "tool",
+   "desc": "The uniform's instruments. They compel bodies, never minds.",
+   "use": {
+    "text": "The whistle brings four gendarmes at a run. Choose your question in advance.",
+    "heal": {}
+   }
+  },
+  {
+   "id": "tawny_hair_tuft",
+   "name": "The Tawny Tuft",
+   "kind": "relic",
+   "desc": "A tuft of hair clenched from a human head — or clutched by something not human at all.",
+   "use": {
+    "text": "You match it against nothing in any book of human hair.",
+    "heal": {}
+   }
+  },
+  {
+   "id": "razor_evidence",
+   "name": "The Bloody Razor",
+   "kind": "relic",
+   "desc": "Two old, ill-made French blood-stained razors found in the fireplace.",
+   "use": {
+    "text": "Someone sharpened these to use them — and someone threw them away in fear.",
+    "heal": {}
+   }
+  },
+  {
+   "id": "salt_charm",
+   "name": "Portress's Salt Charm",
+   "kind": "charm",
+   "desc": "Braided thread and salt, for doors that must not open at night.",
+   "use": {
+    "text": "The charm tightens. The night is being kept out.",
+    "heal": {
+     "nerve": 1
+    }
+   }
+  },
+  {
+   "id": "prefect_dossier",
+   "name": "The Prefect's Dossier",
+   "kind": "tool",
+   "desc": "Le Bon's case file: elaborate, and wrong in the third paragraph.",
+   "use": {
+    "text": "Reading it carefully, you can name the exact sentence where certainty replaced inquiry.",
+    "heal": {}
+   }
+  },
+  {
+   "id": "grandmothers_journal",
+   "name": "Grandmother's Journal",
+   "kind": "charm",
+   "desc": "Case-notes of a coroner's widow: how to look at wounds without weeping.",
+   "use": {
+    "text": "Her steady hand steadies yours.",
+    "heal": {
+     "nerve": 1
+    }
+   }
+  },
+  {
+   "id": "lash_of_the_ape",
+   "name": "The Keeper's Lash",
+   "kind": "tool",
+   "desc": "A ship's lash the ape knows too well. It will come down from any tower for its master.",
+   "use": {
+    "text": "The lash cracks once. Something enormous comes down the wall obedient and afraid.",
+    "heal": {}
+   }
+  }
+ ],
+ "omens": [
+  {
+   "id": "om1",
+   "kind": "edge",
+   "title": "Method",
+   "text": "You arrange facts the way others arrange furniture.",
+   "boost": "notice"
+  },
+  {
+   "id": "om2",
+   "kind": "edge",
+   "title": "The City's Ear",
+   "text": "Rumor reaches you an hour before it reaches the Prefect.",
+   "boost": "lore"
+  },
+  {
+   "id": "om3",
+   "kind": "edge",
+   "title": "Iron Patience",
+   "text": "You can out-wait any bureaucrat alive.",
+   "boost": "endure"
+  },
+  {
+   "id": "om4",
+   "kind": "turn",
+   "title": "Dupin's Nod",
+   "text": "The man of reason approves your chain of thought. Doors open.",
+   "boost": "lore"
+  },
+  {
+   "id": "om5",
+   "kind": "complication",
+   "title": "Morning Edition",
+   "text": "The papers name your client guilty, again, with your observations misquoted."
+  },
+  {
+   "id": "om6",
+   "kind": "complication",
+   "title": "A Friendly Warning",
+   "text": "Someone suggests your career, if any, will outlive your good sense by a day."
+  },
+  {
+   "id": "om7",
+   "kind": "turn",
+   "title": "The Borneo Manifest",
+   "text": "A shipping manifest surfaces with a cage listed as 'one live animal'.",
+   "boost": "notice"
+  },
+  {
+   "id": "om8",
+   "kind": "edge",
+   "title": "Steady in the Morgue",
+   "text": "The dead do not frighten you; the living should worry.",
+   "boost": "endure"
+  }
+ ],
+ "weather": [
+  {
+   "key": "gaslight",
+   "weight": 4,
+   "desc": "A still Parisian dusk; the gas lamps come on like testimony."
+  },
+  {
+   "key": "rain",
+   "weight": 2,
+   "desc": "Fine rain silvering the streets; umbrellas make everyone anonymous."
+  },
+  {
+   "key": "wind",
+   "weight": 1,
+   "desc": "A wind off the Seine that carries confessions badly addressed."
+  }
+ ],
+ "washashore": [
+  {
+   "id": "glass_beads",
+   "kind": "beads",
+   "label": "a scatter of glassbeads",
+   "text": "Glassbeads among the river-sand. The shore pays for attention.",
+   "effects": {
+    "beads": 2
+   },
+   "weight": 3
+  },
+  {
+   "id": "manifest_scrap",
+   "kind": "clue",
+   "label": "a wet shipping manifest",
+   "text": "A manifest scrap: one live animal, Borneo, two buyers renounced.",
+   "effects": {
+    "fact": "A shipping manifest lists one live animal out of Borneo."
+   },
+   "weight": 2
+  }
+ ],
+ "portals": [
+  {
+   "id": "door_rue_morgue",
+   "label": "Door of the Locked Room",
+   "target_location": "rue_morgue_apartment",
+   "door_index": 0,
+   "hint": "Detective mystery — Poe, 1841"
+  }
+ ],
+ "adventures": [
+  {
+   "id": "locked_room",
+   "title": "The Locked Room",
+   "summary": "Solve the murders behind the locked door before an innocent man is sent to the gallows.",
+   "genre": "detective mystery",
+   "entry": "scene_apartment",
+   "on_enter": [],
+   "portal_id": "door_rue_morgue",
+   "scenes": {
+    "scene_apartment": {
+     "title": "The Room That Locked Itself",
+     "brief": "Read the room, the wounds, and the neighbors' testimony.",
+     "gm_directive": "Every clue is honest. The solution is exact and strange. Steer players away from human conspiracy; the room itself argues the truth if they listen.",
+     "intro": "The apartment keeps its secrets the way a chest keeps a sprung lock. The door was fastened from inside; the windows latched; the chimney impassable. And yet: a razor washed but bloodied, tufts of tawny hair torn from a scalp, drawers emptied in haste and money left untouched. The portress swears she heard two voices through the door — one French, and one that rises and falls in a way no human throat she knows produces.",
+     "flavor": [
+      "The gendarmes' chalk outlines are, for once, unnecessary.",
+      "Something in the room is missing, and it is not money."
+     ],
+     "hotspots": [
+      {
+       "id": "chimney",
+       "label": "the chimney",
+       "x": 60,
+       "y": 35,
+       "text": "The daughter was found head downward in it. The flue could pass a cat, and did pass something larger."
+      },
+      {
+       "id": "window",
+       "label": "the latched windows",
+       "x": 35,
+       "y": 30,
+       "text": "Latched from within — and the spring is broken, which the police report omits."
+      }
+     ],
+     "choices": [
+      {
+       "id": "examine_wounds",
+       "label": "Examine the wounds at the morgue",
+       "hint": "Lore — read what the bodies insist on.",
+       "check": {
+        "skill": "lore",
+        "hard": true,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "scene_prefecture",
+        "effects": {
+         "journal": "One murder is human — the razor. The strangulation and the chimney are the work of something with inhuman strength and no knife.",
+         "fact": "Two murderers, one night: a man's blade and something stronger than any man.",
+         "item_give": "tawny_hair_tuft"
+        }
+       },
+       "on_fail": {
+        "goto": "scene_prefecture",
+        "effects": {
+         "journal": "The surgeon's 'impossible' is contagious. I left the morgue more confused than I arrived.",
+         "harm": {
+          "amount": 1,
+          "type": "nerve"
+         }
+        }
+       }
+      },
+      {
+       "id": "reconstruct_room",
+       "label": "Reconstruct the locked room",
+       "hint": "Notice — the room testifies.",
+       "check": {
+        "skill": "notice",
+        "hard": false,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "scene_prefecture",
+        "effects": {
+         "journal": "The broken window-spring: latched from within, but by a hand reaching IN through the shutters. The room was locked after, not during.",
+         "fact": "The window was latched from outside by a long arm."
+        }
+       },
+       "on_fail": {
+        "goto": "scene_prefecture",
+        "effects": {
+         "journal": "The room refuses geometry. Every answer closes the door behind itself.",
+         "harm": {
+          "amount": 1,
+          "type": "nerve"
+         }
+        }
+       }
+      },
+      {
+       "id": "gather_testimony",
+       "label": "Take the neighbors' testimony street by street",
+       "hint": "Persuade the quarter to speak precisely.",
+       "check": {
+        "skill": "persuade",
+        "hard": false,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "scene_prefecture",
+        "effects": {
+         "journal": "Five voices, one overlap: the shrill voice was not human, and the French voice said only 'sacré' — then 'Dieu', in a sailor's swallowed accent.",
+         "fact": "The French voice belongs to a sailor; the other voice belongs to no human throat."
+        }
+       },
+       "on_fail": {
+        "goto": "scene_prefecture",
+        "effects": {
+         "journal": "The quarter talks freely and says nothing twice alike. Rumor now names me as Le Bon's accomplice.",
+         "harm": {
+          "amount": 1,
+          "type": "nerve"
+         }
+        }
+       }
+      }
+     ]
+    },
+    "scene_prefecture": {
+     "title": "The Prefect's Certainty",
+     "brief": "G— has his man. Pry the theory open without joining Le Bon in the cell.",
+     "gm_directive": "The Prefect is not corrupt, only certain. Dupin will assist players who reason; he will not hand them conclusions.",
+     "intro": "The Prefecture receives you exactly as warmly as you deserve, which is to say not at all. The Prefect G— displays his dossier with the pride of a man showing off a finished clock. The case against Adolphe Le Bon is elaborate, printed, and wrong — and the wrongness is in the third paragraph, where certainty sits down in the chair where a question should be.",
+     "flavor": [
+      "Le Bon's cell has a view of the courtyard where the gallows are rehearsed.",
+      "The Prefect's clerks type his certainty in beautiful fair copy."
+     ],
+     "hotspots": [
+      {
+       "id": "dossier",
+       "label": "the dossier",
+       "x": 50,
+       "y": 50,
+       "text": "Paragraph three assumes the murderer entered by the door. Everything else is costume."
+      },
+      {
+       "id": "cell",
+       "label": "Le Bon's cell",
+       "x": 70,
+       "y": 65,
+       "text": "He has begun to doubt his own innocence. Certainty is contagious in here."
+      }
+     ],
+     "choices": [
+      {
+       "id": "consult_dupin",
+       "label": "Consult Dupin, socratically",
+       "hint": "Lore — reason with the man of reason.",
+       "check": {
+        "skill": "lore",
+        "hard": false,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "scene_cathedral",
+        "effects": {
+         "journal": "Dupin walked me through it by streetlight: the room locked AFTER, the strength inhuman, the hair not human. 'Now find the owner of the arm,' he said, 'and the voice will be found with it.'",
+         "fact": "Dupin confirms: an inhuman strength, a sailor's French, and an arm that latched windows.",
+         "item_give": "prefect_dossier"
+        }
+       },
+       "on_fail": {
+        "goto": "scene_cathedral",
+        "effects": {
+         "journal": "Dupin listened, nodded, and asked one question I could not answer. I have the question now instead of the answer.",
+         "harm": {
+          "amount": 1,
+          "type": "nerve"
+         }
+        }
+       }
+      },
+      {
+       "id": "confront_prefect",
+       "label": "Confront the Prefect with the broken spring",
+       "hint": "Persuade — a hard argument against printed certainty.",
+       "check": {
+        "skill": "persuade",
+        "hard": true,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "scene_cathedral",
+        "effects": {
+         "journal": "The Prefect read my window-spring note twice and did not shout. 'You have a week,' he said, 'before the printer finishes my case for me.'",
+         "fact": "The Prefect grants one week before Le Bon's trial closes."
+        }
+       },
+       "on_fail": {
+        "goto": "scene_cathedral",
+        "effects": {
+         "journal": "I was escorted out with courtesy and threat combined. My name is now in a second dossier.",
+         "harm": {
+          "amount": 1,
+          "type": "nerve"
+         }
+        }
+       }
+      },
+      {
+       "id": "comfort_le_bon",
+       "label": "Speak hope to Le Bon through the bars",
+       "hint": "Bind — keep a doomed man reasoning.",
+       "check": {
+        "skill": "bind",
+        "hard": false,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "scene_cathedral",
+        "effects": {
+         "journal": "I reminded Le Bon that certainty is a fashion and fashions change. He stood up straighter, which is evidence of a kind.",
+         "fact": "Le Bon holds. His testimony will hold too."
+        }
+       },
+       "on_fail": {
+        "goto": "scene_cathedral",
+        "effects": {
+         "journal": "Le Bon wept, and my hope was insufficient for two. The cell took it all.",
+         "harm": {
+          "amount": 1,
+          "type": "nerve"
+         }
+        }
+       }
+      }
+     ]
+    },
+    "scene_cathedral": {
+     "title": "The Tower and the Lash",
+     "brief": "The lightning rod, the window, the sailor rehearsing his confession.",
+     "gm_directive": "The truth assembles here: the ape, the razor, the imitation. Let the sailor's guilt land as tragedy, not farce.",
+     "intro": "Below the tower, a sailor stands rehearsing the same three sentences over and over, hat in hand. Above him a lightning rod climbs the spire, and the shutter of an apartment across the street is torn clean through at the end of a long arm's reach. The bells are loud enough to swallow anything, the Prefect's men have never looked up, and something enormous and obedient is keeping out of sight on the rooftops.",
+     "flavor": [
+      "The sailor's shirt cuff is torn, and the tear is not from rope.",
+      "A boy in the square has been whistling something strange up at the roofs for two days."
+     ],
+     "hotspots": [
+      {
+       "id": "rod",
+       "label": "the lightning rod",
+       "x": 55,
+       "y": 40,
+       "text": "Climbable, recently, by something four-handed and heavy."
+      },
+      {
+       "id": "rooftops",
+       "label": "the rooftops",
+       "x": 35,
+       "y": 55,
+       "text": "Something enormous is hiding up there, fed by a boy with stolen fruit."
+      }
+     ],
+     "choices": [
+      {
+       "id": "take_lash",
+       "label": "Buy the keeper's lash and call it down",
+       "hint": "Bind — the ape obeys fear, not reason.",
+       "check": {
+        "skill": "bind",
+        "hard": false,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "scene_endgame",
+        "effects": {
+         "journal": "The lash cracked once and the ourang-outang came down the wall, obedient and terrified, with a razor's history in its hands.",
+         "fact": "The ourang-outang is taken alive with the lash.",
+         "item_give": "lash_of_the_ape"
+        }
+       },
+       "on_fail": {
+        "goto": "scene_endgame",
+        "effects": {
+         "journal": "The ape came down wrong, through a market stall and a wedding party. The Prefect's men have now noticed the rooftops too.",
+         "harm": {
+          "amount": 1,
+          "type": "vigor"
+         },
+         "dnd_encounter": {
+          "monster": "house_ape",
+          "count": 1
+         }
+        }
+       }
+      },
+      {
+       "id": "hear_sailor",
+       "label": "Hear the sailor's confession out",
+       "hint": "Persuade — a man needs permission to be honest.",
+       "check": {
+        "skill": "persuade",
+        "hard": false,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "scene_endgame",
+        "effects": {
+         "journal": "He told it whole: the ape, the razor, the imitation of his shaving, the screams, the window, and his own running. He wept like a witness, not a murderer.",
+         "fact": "The sailor confesses the whole chain of events with the ape."
+        }
+       },
+       "on_fail": {
+        "goto": "scene_endgame",
+        "effects": {
+         "journal": "The sailor fled at the word 'razor'. He is on a ship to Le Havre by now, or in a bottle, or both.",
+         "harm": {
+          "amount": 1,
+          "type": "nerve"
+         }
+        }
+       }
+      },
+      {
+       "id": "climb_route",
+       "label": "Climb the rod and prove the route",
+       "hint": "Fight — a hard climb, then a hard landing.",
+       "check": {
+        "skill": "fight",
+        "hard": true,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "scene_endgame",
+        "effects": {
+         "journal": "I climbed where the ape climbed and stood in the torn shutter. The route is real, exact, and horrible.",
+         "fact": "The climbing route is proven by doing it."
+        }
+       },
+       "on_fail": {
+        "goto": "scene_endgame",
+        "effects": {
+         "journal": "The rod kept its dignity and dropped me. The cobbles kept the rest.",
+         "harm": {
+          "amount": 2,
+          "type": "vigor"
+         },
+         "dnd_encounter": {
+          "monster": "house_ape",
+          "count": 1
+         }
+        }
+       }
+      }
+     ]
+    },
+    "scene_endgame": {
+     "title": "Before the Printer Finishes",
+     "brief": "The Prefecture, the papers, or the Prefect's office: choose how the truth lands.",
+     "gm_directive": "Route by established facts: sailor's confession + ape taken = exoneration; Prefect's week used well = reform; neither = the rumor wins this round.",
+     "intro": "Everything you have — testimony, wounds, the room's own geometry, an ape and its master — must now be arranged into an object the city cannot look away from. The printer is warming up the morning edition that will hang Le Bon.",
+     "flavor": [
+      "The Prefecture's clock is three minutes fast, in the Prefect's favor.",
+      "Dupin has already guessed how you will end it, and approves of two of your options."
+     ],
+     "hotspots": [],
+     "choices": [
+      {
+       "id": "present_truth",
+       "label": "Lay the truth before the Prefect",
+       "hint": "Requires proven facts.",
+       "effects": {
+        "ending": "exoneration_ending"
+       }
+      },
+      {
+       "id": "public_demonstration",
+       "label": "Stage a public demonstration",
+       "hint": "Requires the ape and its master.",
+       "effects": {
+        "ending": "reform_ending"
+       }
+      },
+      {
+       "id": "let_rumor_run",
+       "label": "Run out the clock and let rumor win",
+       "hint": "Always available. The city prefers a story.",
+       "effects": {
+        "ending": "rumor_ending"
+       }
+      }
+     ]
+    }
+   },
+   "endings": {
+    "exoneration_ending": {
+     "text": "The Prefect hears you out because he must, then because he cannot help it. The broken spring, the inhuman hair, the sailor's confession and the creature in the cage assemble into a case no printer can refuse to correct. Adolphe Le Bon walks out of the Prefecture into the rain, a free man with a strange new story no one will believe and everyone will tell. The Door of the Locked Room opens on Paris at dusk, gas lamps coming on like a jury rising to acquit.",
+     "return_location": "rue_morgue_apartment",
+     "effects": {
+      "ending": "exoneration_ending",
+      "beads": 4,
+      "heal": {
+       "nerve": 2
+      }
+     },
+     "consequence": "Le Bon exonerated; the Prefect's method publicly corrected."
+    },
+    "reform_ending": {
+     "text": "You stage it in the courtyard of the Prefecture itself: the sailor, the lash, the ourang-outang walking its terrible route up the tower for all Paris to see, the razor produced from its hiding place. The Prefect G— is not disgraced; he is educated, which is worse and better. The papers print the truth with a engraving of the climb. The quarter tells it correctly for almost a whole month, which is a record.",
+     "return_location": "faubourg_st_germain",
+     "effects": {
+      "ending": "reform_ending",
+      "beads": 3
+     },
+     "consequence": "The Prefecture reforms its method; the story is told correctly, briefly."
+    },
+    "rumor_ending": {
+     "text": "The clock runs out. Le Bon is condemned in print and in fact, and the truth — complete, exact, and in your notebook — dies of shyness in a city that preferred a better story. Dupin tells you that reason does not lose; it waits. He is right, and it is cold comfort with a man's neck under the printer's deadline. You step back through the Door of the Locked Room carrying the whole solution, and the shame of arriving with it too late.",
+     "return_location": "faubourg_st_germain",
+     "effects": {
+      "ending": "rumor_ending",
+      "beads": 1
+     },
+     "consequence": "Le Bon condemned; the solution exists only in the player's notebook."
+    }
+   },
+   "echo_offers": {
+    "exoneration_ending": [
+     {
+      "kind": "achievement",
+      "title": "The Method Proved",
+      "detail": "Exonerated a condemned man by reading a room.",
+      "data": {
+       "trait_skill": "lore",
+       "trait_delta": 1
+      }
+     }
+    ],
+    "reform_ending": [
+     {
+      "kind": "achievement",
+      "title": "Educated the Prefect",
+      "detail": "Taught the Parisian police something about windows.",
+      "data": {
+       "trait_skill": "persuade",
+       "trait_delta": 1
+      }
+     }
+    ],
+    "rumor_ending": [
+     {
+      "kind": "achievement",
+      "title": "The Truth Kept",
+      "detail": "Carried a complete solution that saved no one. It waits.",
+      "data": {
+       "trait_skill": "notice",
+       "trait_delta": 1
+      }
+     }
+    ]
+   }
+  }
+ ],
+ "intro_facts": [
+  "The ladies L'Espanaye were murdered in an apartment locked from within.",
+  "The police have arrested Adolphe Le Bon, who once escorted the ladies home.",
+  "Witnesses heard two voices: one French, one shrill and unplaceable.",
+  "Money was left untouched; the killer wanted nothing in the room."
+ ],
+ "intro_quests": [
+  {
+   "id": "read_the_room",
+   "title": "Read what the locked room testifies"
+  },
+  {
+   "id": "save_le_bon",
+   "title": "Save Adolphe Le Bon from the printer's certainty"
+  }
+ ],
+ "gm_secrets": [
+  "The murders were committed by an ourang-outang with a razor, imitating its keeper's morning shaving ritual.",
+  "The ape escaped its keeper aboard a Borneo ship at anchor in the Seine.",
+  "The French voice through the door was the sailor, shouting up at his animal; the shrill voice was the ape itself.",
+  "The ape entered by the shutters, climbed the lightning rod, and could not escape the same way with its victim — so it hid the daughter in the chimney.",
+  "The sailor saw everything through the window and fled in terror; he is not guilty of murder, only of silence.",
+  "The broken window-spring is the single physical proof the room was latched from OUTSIDE.",
+  "Dupin knows the truth almost from the first hour and helps only socratically; the player must own the solution."
+ ],
+ "dnd": {
+  "encounters": {
+   "ape": {
+    "monster": "house_ape",
+    "count": 1
+   }
+  },
+  "note": "The ourang-outang resolves as a 'Great Ape' stat block derived from Poe's description (open, literature-derived)."
+ },
+ "supports_rulesets": [
+  "undertow",
+  "dnd5e"
+ ],
+ "foreshadow_threads": [],
+ "qr_events": [],
+ "qr_lore": [],
+ "fallback_flavor": []
+}

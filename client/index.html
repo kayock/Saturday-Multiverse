@@ -23,6 +23,7 @@
         <button id="btn-new-voyage" class="btn btn-primary">New Voyage</button>
         <button id="btn-continue" class="btn">Continue</button>
         <button id="btn-mp-host" class="btn">Host a Shared Voyage</button>
+        <button id="btn-library" class="btn">The Infinite Library</button>
         <button id="btn-title-settings" class="btn btn-ghost">Model &amp; Settings</button>
       </div>
       <div id="title-campaigns" class="title-campaigns" hidden></div>
@@ -30,6 +31,78 @@
         <span id="title-ai-badge" class="badge badge-dim">AI Game Master: not configured</span>
         <span class="badge badge-dim">runs entirely on your machine</span>
       </div>
+    </div>
+  </section>
+
+  <!-- ===================== INFINITE LIBRARY ===================== -->
+  <section id="screen-library" class="screen">
+    <div class="create-inner">
+      <div class="title-eyebrow">every story a doorway</div>
+      <h2 class="screen-heading">The Infinite Library</h2>
+      <p class="screen-sub">Import a book, forge it into a playable world, and open a portal into it.
+        Source documents are kept untouched; every adventure carries its source and license.</p>
+      <div class="setting-row">
+        <button id="btn-library-import" class="btn btn-small btn-primary">Import a document</button>
+        <button id="btn-forge-open" class="btn btn-small">Campaign Forge</button>
+        <button id="btn-workshop-open" class="btn btn-small">Worldbuilding Workshop</button>
+        <button id="btn-library-back" class="btn btn-small btn-ghost">Back to the shore</button>
+      </div>
+      <div id="library-body"></div>
+    </div>
+  </section>
+
+  <!-- ===================== LIBRARY IMPORT ===================== -->
+  <section id="screen-import" class="screen">
+    <div class="create-inner">
+      <h2 class="screen-heading">Import a document</h2>
+      <p class="screen-sub">PDF, EPUB, DOCX, TXT, Markdown, HTML — or an existing Saturday Multiverse
+        world pack. The original file is stored untouched; only searchable passages are indexed.</p>
+      <div class="create-grid">
+        <div class="create-col">
+          <label class="field-label" for="import-file">The document</label>
+          <input id="import-file" class="input" type="file"
+                 accept=".pdf,.epub,.docx,.txt,.md,.markdown,.html,.htm,.json">
+          <label class="field-label" for="import-title">Title</label>
+          <input id="import-title" class="input" maxlength="160" placeholder="(from the file or document metadata)">
+          <label class="field-label" for="import-author">Author</label>
+          <input id="import-author" class="input" maxlength="120" placeholder="e.g. Bram Stoker">
+          <label class="field-label" for="import-source">Source URL (for public-domain works)</label>
+          <input id="import-source" class="input" maxlength="300" placeholder="e.g. https://www.gutenberg.org/ebooks/345">
+        </div>
+        <div class="create-col">
+          <label class="field-label" for="import-license">License</label>
+          <input id="import-license" class="input" maxlength="120" placeholder="Public Domain / CC-BY / Private">
+          <label class="field-label" for="import-attribution">Attribution note</label>
+          <input id="import-attribution" class="input" maxlength="300" placeholder="who to credit, how">
+          <div class="setting-row">
+            <label class="fact-line"><input type="checkbox" id="import-private"> private manuscript
+              (kept out of distributed packs — for an author's own work)</label>
+          </div>
+          <div class="create-actions">
+            <button id="btn-import-go" class="btn btn-primary">Place on the shelf</button>
+          </div>
+          <div id="import-status" class="fact-line"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== CAMPAIGN FORGE ===================== -->
+  <section id="screen-forge" class="screen">
+    <div class="create-inner">
+      <h2 class="screen-heading">The Campaign Forge</h2>
+      <p class="screen-sub">The model extracts cast, places, plot and secrets from your book and drafts
+        an engine-valid world. You inspect, correct, regenerate, and approve. Nothing plays until you approve it.</p>
+      <div id="forge-body"></div>
+    </div>
+  </section>
+
+  <!-- ===================== PACK PREVIEW ===================== -->
+  <section id="screen-preview" class="screen">
+    <div class="create-inner">
+      <h2 class="screen-heading">Adventure preview</h2>
+      <p class="screen-sub">Places, cast, story shape, and the licensing that lets this story travel.</p>
+      <div id="preview-body"></div>
     </div>
   </section>
 
@@ -176,6 +249,8 @@
         <button class="btn btn-small" data-panel="quests">Quests</button>
         <button class="btn btn-small" data-panel="omens">Omens</button>
         <button class="btn btn-small" data-panel="dice">Dice</button>
+        <button class="btn btn-small" data-panel="combat" id="nav-combat" hidden>Combat</button>
+        <button class="btn btn-small" data-panel="director">Director</button>
         <button class="btn btn-small" data-panel="shore">Shore</button>
         <button class="btn btn-small" data-panel="party" id="nav-party">Party</button>
         <button class="btn btn-small" id="nav-chat">Chat</button>

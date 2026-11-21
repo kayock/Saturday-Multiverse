@@ -407,3 +407,8 @@ body.calm * { animation-duration: 0.01s !important; }
 @media (max-width: 640px) {
   .chat-drawer { width: calc(100vw - 20px); }
 }
+
+
+/* ---------- The Infinite Library ---------- */
+#library-body .sect, #forge-body .sect, #preview-body .sect { margin-bottom: 1.1em; }
+#library-body h4, #forge-body h4, #preview-body h4 { color: var(--gold); margin-bottom: 0.4em; }

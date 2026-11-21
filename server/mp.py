@@ -123,6 +123,7 @@ def events_since(cid: str, last_seq: int, player: dict | None = None) -> list[di
         " WHERE campaign_id=? AND seq>? ORDER BY seq LIMIT 500",
         (cid, max(0, int(last_seq))),
     )
+    my_loc = char_location(cid, player) if player else None
     out = []
     for r in rows:
         vis = r["visibility"]
@@ -130,6 +131,7 @@ def events_since(cid: str, last_seq: int, player: dict | None = None) -> list[di
             vis == "party"
             or (player and vis == f"player:{player['id']}")
             or (player and bool(player["is_host"]) and vis == "host")
+            or (my_loc and vis == f"loc:{my_loc}")
         )
         if not allowed:
             continue
@@ -237,7 +239,8 @@ def host_session(cid: str, display_name: str, character_spec: dict | None = None
 
 
 def create_invite(cid: str, player: dict, label: str = "", uses: int = 0,
-                  expires_sec: int | None = 86400 * 14) -> dict:
+                  expires_sec: int | None = 86400 * 14,
+                  spectator: bool = False) -> dict:
     require_host(player)
     token = _new_token()
     import datetime as _dt
@@ -250,10 +253,13 @@ def create_invite(cid: str, player: dict, label: str = "", uses: int = 0,
     db.execute(
         "INSERT INTO mp_invites (id, campaign_id, token_hash, label, uses_left, expires_at, revoked,"
         " created_at) VALUES (?,?,?,?,?,?,0,?)",
-        (iid, cid, hash_token(token), label[:60], stored_uses, expires, utcnow()),
+        (iid, cid, hash_token(token), ("[spectator] " if spectator else "") + label[:60],
+         stored_uses, expires, utcnow()),
     )
-    db.log_event(cid, "mp_invite_created", {"invite_id": iid, "uses": uses})
-    return {"invite_id": iid, "token": token, "expires_at": expires, "uses_left": int(uses)}
+    db.log_event(cid, "mp_invite_created", {"invite_id": iid, "uses": uses,
+                                            "spectator": bool(spectator)})
+    return {"invite_id": iid, "token": token, "expires_at": expires,
+            "uses_left": int(uses), "spectator": bool(spectator)}
 
 
 def _clean_name(name: str) -> str:
@@ -302,20 +308,29 @@ def join(cid: str, invite_token: str, display_name: str, character_spec: dict | 
         settings = jloads(session["settings_json"], {})
         token = _new_token()
         pid = new_id("pmp")
-        spec = character_spec or {}
-        if not spec.get("name"):
-            spec = {"name": display_name, "archetype": "warden", "specialty": "fight",
-                    "portrait_seed": display_name}
-        chid = gm.create_character(cid, spec)
-        status = "pending" if settings.get("approve_join") else "connected"
+        spectator = (row["label"] or "").startswith("[spectator]")
+        chid = None
+        if spectator:
+            # read-only observers: no character, no resources, no actions
+            chid = None
+        else:
+            spec = character_spec or {}
+            if not spec.get("name"):
+                spec = {"name": display_name, "archetype": "warden", "specialty": "fight",
+                        "portrait_seed": display_name}
+            chid = gm.create_character(cid, spec)
+        status = "pending" if (settings.get("approve_join") and not spectator) else "connected"
         color = PLAYER_COLORS[taken % len(PLAYER_COLORS)]
         db.execute(
             "INSERT INTO mp_players (id, campaign_id, token_hash, display_name, character_id,"
             " is_host, ready, status, joined_at, last_seen, data_json)"
             " VALUES (?,?,?,?,?,0,0,?,?,?,?)",
             (pid, cid, hash_token(token), display_name, chid, status, utcnow(), utcnow(),
-             jdumps({"color": color})),
+             jdumps({"color": color, "role": "spectator" if spectator else "player"})),
         )
+        if spectator:
+            emit(cid, "presence", "system",
+                 {"player_id": pid, "name": display_name, "status": "spectator"})
         emit(cid, "presence", "system",
              {"player_id": pid, "name": display_name, "status": status})
         if status == "connected":
@@ -347,6 +362,106 @@ def auth(cid: str, token: str, allow_pending: bool = False) -> dict:
 def require_host(player: dict) -> None:
     if not player or not player["is_host"]:
         raise MpDenied("only the host may do that")
+
+
+def is_spectator(player: dict) -> bool:
+    if not player:
+        return False
+    data = jloads(player.get("data_json") or "{}", {})
+    return data.get("role") == "spectator" or (player.get("character_id") is None
+                                               and not player.get("is_host"))
+
+
+def require_player(player: dict) -> None:
+    """Spectators watch; they never roll, spend, or trigger effects."""
+    if is_spectator(player):
+        raise MpDenied("spectators watch the story — they do not act in it")
+
+
+def char_location(cid: str, player: dict) -> str | None:
+    """The player's character's effective location (split-party aware)."""
+    chid = player.get("character_id") if player else None
+    if not chid:
+        return None
+    row = db.query_one("SELECT location_id FROM characters WHERE id=?", (chid,))
+    return row["location_id"] if row and row["location_id"] else None
+
+
+def set_location(cid: str, player: dict, location_id: str) -> dict:
+    """Party splitting: one character walks to a location on their own."""
+    require_player(player)
+    chid = player.get("character_id")
+    if not chid:
+        raise MpError("you have no character on this shore")
+    camp = gm.get_campaign(cid)
+    pack = worldpacks.load_pack(camp["pack_id"])
+    if not worldpacks.get_location(pack, location_id):
+        raise MpError("that place is not on the map")
+    camp_loc = db.query_one("SELECT location_id FROM campaigns WHERE id=?", (cid,))
+    if location_id == (camp_loc["location_id"] if camp_loc else None):
+        return regroup(cid, player)
+    db.execute("UPDATE characters SET location_id=? WHERE id=?", (location_id, chid))
+    name = player["display_name"]
+    emit(cid, "system", player["id"],
+         {"text": f"{name} slips away toward {location_id}."},
+         visibility="party")
+    emit(cid, "system", player["id"],
+         {"text": f"{name} arrives."},
+         visibility=f"loc:{location_id}")
+    db.log_event(cid, "party_split", {"player_id": player["id"], "chid": chid,
+                                      "location_id": location_id})
+    return {"ok": True, "location_id": location_id, "split": True}
+
+
+def regroup(cid: str, player: dict, everyone: bool = False) -> dict:
+    """Return to the party focus. With everyone=True (host), regroup the party."""
+    if everyone:
+        require_host(player)
+        db.execute("UPDATE characters SET location_id=NULL WHERE campaign_id=?", (cid,))
+        emit(cid, "system", "system", {"text": "The party gathers as one."}, visibility="party")
+        db.log_event(cid, "party_regroup", {"by": player["id"], "everyone": True})
+        return {"ok": True, "regrouped": "all"}
+    chid = player.get("character_id")
+    if not chid:
+        raise MpError("you have no character on this shore")
+    db.execute("UPDATE characters SET location_id=NULL WHERE id=?", (chid,))
+    emit(cid, "system", player["id"],
+         {"text": f"{player['display_name']} returns to the party."}, visibility="party")
+    db.log_event(cid, "party_regroup", {"by": player["id"], "everyone": False})
+    return {"ok": True, "regrouped": "self"}
+
+
+def sweep_turns() -> int:
+    """Server-side watchdog: advance expired structured turns for every active
+    session. Bounded, idempotent, safe to call from a daemon thread."""
+    swept = 0
+    rows = db.query("SELECT campaign_id FROM mp_sessions WHERE status='active'")
+    for r in rows:
+        try:
+            cid = r["campaign_id"]
+            session = _session(cid)
+            if not session or session["mode"] != "turns":
+                continue
+            settings = _settings(cid)
+            current = settings.get("turn_player")
+            timeout = int(settings.get("turn_timeout", TURN_TIMEOUT))
+            started = float(settings.get("turn_started_at", 0) or 0)
+            stale = current and not any(p["id"] == current for p in _order(cid))
+            expired = current and (time.time() - started) > timeout
+            if current is None or stale:
+                _start_turn(cid)
+                swept += 1
+            elif expired:
+                # the idle traveler defends their ground; the lantern passes
+                p = db.query_one("SELECT display_name FROM mp_players WHERE id=?", (current,))
+                emit(cid, "system", "system",
+                     {"text": f"{p['display_name'] if p else 'A traveler'} hesitates; the moment passes."},
+                     visibility="party")
+                _start_turn(cid)
+                swept += 1
+        except Exception:
+            continue
+    return swept
 
 
 # ==========================================================================
@@ -919,6 +1034,7 @@ def session_view(cid: str, player: dict) -> dict:
             "player_id": player["id"], "name": player["display_name"],
             "is_host": bool(player["is_host"]), "ready": bool(player["ready"]),
             "character_id": player["character_id"],
+            "role": jloads(player["data_json"], {}).get("role", "player"),
             "color": jloads(player["data_json"], {}).get("color", "#9b8cff"),
         },
         "travel_proposal": current_proposal(cid),

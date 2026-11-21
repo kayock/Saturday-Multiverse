@@ -24,6 +24,39 @@ itself owns every rule, every die, and every consequence.
 - **Extensible toward multiplayer.** The schema and API are already host-authoritative;
   Milestones 3–4 add invitations, synchronization, and cross-server guest portals.
 
+### v0.3.6 — The Living Campaign (new in this build)
+
+- **Player-controlled D&D combat.** Encounters are persistent, turn-based and
+  engine-resolved: initiative, player-selected actions (attack, cast, defend,
+  use an item, retreat, stabilize), enemy turns, conditions, concentration,
+  death saving throws, and exactly-once rewards. HP carries across encounters;
+  the dead stay dead — no accidental resurrection. Idle turns are auto-defended
+  by a bounded server sweep.
+- **Honest rules.** 10 SRD 5.1 classes, 8 species, 20 spells with slots,
+  saving throws, encounter difficulty from XP thresholds, and a published
+  coverage table of what is supported and what is deliberately not.
+- **Multiplayer completion.** Party splitting and regrouping with
+  location-scoped narration (private discoveries stay private), read-only
+  spectators, per-character ownership in shared combat, and a server-side
+  watchdog for stalled turns.
+- **The whole book, not a sample.** Campaign conversions analyze the ENTIRE
+  document in bounded windows (structure → full extraction → deterministic
+  consolidation → world bible that records how the story ends), with coverage
+  metrics, resumable jobs, retry/cancel, and manual draft editing with
+  version history, comparison, rollback, duplication and an SVG flow editor.
+- **The Living Campaign Director.** Quests, mysteries, threats and consequences
+  tracked with event evidence; optional pacing suggestions that never force
+  anything and can be turned off; deterministic continuity flags (dead
+  characters speaking, duplicated artifacts, contradictory quest states).
+- **Collaborative worldbuilding.** The Worldbuilding Workshop lets a creator
+  and collaborators write one world together on the SAME universal Forge:
+  proposed contributions, review-time conflict detection (nothing silently
+  overwritten), AI suggestions that are never auto-applied, creator-only
+  approval through the same engine validation, and strict spoiler boundaries —
+  contributors see their own GM secrets, never anyone else's.
+- **Checkpoints.** Save a campaign snapshot and restore it later as a NEW
+  campaign (no automatic rollback of shared history).
+
 ---
 
 ## Quick start
@@ -134,6 +167,23 @@ events. Scans are data-only and strictly allowlisted.
   upgrades that visibly change the shore (kettle steam, teal lighthouse beam,
   map-wall glow) and mechanically change rest, rumors and endings
 
+**Milestone 3.5 — The Infinite Library**
+- Import **PDF, EPUB, DOCX, TXT, Markdown, HTML** and world packs into a
+  searchable local library — sources stored verbatim, chunked with
+  heading awareness, FTS-indexed, retrieved context-aware during play
+- **Campaign Forge**: the model extracts cast, places, plot and secrets in
+  bounded windows; the forge drafts an engine-valid world, validates and
+  auto-repairs it; you inspect, regenerate sections, and approve — only
+  validated drafts install
+- **Optional D&D-compatible ruleset** from the CC-BY-4.0 SRD 5.1 alongside
+  Undertow (which remains the default): d20 checks with advantage, combat,
+  spells, rests, levels 1–5 — deterministic in the engine, never by AI whim
+- **Starter adventures**, each a real playable door with recorded licensing:
+  *Dracula: The White Ship* (Stoker), *The Rue Morgue Affair* (Poe),
+  *The Time Machine* (Wells); private-manuscript flow ready for *Roanoke*
+- Worlds adapted from books retrieve source passages for the GM and carry
+  hidden GM secrets that never broadcast; multiplayer covers them all
+
 **Milestones 3.0–3.2 — The Shared Shore (multiplayer)**
 - **Host a Shared Voyage**: pick a campaign, invite friends with secure,
   revocable links (hashed tokens, expiring), approve or send-away travelers,
@@ -180,6 +230,7 @@ for the complete rules reference.
 | 2.0 — Worlds Beyond the Beam | seeded worlds, 3 adventures, tactics, omen hand, shore building | **done** |
 | 2.5 — The Echo System | echoes, cross-world consequences, Memory Ledger, foreshadowing | **done** |
 | 3 — Friends multiplayer | sessions, invitations, SSE sync, shared adventures, party legacy | **done** (`docs/MULTIPLAYER.md`, `docs/DEPLOYMENT.md`) |
+| 3.5 — Infinite Library | import → forge → play, from any book; D&D-compatible SRD ruleset; starter adventures | **done** (`docs/LIBRARY.md`, `docs/LICENSES.md`) |
 | 4 — Public worlds & guest portals | public hosting, moderation, cross-server visits | contract drafted (`docs/MULTIPLAYER.md`) |
 
 ## Repository layout

@@ -1,0 +1,1115 @@
+{
+ "id": "time_machine",
+ "name": "The Time Machine: Beyond the Seventh Day",
+ "summary": "Richmond, year 802,701. The Eloi play in the sun; something tends them from below. Your machine is gone. Retrieve it, or be stranded in the far future.",
+ "version": 1,
+ "genre_tags": [
+  "science fiction",
+  "exploration",
+  "literary"
+ ],
+ "gm_style": "Wells's cool wonder turning to vertigo. The far future is beautiful, thin, and wrong. Knowledge is survival; curiosity has a price in lives.",
+ "theme": {
+  "bg": "#0b0e14",
+  "deep": "#141126",
+  "purple": "#7c5cff",
+  "glow": "#9b8cff",
+  "teal": "#43e8d8",
+  "gold": "#e8b46b",
+  "text": "#e9e4f2"
+ },
+ "hub_location": "riverside_810k",
+ "license": {
+  "source_title": "The Time Machine",
+  "author": "H. G. Wells (1866-1946)",
+  "source_url": "https://www.gutenberg.org/ebooks/35",
+  "license": "Public Domain (published 1895; author died 1946)",
+  "attribution": "Adapted from H. G. Wells's The Time Machine (1895), public domain. Original pack text, choices and engine content: Saturday Multiverse.",
+  "library_doc_id": null
+ },
+ "locations": [
+  {
+   "id": "riverside_810k",
+   "name": "The Riverside, A.D. 802,701",
+   "known": true,
+   "adventure": "the_missing_machine",
+   "short": "A ruined great hall, sphinxes of white stone, people like flowers.",
+   "desc": "The Time Traveller arrives beside a great stone hall overgrown with rhododendrons. A winged sphinx of white marble watches the river. The little people of the year 802,701 gather to touch his sleeves and laugh. By dusk the machine in the little brass and ivory framework is gone — taken behind the locked bronze doors of the sphinx pedestal.",
+   "flavor": [
+    "The foundations of the great hall are far too large for the rooms.",
+    "The river runs clearer than any river at home.",
+    "By dusk the Eloi vanish indoors, all at once, like birds going quiet."
+   ],
+   "rest": {
+    "vigor": 2,
+    "nerve": 2
+   }
+  },
+  {
+   "id": "great_hall",
+   "name": "The Great Hall",
+   "known": true,
+   "short": "Ruined grandeur, running water, fruit the Eloi never planted.",
+   "desc": "A vast roofless hall of dwarfed architecture. Water runs in a wet channel across the floor. Fruit hangs in carved bowls. The Eloi sleep in corridors off the hall, huddled together, afraid of the dark for reasons they cannot say.",
+   "flavor": [
+    "Everything is either beautiful or useful, and nothing is both.",
+    "There are no flags, no bills, no palaces — and no ruins of the world that made this one."
+   ],
+   "rest": {
+    "vigor": 2,
+    "nerve": 2
+   }
+  },
+  {
+   "id": "well_shafts",
+   "name": "The Well Shafts",
+   "known": false,
+   "short": "Wells with air rising warm from below. Something breathes down there.",
+   "desc": "Shafts run down from the uplands, with masonry and ladders inside. A warm draught rises steadily. The Eloi will not approach them. Whatever the future keeps in its cellar, it keeps it carefully.",
+   "flavor": [
+    "The air from below is warm and smells of machine oil and blood.",
+    "Thud, thud, thud — far down, a regular sound like engines breathing."
+   ],
+   "rest": null
+  },
+  {
+   "id": "palace_porcelain",
+   "name": "The Palace of Green Porcelain",
+   "known": false,
+   "short": "A museum decayed into green; a lever for a weapon, matches in a gallery.",
+   "desc": "A museum half-green with age. Galleries of extinct animals, minerals, and — the greatest discovery — a shattered mechanism and a box of matches, dry. Here the future keeps what it no longer understands, and a stick of dynamite crowns the find.",
+   "flavor": [
+    "The porcelain animals have no heads, or the wrong heads.",
+    "One gallery is warm, and its warmth has a source with a pulse."
+   ],
+   "rest": {
+    "vigor": 3,
+    "nerve": 3
+   }
+  },
+  {
+   "id": "white_sphinx",
+   "name": "The White Sphinx",
+   "known": true,
+   "short": "Bronze doors in the pedestal. Your machine is behind them.",
+   "desc": "The pedestal of the sphinx holds bronze doors that are nearly invisible until you know their edges. They have no visible hinge or lever. Whatever took the machine means to keep it, and the taking was done by hands that fear light and travel by night.",
+   "flavor": [
+    "The doors fit so closely that the joints are a puzzle, not a seam.",
+    "Nothing scratches the bronze. Nothing dares."
+   ]
+  },
+  {
+   "id": "further_shore",
+   "name": "The Further Shore",
+   "known": false,
+   "short": "Thirty million years hence: a black shore under a dying sun.",
+   "desc": "If the machine is recovered, the lever home can be thrown — or turned further. Beyond everything human lies a beach of pink granite under a huge red sun, and a blackness with edges. The tide of the last sea breathes once, and does not come again.",
+   "flavor": [
+    "The air is thin and the silence enormous.",
+    "A thing like a black butterfly wheels once and settles, and does not move again."
+   ]
+  }
+ ],
+ "archetypes": [
+  {
+   "id": "time_traveller",
+   "name": "The Time Traveller",
+   "blurb": "You built the machine. You will have it back.",
+   "stats": {
+    "wits": 2,
+    "might": 0,
+    "mettle": 1,
+    "bind": 0
+   },
+   "palette": "teal",
+   "kit": [
+    "brass_lever",
+    "grandmothers_journal"
+   ]
+  },
+  {
+   "id": "weena_friend",
+   "name": "The Gentle Companion",
+   "blurb": "You befriend the people of the future, and they remember you kindly.",
+   "stats": {
+    "wits": 1,
+    "might": -1,
+    "mettle": 1,
+    "bind": 2
+   },
+   "palette": "violet",
+   "kit": [
+    "flower_garland",
+    "chalk"
+   ]
+  },
+  {
+   "id": "practical_hand",
+   "name": "The Practical Hand",
+   "blurb": "Matches, iron levers, camp-fires: the past still works here.",
+   "stats": {
+    "wits": 1,
+    "might": 2,
+    "mettle": 1,
+    "bind": -1
+   },
+   "palette": "gold",
+   "kit": [
+    "iron_lever",
+    "matchbox"
+   ]
+  },
+  {
+   "id": "night_watcher",
+   "name": "The Night Watcher",
+   "blurb": "You keep the fire and the vigil. The dark will not take you unawares.",
+   "stats": {
+    "wits": 0,
+    "might": 1,
+    "mettle": 2,
+    "bind": 1
+   },
+   "palette": "ember",
+   "kit": [
+    "iron_lantern",
+    "matchbox"
+   ]
+  }
+ ],
+ "npcs": [
+  {
+   "id": "weena",
+   "name": "Weena",
+   "role": "an Eloi child-woman",
+   "location": "riverside_810k",
+   "desc": "She puts a garland of flowers around your neck on the first day and never takes it back. She is brave in the way of small, doomed things, and she knows the night is hungry.",
+   "greeting": "\"You are cold in the water. Come out. The sun is kind.\"",
+   "rumors": [
+    "\"She sleeps on the open grass when the dark frightens her most.\""
+   ]
+  },
+  {
+   "id": "filby_argument",
+   "name": "Filby's Echo",
+   "role": "the past's objection",
+   "location": "great_hall",
+   "desc": "Not a person of 802,701 but the Traveller's memory of every objection raised over supper: 'Very clear — but will it work?' The future answers Filby nightly.",
+   "greeting": "\"Very clear — but will it WORK?\"",
+   "rumors": []
+  },
+  {
+   "id": "morlock_voice",
+   "name": "The Morlock Voice",
+   "role": "what breathes in the wells",
+   "location": "well_shafts",
+   "desc": "You hear it before you see it: a soft, obscene crooning in the dark, and mechanical thudding far below. It knows the surface only as a larder knows the kitchen.",
+   "greeting": "(a soft crooning in the dark, and then, horribly, a note of laughter)",
+   "rumors": [
+    "\"The Eloi are not masters of the world at all. They are dinner.\""
+   ]
+  }
+ ],
+ "items": [
+  {
+   "id": "matchbox",
+   "name": "Matchbox (nine matches)",
+   "kind": "tool",
+   "desc": "Camphor matches from the museum. Nine. Count them nightly.",
+   "use": {
+    "text": "Light is the oldest weapon. You have nine of it.",
+    "heal": {
+     "nerve": 1
+    },
+    "consume": true
+   }
+  },
+  {
+   "id": "iron_lever",
+   "name": "Iron Lever",
+   "kind": "weapon",
+   "desc": "A lever crowbarred from the museum. Weight at one end, decisions at the other.",
+   "use": {
+    "text": "The lever balances in your hand like an argument settled.",
+    "heal": {}
+   }
+  },
+  {
+   "id": "brass_lever",
+   "name": "Brass and Ivory Lever",
+   "kind": "relic",
+   "desc": "The small lever of the machine. Two directions: back, or further.",
+   "use": {
+    "text": "The lever sits in its socket, patient as a question.",
+    "heal": {}
+   }
+  },
+  {
+   "id": "flower_garland",
+   "name": "Weena's Garland",
+   "kind": "charm",
+   "desc": "White epacris blossoms. She gave them as a crown, not a bouquet.",
+   "use": {
+    "text": "You remember why the future is worth saving.",
+    "heal": {
+     "nerve": 2
+    }
+   }
+  },
+  {
+   "id": "camp_fire_coals",
+   "name": "Pocket of Live Coals",
+   "kind": "charm",
+   "desc": "Embers carried in a cigarette case, from the night the woods burned.",
+   "use": {
+    "text": "A coal blazes up. The dark takes a step back.",
+    "heal": {
+     "nerve": 1
+    },
+    "consume": true
+   }
+  },
+  {
+   "id": "morlock_skull",
+   "name": "A Morlock Skull",
+   "kind": "relic",
+   "desc": "From the museum's human gallery. Evidence of what your own descendants chose to become.",
+   "use": {
+    "text": "You hold the future's skull and it fits your hands too well.",
+    "heal": {}
+   }
+  },
+  {
+   "id": "salt_charm",
+   "name": "Salt Charm (sun-salt)",
+   "kind": "charm",
+   "desc": "Salt scraped from the dried sea of the Hall. Sunlight kept in crystals.",
+   "use": {
+    "text": "The salt glitters. For a moment you can almost smell home.",
+    "heal": {
+     "nerve": 1
+    }
+   }
+  },
+  {
+   "id": "grandmothers_journal",
+   "name": "The Traveller's Notebook",
+   "kind": "tool",
+   "desc": "Observations, conjectures, and one strict rule: note everything, believe slowly.",
+   "use": {
+    "text": "Rereading your notes, one conjecture has hardened into fact overnight.",
+    "heal": {}
+   }
+  }
+ ],
+ "omens": [
+  {
+   "id": "om1",
+   "kind": "edge",
+   "title": "Conjecture Machine",
+   "text": "You reason from thin evidence and are right too often.",
+   "boost": "lore"
+  },
+  {
+   "id": "om2",
+   "kind": "edge",
+   "title": "Sunlight in the Blood",
+   "text": "Surface daylight follows you into dark places a moment longer than it should.",
+   "boost": "endure"
+  },
+  {
+   "id": "om3",
+   "kind": "edge",
+   "title": "The Traveller's Hands",
+   "text": "Mechanisms open themselves to you.",
+   "boost": "notice"
+  },
+  {
+   "id": "om4",
+   "kind": "turn",
+   "title": "Weena's Flowers",
+   "text": "Someone small believes in you completely tonight. Do not waste it.",
+   "boost": "bind"
+  },
+  {
+   "id": "om5",
+   "kind": "complication",
+   "title": "The Dark Comes Early",
+   "text": "Night falls sooner than your calculations allow. Something is pleased."
+  },
+  {
+   "id": "om6",
+   "kind": "complication",
+   "title": "One Match Fewer",
+   "text": "Damp, or clumsy fingers. Count again tomorrow."
+  },
+  {
+   "id": "om7",
+   "kind": "turn",
+   "title": "White Sphinx Light",
+   "text": "Moonlight strikes the bronze doors and shows you their secret seam.",
+   "boost": "notice"
+  },
+  {
+   "id": "om8",
+   "kind": "edge",
+   "title": "Steady on the Ladder",
+   "text": "You climb in the dark without dizziness, which surprises even you.",
+   "boost": "endure"
+  }
+ ],
+ "weather": [
+  {
+   "key": "sun",
+   "weight": 3,
+   "desc": "Generous surface sunlight. The Eloi smile; the wells do not."
+  },
+  {
+   "key": "miasma",
+   "weight": 3,
+   "desc": "A soft grey haze. The future breathes shallowly."
+  },
+  {
+   "key": "starless_night",
+   "weight": 2,
+   "desc": "A night without stars, in which eyes are lamps and lamps are life."
+  }
+ ],
+ "washashore": [
+  {
+   "id": "glass_beads",
+   "kind": "beads",
+   "label": "a scatter of glassbeads",
+   "text": "Glassbeads in the silt of eighty centuries. The shore pays for attention.",
+   "effects": {
+    "beads": 2
+   },
+   "weight": 3
+  },
+  {
+   "id": "porcelain_head",
+   "kind": "clue",
+   "label": "a porcelain head",
+   "text": "A porcelain animal's head, green with age. It matches no creature you know and it is smiling.",
+   "effects": {
+    "fact": "The porcelain museum's animals are smiling, which the future did not intend."
+   },
+   "weight": 2
+  }
+ ],
+ "portals": [
+  {
+   "id": "door_time_machine",
+   "label": "Door of the Eighth Day",
+   "target_location": "riverside_810k",
+   "door_index": 0,
+   "hint": "Science fiction — Wells, 1895"
+  }
+ ],
+ "adventures": [
+  {
+   "id": "the_missing_machine",
+   "title": "The Missing Machine",
+   "summary": "The machine is locked behind the sphinx's bronze doors. Learn who took it, descend to find why, and take back the way home.",
+   "genre": "science fiction exploration",
+   "entry": "scene_arrival",
+   "on_enter": [],
+   "portal_id": "door_time_machine",
+   "scenes": {
+    "scene_arrival": {
+     "title": "Arrival in the Year 802,701",
+     "brief": "Meet the future, meet Weena, and discover the machine is gone.",
+     "gm_directive": "Beauty first, dread second. The Eloi are not a mystery to solve but a fact to explain. The sphinx is the inciting theft.",
+     "intro": "The machine stops with a gentle aftermath of whirling grey, and there is a shout, and the sound of church bells — except the bells are birds. You stand in a garden by a white sphinx, and little people in silk come running to touch your sleeves. By the time the sun sets they have seen your teeth, your matches, and your confusion. And when you turn back to the machine, the brass and ivory of it is gone, and the bronze doors in the sphinx pedestal are sitting closed and seamless as the sky.",
+     "flavor": [
+      "The Eloi laugh like children at fireworks.",
+      "The sphinx faces the river, patient as a bank."
+     ],
+     "hotspots": [
+      {
+       "id": "pedestal",
+       "label": "the sphinx pedestal",
+       "x": 60,
+       "y": 40,
+       "text": "Bronze doors fit so closely their edges read as shadow. No lever. No hinge. No key."
+      },
+      {
+       "id": "river",
+       "label": "the river",
+       "x": 30,
+       "y": 65,
+       "text": "Clean water. The future is not dirty; it is thin."
+      }
+     ],
+     "choices": [
+      {
+       "id": "study_sphinx",
+       "label": "Study the bronze doors for a mechanism",
+       "hint": "Notice — find what the thief used.",
+       "check": {
+        "skill": "notice",
+        "hard": true,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "scene_dark_night",
+        "effects": {
+         "journal": "Faint marks in the bronze: the doors are worked by a lever kept inside. Whoever took the machine MEANT to return for me.",
+         "fact": "The doors are levered from inside; the theft was deliberate."
+        }
+       },
+       "on_fail": {
+        "goto": "scene_dark_night",
+        "effects": {
+         "journal": "The doors tell me nothing. It is like interrogating a cliff.",
+         "harm": {
+          "amount": 1,
+          "type": "nerve"
+         }
+        }
+       }
+      },
+      {
+       "id": "befriend_weena",
+       "label": "Win Weena's friendship",
+       "hint": "Bind — be small and patient with the future.",
+       "check": {
+        "skill": "bind",
+        "hard": false,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "scene_dark_night",
+        "effects": {
+         "journal": "Weena crowns me with white flowers and follows me like a small tame guardian. She will not sleep while I am wakeful.",
+         "fact": "Weena keeps vigil at your side.",
+         "item_give": "flower_garland"
+        }
+       },
+       "on_fail": {
+        "goto": "scene_dark_night",
+        "effects": {
+         "journal": "The Eloi scatter from me like startled birds. Trust is a flower here and I have trampled it.",
+         "harm": {
+          "amount": 1,
+          "type": "nerve"
+         }
+        }
+       }
+      },
+      {
+       "id": "survey_ruins",
+       "label": "Survey the ruins for who built them",
+       "hint": "Lore — read the foundations.",
+       "check": {
+        "skill": "lore",
+        "hard": false,
+        "riptide_counts_pass": false
+       },
+       "on_pass": {
+        "goto": "scene_dark_night",
+        "effects": {
+         "journal": "The great hall's foundations are gigantic; its rooms are afterthoughts. The builders built DOWN, and the tenants above came later.",
+         "fact": "The world above is an afterthought; the owners went below."
+        }
+       },
+       "on_fail": {
+        "goto": "scene_dark_night",
+        "effects": {
+         "journal": "Ruins without a story. I am an archaeologist without a shovel."
+        }
+       }
+      }
+     ]
+    },
+    "scene_dark_night": {
+     "title": "The Night of the Fire",
+     "brief": "The dark opens eyes. Keep the fire, or run for the hall.",
+     "gm_directive": "The Morlocks touch the surface world only as raiders. Fear is rational. If the player fights, the fight is short, close and awful.",
+     "intro": "Night in 802,701 is not the absence of the sun; it is the presence of something else. In the black of the great hall, eyes come up out of the floor-clefts like lamps: soft, obscene, crooning. The Eloi huddle and make no sound at all. You have fire, or you have legs. Choose.",
+     "flavor": [
+      "The Morlock eyes do not reflect light. They make it disappear.",
+      "Weena's hand is very small and very cold."
+     ],
+     "hotspots": [
+      {
+       "id": "fire",
+       "label": "your camp-fire",
+       "x": 50,
+       "y": 60,
+       "text": "The fire is the only wall the dark respects."
+      },
+      {
+       "id": "corridors",
+       "label": "the sleeping corridors",
+       "x": 25,
+       "y": 45,
+       "text": "The Eloi sleep in heaps, like things penned."
+      }
+     ],
+     "choices": [
+      {
+       "id": "keep_fire",
+       "label": "Feed the fire and hold the vigil",
+       "hint": "Endure — sleep is the enemy's ally.",
+       "check": {
+        "skill": "endure",
+        "hard": false,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "scene_wells",
+        "effects": {
+         "journal": "I fed the fire until dawn with everything that would burn. The eyes never crossed its light. Weena slept holding my sleeve.",
+         "fact": "Fire holds the Morlocks at bay; they fear it utterly.",
+         "item_give": "camp_fire_coals"
+        }
+       },
+       "on_fail": {
+        "goto": "scene_wells",
+        "effects": {
+         "journal": "I slept. Something touched my face and it was not Weena's hand. Everything I own smells of that touch now.",
+         "harm": {
+          "amount": 2,
+          "type": "nerve"
+         },
+         "dnd_encounter": {
+          "monster": "morlock",
+          "count": 2
+         }
+        }
+       }
+      },
+      {
+       "id": "burn_thicket",
+       "label": "Burn the thicket as a beacon and a wall",
+       "hint": "Fight — make the future bright and terrible.",
+       "check": {
+        "skill": "fight",
+        "hard": true,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "scene_wells",
+        "effects": {
+         "journal": "The thicket burned all night, a wall of honest light. The Morlocks fled it, and Weena and I stood in the open like the last two humans of the world.",
+         "fact": "The burning thicket keeps the whole hill safe till dawn."
+        }
+       },
+       "on_fail": {
+        "goto": "scene_wells",
+        "effects": {
+         "journal": "The fire got loose and ate the wood I meant to keep. The Morlocks kept pace with the smoke, singing.",
+         "harm": {
+          "amount": 2,
+          "type": "vigor"
+         },
+         "dnd_encounter": {
+          "monster": "morlock",
+          "count": 2
+         }
+        }
+       }
+      },
+      {
+       "id": "run_hall",
+       "label": "Run for the great hall and bar the door",
+       "hint": "Notice — find which door still has hinges.",
+       "check": {
+        "skill": "notice",
+        "hard": false,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "scene_wells",
+        "effects": {
+         "journal": "We barred a bronze-bound door and slept in shifts. The knocking began at midnight and was patient and many-handed.",
+         "fact": "The hall door holds. They knock and cannot open."
+        }
+       },
+       "on_fail": {
+        "goto": "scene_wells",
+        "effects": {
+         "journal": "I chose the wrong door and woke with hands around my ankles. Weena dragged me out by the wrists, all four feet of her.",
+         "harm": {
+          "amount": 1,
+          "type": "vigor"
+         },
+         "dnd_encounter": {
+          "monster": "morlock",
+          "count": 1
+         }
+        }
+       }
+      }
+     ]
+    },
+    "scene_wells": {
+     "title": "Down the Well",
+     "brief": "Descend to the Morlock world: machines, meat, and the truth of the Eloi.",
+     "gm_directive": "The underworld is a kitchen and a machine-room. The revelation is economic, not demonic: the Eloi are livestock. Let the player arrive at that word themselves.",
+     "intro": "You climb down the well into the warm dark, and the dark is inhabited. Machinery thuds somewhere in the black like a heart in a wall. Crooning hands touch the rungs below you. Somewhere down here is the machine's brass and ivory, and somewhere down here is the answer to the question the surface refuses to ask: who keeps the garden, and why.",
+     "flavor": [
+      "The ladders are fresh-oiled. The below is maintained.",
+      "The air tastes of blood and machine oil in equal parts."
+     ],
+     "hotspots": [
+      {
+       "id": "machine_glow",
+       "label": "the machine-glow",
+       "x": 55,
+       "y": 55,
+       "text": "Pumps and pistons run unattended, perfectly maintained, for no one."
+      },
+      {
+       "id": "meat_rack",
+       "label": "the meat rack",
+       "x": 30,
+       "y": 65,
+       "text": "You understand the Eloi completely, and wish you did not."
+      }
+     ],
+     "choices": [
+      {
+       "id": "descend_dark",
+       "label": "Descend the ladder in the dark",
+       "hint": "Endure — no matches wasted, everything else at risk.",
+       "check": {
+        "skill": "endure",
+        "hard": true,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "scene_museum",
+        "effects": {
+         "journal": "I went down in perfect dark and perfect quiet, hands on the rungs, and learned the shape of the world below. It is a stable. We are the stock.",
+         "fact": "The Eloi are bred and kept as livestock. That is the machinery's purpose.",
+         "item_give": "morlock_skull"
+        }
+       },
+       "on_fail": {
+        "goto": "scene_museum",
+        "effects": {
+         "journal": "A hand found my foot in the dark and I understood the wells at last, at speed, upside down.",
+         "harm": {
+          "amount": 2,
+          "type": "vigor"
+         },
+         "dnd_encounter": {
+          "monster": "morlock",
+          "count": 2
+         }
+        }
+       }
+      },
+      {
+       "id": "light_way",
+       "label": "Descend by matchlight, unashamed",
+       "hint": "Notice — spend light, save blood.",
+       "check": {
+        "skill": "notice",
+        "hard": false,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "scene_museum",
+        "effects": {
+         "journal": "By matchlight the underworld stood revealed: the pumps, the racks, the crooning eyes that will not cross a flame. Expensive, and worth it.",
+         "fact": "Matchlight reveals the Morlock economy in full.",
+         "item_give": "morlock_skull"
+        }
+       },
+       "on_fail": {
+        "goto": "scene_museum",
+        "effects": {
+         "journal": "Two matches bought two seconds of truth each. The third went out in my shaking hand.",
+         "harm": {
+          "amount": 1,
+          "type": "nerve"
+         }
+        }
+       }
+      },
+      {
+       "id": "grapple_heart",
+       "label": "Seize a Morlock and make it answer",
+       "hint": "Fight — they fear the surface almost as much as fire.",
+       "check": {
+        "skill": "fight",
+        "hard": true,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "scene_museum",
+        "effects": {
+         "journal": "I pinned one against the warm wall and it spoke — crooned, pleaded — and its soft voice named the halls where the machine's levers lie.",
+         "fact": "A Morlock pleads and names the machine's whereabouts.",
+         "dnd_encounter": {
+          "monster": "morlock",
+          "count": 1
+         }
+        }
+       },
+       "on_fail": {
+        "goto": "scene_museum",
+        "effects": {
+         "journal": "It twisted like wet rope and was gone. The dark below laughed in a note I will keep.",
+         "harm": {
+          "amount": 1,
+          "type": "vigor"
+         },
+         "dnd_encounter": {
+          "monster": "morlock",
+          "count": 1
+         }
+        }
+       }
+      }
+     ]
+    },
+    "scene_museum": {
+     "title": "The Palace of Green Porcelain",
+     "brief": "Matches, a lever, a skull — and the wood where Weena waits.",
+     "gm_directive": "Arm the player here, honestly. The next scene is the cost of the whole journey. Weena's fate must be possible, not forced.",
+     "intro": "The Palace of Green Porcelain has decayed into a museum of the world that made it: galleries of extinct animals, a shattered mechanism, and — greatest discovery of the age — a box of matches, dry. A dynamite cartridge sits in the mineral room like a saint's relic. And outside, up through the ferns, the wood where the fire burned all night is very quiet.",
+     "flavor": [
+      "The matchbox rattles: nine matches and a world.",
+      "The green porcelain animals watch the galleries with wrong heads."
+     ],
+     "hotspots": [
+      {
+       "id": "match_gallery",
+       "label": "the matchbox",
+       "x": 40,
+       "y": 45,
+       "text": "Camphor matches, dry as the past. Nine of them."
+      },
+      {
+       "id": "iron_lever_rack",
+       "label": "the iron lever",
+       "x": 60,
+       "y": 55,
+       "text": "A museum lever, torn loose. The future's past, held in both hands."
+      }
+     ],
+     "choices": [
+      {
+       "id": "arm_yourself",
+       "label": "Take lever, matches and dynamite",
+       "hint": "Notice — arm the future properly.",
+       "check": {
+        "skill": "notice",
+        "hard": false,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "scene_wood",
+        "effects": {
+         "journal": "Lever, matches, dynamite: I armed myself out of the museum of my own world. The Traveller's kit is complete.",
+         "fact": "You carry lever, matches and dynamite.",
+         "item_give": "iron_lever"
+        }
+       },
+       "on_fail": {
+        "goto": "scene_wood",
+        "effects": {
+         "journal": "The gallery shelving fell with me, and something green and porcelain broke under my elbow. I have matches. Not enough of them.",
+         "harm": {
+          "amount": 1,
+          "type": "vigor"
+         }
+        }
+       }
+      },
+      {
+       "id": "hurry_back",
+       "label": "Hurry back to the wood without looting",
+       "hint": "Bind — Weena is alone with the dark.",
+       "check": {
+        "skill": "bind",
+        "hard": false,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "scene_wood",
+        "effects": {
+         "journal": "I ran the ferns back to the wood and Weena was there, asleep in the open, alive, the garland crushed in her fist. I have never been given so much by so little.",
+         "fact": "Weena is safe and the garland is crushed but whole."
+        }
+       },
+       "on_fail": {
+        "goto": "scene_wood",
+        "effects": {
+         "journal": "The wood was silent the way woods are silent before a confession. I ran anyway, and the run was not fast enough."
+        }
+       }
+      }
+     ]
+    },
+    "scene_wood": {
+     "title": "The Wood and the Bronze Doors",
+     "brief": "The last night, the last fire, and the doors that open to a lever.",
+     "gm_directive": "The finale: the sphinx opens at dawn for a trick of light and patience. Endings by what was built: dynamite or fire opens the doors; failure of nerve keeps them shut. Weena's fate follows the player's choices, not the plot's.",
+     "intro": "The last day arrives with the sphinx waiting. The Morlocks know every trick you have, and they have had eight hundred thousand years to be patient. Tonight the bronze doors either open, or they do not, and everything else — the way home, the little garland, the whole human story — sits behind them.",
+     "flavor": [
+      "The bronze is warm to the touch, like a sleeping animal.",
+      "Weena is afraid of tonight in the old way, the deep way."
+     ],
+     "hotspots": [
+      {
+       "id": "doors",
+       "label": "the bronze doors",
+       "x": 55,
+       "y": 45,
+       "text": "The seam shows in moonlight now, if the moon is kind."
+      },
+      {
+       "id": "fern_hill",
+       "label": "the fern hill",
+       "x": 30,
+       "y": 60,
+       "text": "The wood you burned has grown back overnight, which is impossible, which is the future."
+      }
+     ],
+     "choices": [
+      {
+       "id": "blow_doors",
+       "label": "Open the doors with dynamite",
+       "hint": "Fight — loud, and everything hears.",
+       "check": {
+        "skill": "fight",
+        "hard": true,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "ending_gate",
+        "effects": {
+         "journal": "The charge cracked the pedestal and the doors swung. Behind them: the machine, and the dark rising out of the well like smoke given intent.",
+         "fact": "The doors are blown open.",
+         "dnd_encounter": {
+          "monster": "morlock",
+          "count": 2
+         }
+        }
+       },
+       "on_fail": {
+        "goto": "ending_gate",
+        "effects": {
+         "journal": "The charge went wide. The doors stand. My ears ring, and the ringing is the sound of the Morlocks arriving from every direction at once.",
+         "harm": {
+          "amount": 2,
+          "type": "vigor"
+         },
+         "dnd_encounter": {
+          "monster": "morlock",
+          "count": 3
+         }
+        }
+       }
+      },
+      {
+       "id": "fire_trick",
+       "label": "Set the fire-trick and catch them at the doors",
+       "hint": "Notice — Morlocks cannot cross fire; make that a key.",
+       "check": {
+        "skill": "notice",
+        "hard": false,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "ending_gate",
+        "effects": {
+         "journal": "Wood, moss, matches, patience: a little burning house of traps around the doors. They came and the fire said no, and in the firelight the inner lever stood plain as a doorbell.",
+         "fact": "The fire-trick holds the doors' approach; the inner lever is found."
+        }
+       },
+       "on_fail": {
+        "goto": "ending_gate",
+        "effects": {
+         "journal": "The fire failed in the damp. They took Weena's garland from the grass and left it at my feet, politely, like a receipt.",
+         "harm": {
+          "amount": 1,
+          "type": "nerve"
+         }
+        }
+       }
+      },
+      {
+       "id": "sit_and_wait",
+       "label": "Sit with Weena until the night answers",
+       "hint": "Bind — some vigils are the fight.",
+       "check": {
+        "skill": "bind",
+        "hard": false,
+        "riptide_counts_pass": true
+       },
+       "on_pass": {
+        "goto": "ending_gate",
+        "effects": {
+         "journal": "We sat in the firelight with our hands together, and the night circled us all night and could not find a way in. Dawn came. The doors were ajar. Something had opened them out of caution, or curiosity, or habit.",
+         "fact": "The vigil holds; dawn finds the doors ajar."
+        }
+       },
+       "on_fail": {
+        "goto": "ending_gate",
+        "effects": {
+         "journal": "I slept at the worst hour. In the morning the garland is on the grass and Weena is not, and the doors stand ajar without any help from me.",
+         "harm": {
+          "amount": 2,
+          "type": "nerve"
+         }
+        }
+       }
+      }
+     ]
+    },
+    "ending_gate": {
+     "title": "The Lever Has Two Directions",
+     "brief": "Home — or further. The machine is in your hands.",
+     "gm_directive": "The machine recovered = home_ending available. Recovered AND Weena lost or the dark ascendant = salvage_ending. Machine not reached = stranded_ending.",
+     "intro": "The brass and ivory lever sits in its socket, and it has two directions: back toward the nineteenth century and a supper that is still warm, or forward, past everything, to the black shore under the dying sun. The future waits to see which way your hand moves.",
+     "flavor": [
+      "The machine hums at rest like a sleeping animal.",
+      "Weena's garland lies across the saddle of the seat."
+     ],
+     "hotspots": [],
+     "choices": [
+      {
+       "id": "throw_home",
+       "label": "Throw the lever home",
+       "hint": "Requires the machine recovered.",
+       "effects": {
+        "ending": "home_ending"
+       }
+      },
+      {
+       "id": "throw_further",
+       "label": "Throw it further — to the end of days",
+       "hint": "Requires the machine recovered and something left to prove.",
+       "effects": {
+        "ending": "further_ending"
+       }
+      },
+      {
+       "id": "stay_stranded",
+       "label": "The doors never truly opened",
+       "hint": "Always available. The future keeps what it takes.",
+       "effects": {
+        "ending": "stranded_ending"
+       }
+      }
+     ]
+    }
+   },
+   "endings": {
+    "home_ending": {
+     "text": "The lever comes home with your whole weight, and the whirling grey takes the year 802,701 away like a tide. You land in the laboratory between one breath and the next, supper still on the table, Filby still objecting. You tell them all of it. They believe you the way people believe weather reports from other planets. But the garland of white epacris is real, and it does not fade, and the Door of the Eighth Day stays patient on the shore, waiting to be believed again.",
+     "return_location": "riverside_810k",
+     "effects": {
+      "ending": "home_ending",
+      "beads": 4,
+      "heal": {
+       "vigor": 2,
+       "nerve": 2
+      }
+     },
+     "consequence": "The Traveller's tale is told; the garland came home real."
+    },
+    "further_ending": {
+     "text": "You throw the lever further because someone must look, and because the alternative was a comfortable supper. Thirty million years fall away and there is a beach of pink granite under an enormous red sun, and the last sea breathes once. The blackness at the horizon has edges. You sit on the machine and watch the end of the world for exactly as long as it takes to understand that Weena's garland is the only flower in all of this — then come home the long way, older than your years, carrying proof the future ended twice.",
+     "return_location": "further_shore",
+     "effects": {
+      "ending": "further_ending",
+      "beads": 5
+     },
+     "consequence": "The Traveller witnessed the deep future; the garland outlived the sun."
+    },
+    "stranded_ending": {
+     "text": "The doors never truly opened. You burn what wood remains, you ration the matches, you teach the Eloi to fear with you — and the wells keep their schedule. The machine stays behind the bronze, and you stay in the garden of the world's last summer, under the white sphinx, with a garland and a notebook and a fire that must never, ever go out. The Door of the Eighth Day remains open on the shore for whoever else might come. You will be here, keeping the light.",
+     "return_location": "riverside_810k",
+     "effects": {
+      "ending": "stranded_ending",
+      "beads": 1
+     },
+     "consequence": "Stranded in 802,701; the fire is kept and the machine is kept from you."
+    }
+   },
+   "echo_offers": {
+    "home_ending": [
+     {
+      "kind": "achievement",
+      "title": "The Tale Believed",
+      "detail": "Came home from the future with proof that fades and a garland that doesn't.",
+      "data": {
+       "trait_skill": "lore",
+       "trait_delta": 1
+      }
+     }
+    ],
+    "further_ending": [
+     {
+      "kind": "achievement",
+      "title": "Witness of the Last Sea",
+      "detail": "Watched the end of the world and came back with the garland.",
+      "data": {
+       "trait_skill": "endure",
+       "trait_delta": 1
+      }
+     }
+    ],
+    "stranded_ending": [
+     {
+      "kind": "achievement",
+      "title": "Keeper of the Fire",
+      "detail": "Stayed behind to keep the light in the world's last summer.",
+      "data": {
+       "trait_skill": "endure",
+       "trait_delta": 1
+      }
+     }
+    ]
+   }
+  }
+ ],
+ "intro_facts": [
+  "The time machine vanished overnight behind the bronze doors of the White Sphinx.",
+  "The Eloi of 802,701 are gentle, childlike, and afraid of the dark for reasons they cannot name.",
+  "Warm air rises steadily from the well shafts of the uplands, and the Eloi will not approach them.",
+  "The Palace of Green Porcelain stands a day's walk away, green with age."
+ ],
+ "intro_quests": [
+  {
+   "id": "recover_machine",
+   "title": "Recover the time machine from behind the bronze doors"
+  },
+  {
+   "id": "understand_eloi",
+   "title": "Learn why the Eloi fear the dark"
+  }
+ ],
+ "gm_secrets": [
+  "The Morlocks took the machine deliberately: a trap, drawn by the machine's own light and sound.",
+  "The Morlocks are the descendants of the working classes; the Eloi are the descendants of the leisured rich. The surface is their farm.",
+  "The Eloi are not builders or keepers — they are provisions, stored above ground like fruit.",
+  "Weena's fate is decided by the player's failures in the dark, not by fate: she dies only where the player left the night unkept.",
+  "The bronze doors are worked by an inner lever; Morlocks fear fire absolutely, and the museum holds matches and dynamite.",
+  "The further shore of A.D. 30,000,000+ is the machine's second destination: the death of the sun, witnessed.",
+  "The Traveller can always go home once the machine is in hand — the true choice is whether to look further first."
+ ],
+ "dnd": {
+  "encounters": {
+   "morlocks": {
+    "monster": "morlock",
+    "count": 2
+   }
+  },
+  "note": "Morlocks resolve as a 'Morlock' stat block derived from Wells's description (open, literature-derived)."
+ },
+ "supports_rulesets": [
+  "undertow",
+  "dnd5e"
+ ],
+ "foreshadow_threads": [],
+ "qr_events": [],
+ "qr_lore": [],
+ "fallback_flavor": []
+}

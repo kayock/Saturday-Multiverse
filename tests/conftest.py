@@ -1,4 +1,6 @@
 import os
+os.environ.setdefault("SATURDAY_RATE_MULT", "100")  # tests act fast; keep the limiter off their back
+import os
 import sys
 import tempfile
 from pathlib import Path
