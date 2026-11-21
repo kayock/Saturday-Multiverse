@@ -374,3 +374,36 @@ body.calm * { animation-duration: 0.01s !important; }
   #hud-nav .btn-small { padding: 0.3em 0.55em; font-size: 0.78em; }
   .die { width: 28px; height: 28px; font-size: 0.9em; }
 }
+
+
+/* ---------- The Shared Shore ---------- */
+.chip-conn { text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.7em; }
+.mp-conn-connected { color: var(--teal); border-color: rgba(67,232,216,0.4); }
+.mp-conn-reconnecting { color: var(--gold); border-color: rgba(232,180,107,0.4); }
+.mp-conn-offline { color: var(--danger); border-color: rgba(255,107,138,0.4); }
+.chat-drawer {
+  position: fixed; right: clamp(10px, 2vw, 24px); bottom: clamp(12px, 3vh, 32px);
+  width: min(340px, calc(100vw - 24px)); max-height: min(46vh, 420px);
+  background: rgba(14, 11, 28, 0.96); border: 1px solid var(--line);
+  border-radius: 14px; box-shadow: var(--shadow-glow); z-index: 60;
+  display: flex; flex-direction: column; padding: 0.8em;
+}
+.chat-head { display: flex; justify-content: space-between; align-items: center;
+  font-family: var(--serif); color: var(--gold); margin-bottom: 0.5em; }
+.chat-lines { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0.45em;
+  font-size: 0.86em; padding-right: 0.3em; }
+.chat-line { display: flex; gap: 0.5em; align-items: baseline; }
+.chat-who { min-width: 4.6em; font-weight: bold; font-size: 0.82em; color: var(--glow); }
+.chat-narration .chat-who { color: var(--gold); }
+.chat-system .chat-text { color: var(--faint); font-style: italic; }
+.chat-dice .chat-text { color: var(--teal); font-size: 0.94em; }
+.chat-form { display: flex; gap: 0.4em; margin-top: 0.5em; }
+.travel-proposal {
+  display: flex; flex-wrap: wrap; gap: 0.7em; align-items: center;
+  border: 1px solid rgba(155,140,255,0.5); border-radius: 10px;
+  padding: 0.55em 0.9em; font-size: 0.9em; background: rgba(124,92,255,0.08);
+  margin-bottom: 0.5em;
+}
+@media (max-width: 640px) {
+  .chat-drawer { width: calc(100vw - 20px); }
+}

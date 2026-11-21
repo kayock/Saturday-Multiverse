@@ -134,6 +134,23 @@ events. Scans are data-only and strictly allowlisted.
   upgrades that visibly change the shore (kettle steam, teal lighthouse beam,
   map-wall glow) and mechanically change rest, rumors and endings
 
+**Milestones 3.0–3.2 — The Shared Shore (multiplayer)**
+- **Host a Shared Voyage**: pick a campaign, invite friends with secure,
+  revocable links (hashed tokens, expiring), approve or send-away travelers,
+  pause/resume/end the session
+- Independent characters per player with server-side ownership; reconnects
+  restore your wanderer exactly, with event replay and no duplicates
+- Real-time sync over Server-Sent Events (durable sequenced events, replay,
+  presence, reconnect tickets) — WebSockets not required
+- Party travel by unanimous vote; one shared AI Game Master (serialized,
+  single authoritative narration; honest offline fallback); turn-order mode
+  with timeouts; multiplayer dice with private push/resist windows
+- Party chat drawer, consented item trades, glassbead gifts, clue sharing,
+  shared shore improvements funded by pooled beads
+- Visible party presence on the canvas (colored wanderers, name labels),
+  party memories in the Ledger, and tavern gossip that remembers old companies
+- Solo play is untouched; every M1/M2.5 save migrates automatically
+
 **Milestone 2.5 — The Echo System**
 - **Echoes**: eligible endings offer legacy (items, traits, achievements,
   reputations, portal knowledge); up to two weave into a *new* voyage at
@@ -162,7 +179,7 @@ for the complete rules reference.
 | 1.5 — The Living Shore Awakens | tide clock, gossip, GM personas, cinematic dice | **done** |
 | 2.0 — Worlds Beyond the Beam | seeded worlds, 3 adventures, tactics, omen hand, shore building | **done** |
 | 2.5 — The Echo System | echoes, cross-world consequences, Memory Ledger, foreshadowing | **done** |
-| 3 — Friends multiplayer | self-hosted sessions, invitations, sync, host-controlled AI | schema + API contract in place (`docs/MULTIPLAYER.md`) |
+| 3 — Friends multiplayer | sessions, invitations, SSE sync, shared adventures, party legacy | **done** (`docs/MULTIPLAYER.md`, `docs/DEPLOYMENT.md`) |
 | 4 — Public worlds & guest portals | public hosting, moderation, cross-server visits | contract drafted (`docs/MULTIPLAYER.md`) |
 
 ## Repository layout

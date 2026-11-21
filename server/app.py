@@ -5,6 +5,8 @@ the API and the static browser client on one local port.
 """
 from __future__ import annotations
 
+import os
+
 from flask import Flask, send_from_directory
 
 from . import config, db
@@ -49,7 +51,16 @@ def main() -> None:
   Data directory:        {config.DATA_DIR}
   Stop with Ctrl+C.
 """)
-    app.run(host=config.HOST, port=config.PORT, threaded=True, debug=False)
+    if os.environ.get("SATURDAY_PRODUCTION", "").strip() in ("1", "true", "yes"):
+        # Production serving: waitress is a pure-Python, Windows- and
+        # Linux-friendly WSGI server with real threading (SSE needs it).
+        # Still put a TLS-terminating reverse proxy in front for remote play.
+        from waitress import serve
+        print("  (production mode: waitress WSGI server)")
+        serve(app, host=config.HOST, port=config.PORT, threads=12,
+              channel_timeout=300)
+    else:
+        app.run(host=config.HOST, port=config.PORT, threaded=True, debug=False)
 
 
 if __name__ == "__main__":

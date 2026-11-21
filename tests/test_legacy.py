@@ -148,7 +148,7 @@ def test_death_concludes_and_echoes(campaign, monkeypatch):
     seq = iter([1, 3])  # fight: 3 → undertow → vigor 2 harm → both lamps out
     monkeypatch.setattr(rules, "_d6", lambda: next(seq))
     gm.manual_check(campaign, "fight")
-    assert jloads_state(campaign).get("dead") is True
+    assert gm.ch_get(gm.get_character(campaign), "dead") is True
     with pytest.raises(ValueError):
         gm.run_turn(campaign, "I stand back up.")
     echoes = legacy.list_echoes()
@@ -172,9 +172,11 @@ def test_omen_hand_rules(campaign):
     else:
         res = legacy.play_omen(campaign, card["id"])
         assert res["narration"]
-        state = jloads_state(campaign)
+        ch = gm.get_character(campaign)
         if card["kind"] == "edge":
-            assert state.get("omen_bonus")
+            assert gm.ch_get(ch, "omen_bonus")
+        else:
+            assert card["kind"] == "turn"  # the boon is Nerve +1, applied
     with pytest.raises(ValueError):
         legacy.play_omen(campaign, "om999")  # not in hand
 
@@ -184,9 +186,8 @@ def test_upgrade_economy(campaign):
     pack = worldpacks.load_pack("living_shore")
     with pytest.raises(ValueError):
         legacy.buy_upgrade(campaign, "camp_kettle")  # no beads, wrong place
-    state = jloads_state(campaign)
-    state["beads"] = 2
-    db.execute("UPDATE campaigns SET state_json=? WHERE id=?", (db.jdumps(state), campaign))
+    ch = gm.get_character(campaign)
+    gm.ch_set(ch, "beads", 2)
     with pytest.raises(ValueError):
         legacy.buy_upgrade(campaign, "camp_kettle")  # right beads, wrong place
     gm.travel(campaign, "camp")
@@ -276,8 +277,8 @@ def test_wrong_gull_thread_pays_into_rest(campaign):
     assert "gull_friend" in state.get("flags", [])
     gm.travel(campaign, "camp")
     rest = gm.rest(campaign)
-    state = jloads_state(campaign)
-    assert state.get("omen_bonus", {}).get("skill") == "notice"
+    ch = gm.get_character(campaign)
+    assert gm.ch_get(ch, "omen_bonus", {}).get("skill") == "notice"
 
 
 def test_saltgrave_ending_grants_echo_offers_and_consequence(campaign):

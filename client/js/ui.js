@@ -1,8 +1,8 @@
 // Saturday Multiverse — side panels & settings UI.
-import { apiGet, apiSend } from "./api.js";
-import { state, emit } from "./state.js";
-import { portraitSVG } from "./portraits.js";
-import { audio } from "./audio.js";
+import { apiGet, apiSend } from "./api.js?v=30";
+import { state, emit } from "./state.js?v=30";
+import { portraitSVG } from "./portraits.js?v=30";
+import { audio } from "./audio.js?v=30";
 
 const root = document.getElementById("panel-root");
 const settingsRoot = document.getElementById("settings-root");
@@ -17,14 +17,15 @@ export function openPanel(name) {
   panelTitle.textContent = { map: "Map of the Shore", journal: "Journal Log", inventory: "Pack",
     quests: "Quests & Mysteries", dice: "Dice Log", character: "Character",
     ledger: "The Memory Ledger", omens: "The Omen Deck", shore: "The Growing Shore",
-    worlds: "Known Worlds" }[name] || "Panel";
+    worlds: "Known Worlds", party: "The Party" }[name] || "Panel";
   panelBody.innerHTML = { map: panelMap, journal: panelJournal, inventory: panelInventory,
     quests: panelQuests, dice: panelDice, character: panelCharacter,
-    ledger: panelLedger, omens: panelOmens, shore: panelShore, worlds: panelWorlds }[name]?.() || "";
+    ledger: panelLedger, omens: panelOmens, shore: panelShore, worlds: panelWorlds,
+    party: panelParty }[name]?.() || "";
   wirePanel(name);
   root.hidden = false;
   audio.ui();
-  if (name === "ledger" || name === "shore") refreshPanelExtras(name);
+  if (name === "ledger" || name === "shore" || name === "party") refreshPanelExtras(name);
 }
 
 export function closePanel() { root.hidden = true; }
@@ -223,7 +224,142 @@ async function refreshPanelExtras(name) {
       if (box) box.innerHTML = shoreHTML(res);
       wireShore();
     } catch (e) { window.__toast?.(e.message, "bad"); }
+  } else if (name === "party") {
+    try {
+      const v = await apiGet(`/api/mp/view/${state.view.id}`);
+      window.__mpSession = v;
+      const box = panelBody.querySelector("#party-body");
+      if (box) box.innerHTML = partyHTML(v);
+      wireParty();
+    } catch (e) {
+      const box = panelBody.querySelector("#party-body");
+      if (box) box.innerHTML = `<div class="fact-line">${esc(e.message)}</div>`;
+    }
   }
+}
+
+function panelParty() {
+  return `<div id="party-body"><div class="fact-line">Gathering the party…</div></div>`;
+}
+
+function partyHTML(v) {
+  const me = v.you;
+  const roster = (v.members || []).map((m) => {
+    const ch = m.character || {};
+    return `
+    <div class="ledger-card ${m.presence === "connected" ? "card-paid" : "card-used"}">
+      <div class="lc-kind">${m.is_host ? "host · " : ""}${esc(m.presence)}${m.status === "pending" ? " · awaiting welcome" : ""}</div>
+      <div style="display:flex;gap:0.7em;align-items:flex-start;justify-content:space-between">
+        <div>
+          <strong>${esc(m.name)}</strong>
+          <div class="fact-line">${esc(ch.name || "—")} · ${esc(ch.archetype || "")} · ♥${ch.vigor ?? "?"}/${ch.vigor_max ?? "?"} ✦${ch.nerve ?? "?"}/${ch.nerve_max ?? "?"}</div>
+          <div class="fact-line" style="color:${esc(m.color)}">their color on the shore</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:0.3em">
+          ${m.player_id !== me.player_id ? `
+            <button class="btn btn-small" data-gift="${esc(m.player_id)}" data-gname="${esc(m.name)}">Gift beads</button>
+            <button class="btn btn-small btn-ghost" data-trade-to="${esc(m.player_id)}" data-tname="${esc(m.name)}">Offer item</button>
+            ${me.is_host ? `<button class="btn btn-small btn-ghost" data-kick="${esc(m.player_id)}">Send away</button>` : ""}
+            ${me.is_host && m.status === "pending" ? `<button class="btn btn-small btn-primary" data-approve="${esc(m.player_id)}">Welcome</button>` : ""}` : ""}
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+  const offers = (v.offers_for_you || []).map((o) => `
+    <div class="ledger-card card-paid">
+      <div class="lc-kind">offer for you</div>
+      <strong>${esc(o.item_name)} ×${o.qty}</strong>
+      <div class="fact-line">from ${esc(o.from_name)}</div>
+      <button class="btn btn-small btn-primary" data-offer-accept="${esc(o.id)}">Accept</button>
+      <button class="btn btn-small btn-ghost" data-offer-decline="${esc(o.id)}">Decline</button>
+    </div>`).join("");
+  const hostTools = me.is_host ? `
+    <div class="sect"><h4>Host controls</h4>
+      <div class="chip-row">
+        <span class="chip ${v.mode === "freeform" ? "selected" : ""}" data-mode="freeform">freeform</span>
+        <span class="chip ${v.mode === "turns" ? "selected" : ""}" data-mode="turns">turn order</span>
+      </div>
+      <div class="setting-row">
+        <button class="btn btn-small" data-session="pause">Pause</button>
+        <button class="btn btn-small" data-session="resume">Resume</button>
+        <button class="btn btn-small btn-ghost" data-session="end">End the voyage</button>
+      </div>
+      <div class="fact-line">Invitations: ${(v.invites || []).map((i) =>
+        `#${i.id.slice(-4)} ${i.revoked ? "(revoked)" : i.expires_at ? "(expires " + i.expires_at.slice(0, 10) + ")" : "(open)"}`).join(", ") || "none yet"}</div>
+    </div>` : "";
+  return `
+  <div class="sect"><h4>Together on the shore</h4>${roster}</div>
+  ${offers ? `<div class="sect"><h4>Offers waiting for you</h4>${offers}</div>` : ""}
+  ${hostTools}
+  <div class="sect"><h4>Trade & gifts</h4>
+    <div class="fact-line">Use the buttons beside each traveler. Trades need their consent;
+    glassbead gifts are immediate, 1–10 beads. Contributions to shared shore improvements
+    live on the Shore panel.</div>
+  </div>`;
+}
+
+function wireParty() {
+  const v = window.__mpSession || {};
+  panelBody.querySelectorAll("[data-kick]").forEach((b) => b.addEventListener("click", async () => {
+    try {
+      await apiSend(`/api/mp/players/${state.view.id}/remove`, "POST", { player_id: b.dataset.kick });
+      refreshPanelExtras("party");
+    } catch (e) { window.__toast?.(e.message, "bad"); }
+  }));
+  panelBody.querySelectorAll("[data-approve]").forEach((b) => b.addEventListener("click", async () => {
+    try {
+      await apiSend(`/api/mp/players/${state.view.id}/approve`, "POST", { player_id: b.dataset.approve });
+      refreshPanelExtras("party");
+    } catch (e) { window.__toast?.(e.message, "bad"); }
+  }));
+  panelBody.querySelectorAll("[data-mode]").forEach((c) => c.addEventListener("click", async () => {
+    try {
+      await apiSend("/api/mp/settings", "POST", { campaign_id: state.view.id, mode: c.dataset.mode });
+      window.__toast?.(`Turn order: ${c.dataset.mode}.`, "good");
+      refreshPanelExtras("party");
+    } catch (e) { window.__toast?.(e.message, "bad"); }
+  }));
+  panelBody.querySelectorAll("[data-session]").forEach((b) => b.addEventListener("click", async () => {
+    try {
+      await apiSend("/api/mp/session", "POST", { campaign_id: state.view.id, action: b.dataset.session });
+      window.__toast?.(`Voyage ${b.dataset.session}.`, "good");
+    } catch (e) { window.__toast?.(e.message, "bad"); }
+  }));
+  panelBody.querySelectorAll("[data-gift]").forEach((b) => b.addEventListener("click", () => {
+    const amount = prompt(`Gift how many glassbeads to ${b.dataset.gname}? (1–10)`);
+    if (!amount) return;
+    apiSend("/api/mp/gift", "POST", { campaign_id: state.view.id, to_player: b.dataset.gift,
+                                      amount: parseInt(amount, 10) })
+      .then((r) => { window.__toast?.(r.narration, "good"); window.__refreshView?.(); refreshPanelExtras("party"); })
+      .catch((e) => window.__toast?.(e.message, "bad"));
+  }));
+  panelBody.querySelectorAll("[data-trade-to]").forEach((b) => b.addEventListener("click", () => {
+    const inv = state.view.inventory || [];
+    if (!inv.length) { window.__toast?.("Your pack is empty.", "bad"); return; }
+    const list = inv.map((i, idx) => `${idx}: ${i.name} ×${i.qty}`).join("\n");
+    const pick = prompt(`Offer which item to ${b.dataset.tname}?
+
+${list}
+
+Enter the number:`);
+    if (pick === null) return;
+    const row = inv[parseInt(pick, 10)];
+    if (!row) return;
+    apiSend("/api/mp/trade", "POST", { campaign_id: state.view.id, to_player: b.dataset.tradeTo,
+                                       item_row_id: row.id, qty: 1 })
+      .then((r) => { window.__toast?.(r.narration, "good"); })
+      .catch((e) => window.__toast?.(e.message, "bad"));
+  }));
+  panelBody.querySelectorAll("[data-offer-accept]").forEach((b) => b.addEventListener("click", () => {
+    apiSend("/api/mp/trade/respond", "POST", { campaign_id: state.view.id, offer_id: b.dataset.offerAccept, accept: true })
+      .then((r) => { window.__toast?.(r.narration, "good"); window.__refreshView?.(); refreshPanelExtras("party"); })
+      .catch((e) => window.__toast?.(e.message, "bad"));
+  }));
+  panelBody.querySelectorAll("[data-offer-decline]").forEach((b) => b.addEventListener("click", () => {
+    apiSend("/api/mp/trade/respond", "POST", { campaign_id: state.view.id, offer_id: b.dataset.offerDecline, accept: false })
+      .then(() => { refreshPanelExtras("party"); })
+      .catch((e) => window.__toast?.(e.message, "bad"));
+  }));
 }
 
 function panelLedger() {

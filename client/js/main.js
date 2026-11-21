@@ -2,15 +2,16 @@
 // Screens: title → (create | continue) → game. All mechanics live on the
 // server; this file only renders state and forwards intent.
 
-import { apiGet, apiSend } from "./api.js";
-import { state, setView } from "./state.js";
-import { ShoreScene } from "./scene.js?v=27";
-import { renderVignette } from "./vignettes.js?v=27";
-import { portraitSVG } from "./portraits.js";
-import { audio } from "./audio.js";
-import { attachScanner } from "./qr.js";
+import { apiGet, apiSend } from "./api.js?v=30";
+import { state, setView } from "./state.js?v=30";
+import { ShoreScene } from "./scene.js?v=30";
+import { renderVignette } from "./vignettes.js?v=30";
+import { portraitSVG } from "./portraits.js?v=30";
+import { audio } from "./audio.js?v=30";
+import { attachScanner } from "./qr.js?v=30";
 import { openPanel, openSettings, closeSettings, initPanelChrome,
-         openSeedGate, openTalk, showEchoOffers, openEchoShelf } from "./ui.js?v=27";
+         openSeedGate, openTalk, showEchoOffers, openEchoShelf } from "./ui.js?v=30";
+import * as mpui from "./mp.js?v=30";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -105,7 +106,11 @@ async function refreshCampaignList() {
           <div class="cr-meta">turn ${c.turn} · ${esc(c.pack_id)}</div>
         </div>`).join("");
       box.querySelectorAll("[data-cid]").forEach((row) => row.addEventListener("click", async () => {
-        try { enterGame(await apiGet(`/api/campaigns/${row.dataset.cid}`)); }
+        try {
+          // resume a shared session FIRST so the view fetch carries the token
+          const resumed = await mpui.resumeIfHosted(row.dataset.cid);
+          enterGame(await apiGet(`/api/campaigns/${row.dataset.cid}`), resumed);
+        }
         catch (e) { toast(e.message, "bad"); }
       }));
     } else { box.hidden = true; box.innerHTML = ""; }
@@ -235,11 +240,17 @@ function ensureHub() {
   return hub;
 }
 
-function enterGame(view) {
+function enterGame(view, shared = false) {
   showScreen("screen-game");
   ensureHub();
   setView(view);
   refreshView();
+  if (shared) {
+    $("nav-chat").hidden = false;
+    $("nav-party").hidden = false;
+    $("mp-conn").hidden = false;
+    toast("You are back on the shared shore.", "good");
+  }
 }
 
 async function refreshView() {
@@ -527,8 +538,62 @@ async function handleScan(payload) {
 }
 
 // ---------- boot ----------
+window.__enterShared = (view) => {
+  mpui.markEntered();
+  showScreen("screen-game");
+  ensureHub();
+  setView(view);
+  renderGame();
+  toast("You stand on the shared shore.", "good");
+  mpui.refreshSessionView();
+};
+
+window.__mpNarration = (d) => {
+  lastNarration = d.text || "";
+  $("dock-narration").textContent = lastNarration;
+  $("dock-narration").dataset.pending = "0";
+  showChanges(d.changes || []);
+  refreshView();
+};
+
+window.__mpDice = (d) => {
+  const box = $("dock-dice");
+  box.hidden = false;
+  const dice = d.dice || [];
+  box.innerHTML = `<span class="die ${dice[0] < 4 ? "low" : ""}">${dice[0] ?? "?"}</span>
+    <span class="die ${dice[1] < 4 ? "low" : ""}">${dice[1] ?? "?"}</span>
+    <span class="dice-outcome outcome-${esc(d.outcome || "")}">${esc(d.name)} — ${esc(d.text || "")}</span>`;
+};
+
+function wireMultiplayer() {
+  if (mpui.bootFromLink()) return;
+}
+
+function wireMultiplayerScreens() {
+  $("btn-mp-host").addEventListener("click", () => { audio.ensure(); mpui.showHostScreen(); });
+  $("btn-mp-host-back").addEventListener("click", () => mpui.leaveLobbyBack());
+  $("btn-mp-join").addEventListener("click", () => mpui.confirmJoin());
+  $("btn-mp-invite").addEventListener("click", () => mpui.makeInvite());
+  $("btn-mp-ready").addEventListener("click", () => mpui.toggleReady());
+  $("btn-mp-start").addEventListener("click", () => mpui.startVoyage());
+  $("btn-mp-leave").addEventListener("click", () => mpui.leaveLobbyBack());
+  $("btn-chat-close").addEventListener("click", () => mpui.toggleChat(false));
+  $("chat-form").addEventListener("submit", (e) => { e.preventDefault(); mpui.sendChat(); });
+  $("btn-continue").addEventListener("click", () => { mpui.refreshSessionView(); }, true);
+  $("nav-chat").addEventListener("click", () => mpui.toggleChat());
+  $("nav-chat").hidden = true;
+  const _origEnter = window.__enterShared;
+  window.__enterShared = (view) => {
+    $("nav-chat").hidden = false;
+    $("nav-party").hidden = false;
+    $("mp-conn").hidden = false;
+    _origEnter(view);
+  };
+}
+
 async function boot() {
   initPanelChrome();
+  wireMultiplayer();
   document.addEventListener("pointerdown", () => audio.ensure(), { once: true });
   document.addEventListener("keydown", attachScanner(handleScan));
 
@@ -545,6 +610,7 @@ async function boot() {
   await refreshCampaignList();
 
   $("btn-new-voyage").addEventListener("click", () => { audio.ensure(); audio.ui(); showCreate(); });
+  wireMultiplayerScreens();
   $("btn-continue").addEventListener("click", () => { audio.ensure(); audio.ui(); refreshCampaignList(); });
   $("btn-title-settings").addEventListener("click", () => { audio.ensure(); openSettings(); });
 

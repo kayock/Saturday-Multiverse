@@ -1,5 +1,55 @@
 # Changelog
 
+## 0.3.2-shared-shore (2026-11-21)
+
+### Milestone 3.0 — Multiplayer foundation
+- Host a Shared Voyage: sessions, hashed invitation tokens (expiring,
+  revocable, use-limited), player limits, approval mode, lobby with
+  portraits/readiness/invite links, remove/ban.
+- Player identity: independent characters per player (schema v3 rebuilds
+  away the one-character-per-campaign constraint), server-side ownership
+  on every endpoint, reconnect without duplication.
+- Real-time sync: durable sequenced `mp_events`, SSE stream with one-time
+  tickets, replay from `last_seq`, presence heartbeat + offline sweep,
+  snapshot+replay reconciliation.
+
+### Milestone 3.1 — Shared adventures
+- Party travel by proposal and unanimous vote (host may move directly);
+  declines cancel; executes exactly once.
+- One shared AI Game Master: host's model serves all players; per-campaign
+  action lock serializes actions and narration; honest offline fallback.
+- Multiplayer dice: individual checks, risk/push/resist scoped to the
+  roller; results announced to the party.
+- Turn management: freeform (serialized) and structured turn order with
+  timeouts, skipping and host pass-lantern.
+- Shared/private information boundaries: hidden facts never broadcast;
+  per-character purses, packs, omens and deaths.
+
+### Milestone 3.2 — The living multiplayer shore
+- Visible party presence on the Living Shore canvas (colored markers,
+  name labels, idle motion; calm-mode aware).
+- Party chat drawer: players, GM narration, dice, system events; rate
+  limited, escaped, durable history.
+- Player-to-player interactions: consented item trades (atomic, split/merge
+  aware), glassbead gifts, clue sharing.
+- Shared shore improvements: bead contributions with escrowed pot and
+  exactly-once purchase.
+- Party legacy: company moments recorded on shared endings; party section
+  in the Memory Ledger; tavern gossip remembers former parties.
+- Reconnection: session tokens persist per campaign; catch-up replay;
+  pause/resume/end; process-restart recovery.
+
+### Infrastructure
+- Schema v3: mp_sessions/mp_players/mp_invites/mp_events; per-character
+  state migration (beads, death, pending rolls, omen decks); inventory
+  ownership; clue sharing flag.
+- Production serving option (waitress; SATURDAY_PRODUCTION=1) and full
+  deployment/security documentation.
+- Tests: 81 → 110, including a multi-client harness (independent tokens,
+  real HTTP concurrency), security isolation, replay, restart recovery and
+  hostile-input handling.
+
+## 0.2.5-living-multiverse (2026-11-21)
 ## 0.2.5-living-multiverse (2026-11-21)
 
 ### Milestone 1.5 — The Living Shore Awakens

@@ -113,3 +113,31 @@ shapes the system prompt's tone block, the Offline Storyteller's flavor
 lines, and the outcome narration lines. It is stored per campaign and
 persists between sessions. **Personality never becomes rules authority** —
 the persona blocks are tone-only; every mechanical path is unchanged.
+
+
+## Shared-shore rules (Milestone 3)
+
+Multiplayer changes no baseline numbers. It adds party-level structure:
+
+- **Party travel** — one traveler proposes a door; departure requires every
+  connected player's agreement (or the host's direct order). Any refusal
+  cancels the proposal. The transition resolves once, through the standard
+  travel engine, for the whole party.
+- **Turn order (structured mode)** — the host may switch the shore to
+  turn-by-turn play. The current traveler holds "the lantern"; actions from
+  others are refused server-side; the lantern passes automatically after
+  the timeout (240s default), when its holder disconnects, or when passed
+  explicitly. Freeform mode remains the default: actions serialize
+  server-side in arrival order.
+- **Assist / Protect (deterministic forms)** — assistance is expressed
+  through the existing economy rather than new rolls: gifting glassbeads
+  (1–10, atomic), trading kit items (offer → accept, atomic), or
+  contributing beads to shared shore improvements (escrowed pot; the build
+  resolves exactly once). There is no unlimited assistance: every transfer
+  has hard bounds and every action is logged.
+- **Personal fates** — harm, death, omen hands, pending push/resist windows
+  and purses are strictly per character. A party member's death never
+  spreads to the party, and the Remembrance echo is personal.
+- **Party memory** — an adventure ended while a party shares the shore is
+  recorded as a company moment (who sailed together, what they did); it
+  feeds tavern gossip, the Ledger, and future visitors' discoveries.

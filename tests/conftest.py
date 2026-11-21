@@ -30,17 +30,22 @@ def _ai_disabled():
 
 
 @pytest.fixture()
-def client():
+def app():
     from server import config
     from server.app import create_app
     # the suite exercises many endpoints in one minute; lift the limiter
     old_api, old_ai = config.RATE_LIMIT_API, config.RATE_LIMIT_AI
-    config.RATE_LIMIT_API = 10000
-    config.RATE_LIMIT_AI = 10000
-    app = create_app()
-    app.testing = True
-    yield app.test_client()
+    config.RATE_LIMIT_API = 100000
+    config.RATE_LIMIT_AI = 100000
+    application = create_app()
+    application.testing = True
+    yield application
     config.RATE_LIMIT_API, config.RATE_LIMIT_AI = old_api, old_ai
+
+
+@pytest.fixture()
+def client(app):
+    return app.test_client()
 
 
 @pytest.fixture(scope="session")

@@ -70,6 +70,11 @@ export class ShoreScene {
     this._resize();
   }
 
+  setParty(members) {
+    // connected travelers rendered beside you on the shared shore
+    this.party = members || [];
+  }
+
   setCalm(calm) {
     this.calm = !!calm;
     if (this.canvas) this.canvas.dataset.calm = this.calm ? "1" : "0";
@@ -263,6 +268,7 @@ export class ShoreScene {
     this._drawCampfire(c, W, H, t);
     this._drawSignpost(c, W, H);
     if (v?.washashore && !v.world) this._drawWashashore(c, W, H, t);
+    this._drawParty(c, W, H, t);
     if (v?.discovered?.seacave && tide === "low") this._drawSeacave(c, W, H, t);
     if (v?.discovered?.wreck && tide === "low") this._drawWreck(c, W, H, t);
 
@@ -411,6 +417,58 @@ export class ShoreScene {
       c.font = `${Math.max(11, Math.round(H * 0.014))}px Georgia, serif`;
       c.textAlign = "center";
       c.fillText(p.label, x, base + H * 0.026);
+    });
+    c.textAlign = "left";
+  }
+
+  _drawParty(c, W, H, t) {
+    const party = this.party || [];
+    if (!party.length) return;
+    const anchors = [
+      { x: 0.155, y: 0.72 },   // campfire
+      { x: 0.315, y: 0.78 },   // tavern door
+      { x: 0.50, y: 0.60 },    // between the doors
+      { x: 0.75, y: 0.70 },    // lighthouse path
+      { x: 0.60, y: 0.74 },
+    ];
+    const tide = this.view?.tide || "high";
+    party.forEach((m, i) => {
+      const a = anchors[i % anchors.length];
+      const bob = this.calm ? 0 : Math.sin(t * 1.6 + i * 2.1) * 2;
+      const x = a.x * W + (i % 3 - 1) * W * 0.012;
+      const y = a.y * H + Math.floor(i / 3) * H * 0.02 + bob * this.dpr;
+      const s = H * 0.020;  // figure scale
+      // little hooded wanderer
+      c.save();
+      c.globalAlpha = m.isMe ? 1 : 0.9;
+      c.fillStyle = m.isMe ? "rgba(67,232,216,0.9)" : "rgba(30,24,52,0.95)";
+      c.beginPath();
+      c.ellipse(x, y - s * 1.6, s * 0.34, s * 0.42, 0, 0, 6.283);
+      c.fill();
+      c.beginPath();
+      c.moveTo(x - s * 0.5, y);
+      c.quadraticCurveTo(x, y - s * 2.1, x + s * 0.5, y);
+      c.closePath();
+      c.fillStyle = m.isMe ? "rgba(67,232,216,0.75)" : "rgba(30,24,52,0.95)";
+      c.fill();
+      c.strokeStyle = m.color || "#9b8cff";
+      c.lineWidth = 1.4 * this.dpr;
+      c.stroke();
+      // glow ring for others (so you can tell who is who)
+      if (!m.isMe) {
+        c.globalAlpha = 0.35 + 0.15 * Math.sin(t * 2 + i);
+        c.beginPath();
+        c.ellipse(x, y, s * 0.7, s * 0.22, 0, 0, 6.283);
+        c.strokeStyle = m.color || "#9b8cff";
+        c.stroke();
+        c.globalAlpha = 1;
+      }
+      // name label
+      c.fillStyle = m.isMe ? "rgba(67,232,216,0.95)" : "rgba(233,228,242,0.85)";
+      c.font = `${Math.max(10, Math.round(H * 0.012))}px Georgia, serif`;
+      c.textAlign = "center";
+      c.fillText(m.charName || m.name, x, y + s * 0.5);
+      c.restore();
     });
     c.textAlign = "left";
   }

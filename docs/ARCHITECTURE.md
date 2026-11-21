@@ -103,3 +103,27 @@ the full GM flow (travel gating, adventure branches, endings, resume, export/imp
 the AI adapter (JSON extraction, config validation, real HTTP against the bundled mock
 model server), and the HTTP surface (Flask test client). `scripts/smoke_test.py` walks
 a campaign end to end without pytest. Run: `python -m pytest tests/ -q`.
+
+
+## The Shared Shore layer (Milestone 3)
+
+```
+browser (mp.js)                         server
+  session token (localStorage)  --X-MP-Token-->  api.py _mp_resolve()
+  EventSource(ticket, last_seq) <--SSE--------   mp.stream(): mp_events replay + live
+  intents (act/choose/trade…)   ----------->    session_lock(cid) -> gm/legacy engine
+                                                  |-> mp_events.append (seq, visibility)
+                                                  |-> events/dicelog/journal (solo tables)
+```
+
+- `server/mp.py` owns sessions, invitations, presence, turn order, chat,
+  trades, gifts, contributions, group travel and party memory. It never
+  touches dice or effects directly — it calls the same `gm`/`legacy`
+  functions solo uses, inside a per-campaign lock.
+- `mp_events` is the sync backbone: append-only, globally sequenced per
+  campaign, visibility-filtered (`party` / `player:<id>` / `host`). Clients
+  reconnect with the last sequence they saw; replay is idempotent because
+  the underlying actions are engine-guarded.
+- Schema v3 made characters party-capable (per-character beads, death,
+  pending rolls, omen decks, inventory ownership) while keeping solo
+  single-wanderer semantics identical.

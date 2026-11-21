@@ -137,7 +137,7 @@ def create_campaign(name: str, pack_id: str, character_spec: dict) -> str:
         (cid, name, pack_id, chid, "hub", hub, jdumps(state), "", ts, ts),
     )
     for item_id in arc.get("kit", []):
-        give_item(cid, pack, item_id, silent=True)
+        give_item(cid, pack, item_id, silent=True, chid=chid)
     for fact in pack.get("intro_facts", []):
         db.execute(
             "INSERT INTO facts (id, campaign_id, ts, text, scope, importance, source)"
@@ -163,13 +163,75 @@ def create_campaign(name: str, pack_id: str, character_spec: dict) -> str:
     return cid
 
 
+def create_character(cid: str, spec: dict) -> str:
+    """Create an additional wanderer in an EXISTING campaign (multiplayer
+    joins). Same validation and kits as campaign creation."""
+    pack = worldpacks.load_pack(spec.get("pack_id") or get_campaign(cid)["pack_id"])
+    if not pack:
+        raise ValueError(f"unknown world pack")
+    char_name = (spec.get("name") or "").strip()[:40]
+    if not char_name:
+        raise ValueError("the wanderer needs a name")
+    arc = worldpacks.get_archetype(pack, spec.get("archetype", ""))
+    if not arc:
+        raise ValueError("pick a road: one of the pack's archetypes")
+    attrs = dict(arc.get("stats", {}))
+    extra = spec.get("extra_stat") or {}
+    if extra:
+        stat = str(extra.get("stat", "")).lower()
+        if stat not in STATS:
+            raise ValueError("extra point must go to wits, might, mettle or bind")
+        attrs[stat] = attrs.get(stat, 0) + 1
+    skills = {s: (1 if s == spec.get("specialty") else 0) for s in VALID_SKILLS}
+    if spec.get("specialty") not in VALID_SKILLS:
+        raise ValueError(f"specialty must be one of {VALID_SKILLS}")
+    vigor_max = 10 + attrs.get("might", 0)
+    nerve_max = 10 + attrs.get("mettle", 0)
+    chid = new_id("chr")
+    ts = utcnow()
+    portrait = {
+        "seed": spec.get("portrait_seed") or new_id("seed"),
+        "palette": arc.get("palette", "tide"),
+        "archetype": spec.get("archetype"),
+    }
+    db.execute(
+        "INSERT INTO characters (id, campaign_id, name, archetype, portrait_json,"
+        " attributes_json, skills_json, vigor, vigor_max, nerve, nerve_max, data_json)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        (
+            chid, cid, char_name, spec.get("archetype"), jdumps(portrait), jdumps(attrs),
+            jdumps(skills), vigor_max, vigor_max, nerve_max, nerve_max,
+            jdumps({"specialty": spec.get("specialty"),
+                    "history": (spec.get("history") or "")[:400]}),
+        ),
+    )
+    for item_id in arc.get("kit", []):
+        give_item(cid, pack, item_id, silent=True, chid=chid)
+    db.add_transcript(cid, "system", f"{char_name} steps out of the sea-foam.")
+    legacy.remember(cid, "tavern", "visitor", f"A newcomer named {char_name} arrived on the shore.")
+    echo_ids = spec.get("echo_ids") or []
+    if echo_ids:
+        for c in legacy.weave_echoes(cid, pack, echo_ids):
+            db.add_journal(cid, c, "echo")
+            db.add_transcript(cid, "system", c)
+    db.log_event(cid, "character_joined", {"character_id": chid, "name": char_name})
+    return chid
+
+
 def get_campaign(cid: str) -> dict | None:
     row = db.query_one("SELECT * FROM campaigns WHERE id=? AND status='active'", (cid,))
     return dict(row) if row else None
 
 
-def get_character(cid: str) -> dict | None:
-    row = db.query_one("SELECT * FROM characters WHERE campaign_id=?", (cid,))
+def get_character(cid: str, chid: str | None = None) -> dict | None:
+    """Resolve a character. With chid: that character. Without: the campaign's
+    first wanderer (solo play / legacy saves)."""
+    if chid:
+        row = db.query_one(
+            "SELECT * FROM characters WHERE campaign_id=? AND id=?", (cid, chid)
+        )
+    else:
+        row = db.query_one("SELECT * FROM characters WHERE campaign_id=?", (cid,))
     if not row:
         return None
     ch = dict(row)
@@ -178,6 +240,20 @@ def get_character(cid: str) -> dict | None:
     ch["portrait"] = jloads(ch.pop("portrait_json"), {})
     ch["data"] = jloads(ch.pop("data_json"), {})
     return ch
+
+
+def ch_get(ch: dict, key: str, default=None):
+    """Per-character engine state (beads, death, pending rolls, omen bonus)."""
+    if not ch:
+        return default
+    return ch.get("data", {}).get(key, default)
+
+
+def ch_set(ch: dict, key: str, value) -> None:
+    if not ch:
+        return
+    ch.setdefault("data", {})[key] = value
+    _persist_character(ch)
 
 
 def list_campaigns() -> list[dict]:
@@ -208,30 +284,36 @@ def _world_item(cid: str, item_id: str) -> dict | None:
     return None
 
 
-def give_item(cid: str, pack: dict, item_id: str, qty: int = 1, silent: bool = False) -> dict | None:
+def give_item(cid: str, pack: dict, item_id: str, qty: int = 1, silent: bool = False,
+              chid: str | None = None) -> dict | None:
     item = worldpacks.get_item(pack, item_id) or _world_item(cid, item_id)
     if not item:
         return None
     qty = max(1, min(9, int(qty)))
+    owner = chid or (get_character(cid) or {}).get("id")
     row = db.query_one(
-        "SELECT id, qty FROM inventory WHERE campaign_id=? AND item_id=?", (cid, item_id)
+        "SELECT id, qty FROM inventory WHERE campaign_id=? AND item_id=? AND character_id=?",
+        (cid, item_id, owner),
     )
     if row:
         db.execute("UPDATE inventory SET qty=? WHERE id=?", (min(9, row["qty"] + qty), row["id"]))
     else:
         db.execute(
-            "INSERT INTO inventory (id, campaign_id, item_id, name, kind, qty, equipped, data_json)"
-            " VALUES (?,?,?,?,?,1,0,?)",
-            (new_id("itm"), cid, item_id, item["name"], item.get("kind", "trinket"), jdumps(item)),
+            "INSERT INTO inventory (id, campaign_id, character_id, item_id, name, kind, qty, equipped, data_json)"
+            " VALUES (?,?,?,?,?,?,1,0,?)",
+            (new_id("itm"), cid, owner, item_id, item["name"], item.get("kind", "trinket"), jdumps(item)),
         )
     if not silent:
-        db.log_event(cid, "item_give", {"item_id": item_id, "qty": qty})
+        db.log_event(cid, "item_give", {"item_id": item_id, "qty": qty, "character_id": owner})
     return {"item_id": item_id, "name": item["name"], "qty": qty}
 
 
-def take_item(cid: str, pack: dict, item_id: str, qty: int = 1) -> dict | None:
+def take_item(cid: str, pack: dict, item_id: str, qty: int = 1,
+              chid: str | None = None) -> dict | None:
+    owner = chid or (get_character(cid) or {}).get("id")
     row = db.query_one(
-        "SELECT id, name, qty FROM inventory WHERE campaign_id=? AND item_id=?", (cid, item_id)
+        "SELECT id, name, qty FROM inventory WHERE campaign_id=? AND item_id=? AND character_id=?",
+        (cid, item_id, owner),
     )
     if not row:
         return None
@@ -241,16 +323,25 @@ def take_item(cid: str, pack: dict, item_id: str, qty: int = 1) -> dict | None:
         db.execute("DELETE FROM inventory WHERE id=?", (row["id"],))
     else:
         db.execute("UPDATE inventory SET qty=? WHERE id=?", (row["qty"] - qty, row["id"]))
-    db.log_event(cid, "item_take", {"item_id": item_id, "qty": qty})
+    db.log_event(cid, "item_take", {"item_id": item_id, "qty": qty, "character_id": owner})
     return {"item_id": item_id, "name": item["name"], "qty": qty}
 
 
-def get_inventory(cid: str) -> list[dict]:
-    rows = db.query(
-        "SELECT item_id, name, kind, qty, data_json FROM inventory"
-        " WHERE campaign_id=? ORDER BY kind, name",
-        (cid,),
-    )
+def get_inventory(cid: str, chid: str | None = None) -> list[dict]:
+    """A character's pack. Rows with a NULL owner (very old saves) stay
+    visible to everyone until they are first touched."""
+    if chid:
+        rows = db.query(
+            "SELECT id, character_id, item_id, name, kind, qty, data_json FROM inventory"
+            " WHERE campaign_id=? AND (character_id=? OR character_id IS NULL) ORDER BY kind, name",
+            (cid, chid),
+        )
+    else:
+        rows = db.query(
+            "SELECT id, character_id, item_id, name, kind, qty, data_json FROM inventory"
+            " WHERE campaign_id=? ORDER BY kind, name",
+            (cid,),
+        )
     out = []
     for r in rows:
         d = dict(r)
@@ -263,9 +354,10 @@ def get_inventory(cid: str) -> list[dict]:
 # Effects application (single choke-point for every state mutation)
 # ==========================================================================
 
-def apply_effects(cid: str, pack: dict, effects: dict, changes: list[str]) -> dict:
+def apply_effects(cid: str, pack: dict, effects: dict, changes: list[str],
+                  chid: str | None = None) -> dict:
     """Apply a validated effects dict; append human-readable change lines."""
-    ch = get_character(cid)
+    ch = get_character(cid, chid)
     if not isinstance(effects, dict):
         return {}
     safe = {}
@@ -350,10 +442,10 @@ def apply_effects(cid: str, pack: dict, effects: dict, changes: list[str]) -> di
         changes.append("Returned to the Living Shore.")
     beads = effects.get("beads")
     if isinstance(beads, int) and beads != 0:
-        state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
-        state["beads"] = max(0, int(state.get("beads", 0)) + beads)
-        db.execute("UPDATE campaigns SET state_json=? WHERE id=?", (jdumps(state), cid))
-        changes.append(f"Glassbeads {'+' if beads > 0 else '−'}{abs(beads)} (now {state['beads']}).")
+        if ch:
+            purse = int(ch_get(ch, "beads", 0)) + beads
+            ch_set(ch, "beads", max(0, purse))
+            changes.append(f"Glassbeads {'+' if beads > 0 else '−'}{abs(beads)} (now {max(0, purse)}).")
     cl = effects.get("clue")
     if isinstance(cl, dict) and cl.get("thread_id"):
         res = legacy.add_clue(cid, str(cl["thread_id"])[:60], str(cl.get("text", ""))[:300], "choice")
@@ -442,20 +534,17 @@ def _mods_for(ch: dict, skill: str) -> tuple[int, str]:
 def _check_death(cid: str, ch: dict) -> bool:
     """Both lamps out: the wanderer's story concludes, and the multiverse
     keeps an echo of them."""
-    if ch["vigor"] > 0 or ch["nerve"] > 0:
+    if not ch or ch["vigor"] > 0 or ch["nerve"] > 0:
         return False
-    state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
-    if state.get("dead"):
+    if ch_get(ch, "dead"):
         return False
-    state["dead"] = True
-    db.execute("UPDATE campaigns SET state_json=?, updated_at=? WHERE id=?",
-               (jdumps(state), utcnow(), cid))
+    ch_set(ch, "dead", True)
     legacy.create_echo(
         cid, "achievement", "Remembrance",
         f"{ch['name']} walked the shore and did not come back. The tavern pours one out.",
         {"trait_skill": "endure", "trait_delta": 1},
     )
-    db.log_event(cid, "character_fell", {"name": ch["name"]})
+    db.log_event(cid, "character_fell", {"name": ch["name"], "character_id": ch["id"]})
     legacy.remember(cid, "tavern", "event", f"{ch['name']} was lost to the tide. Nobody says how.")
     return True
 
@@ -494,35 +583,33 @@ def _roll_and_log(cid: str, ch: dict, skill: str, shift: int = 0, sit_mod: int =
     }
     if pending:
         # open the tactical window (Push / Resist) for engine-rolled checks
-        legacy._set_pending_roll(cid, roll, skill, reason or "check")
+        legacy._set_pending_roll(cid, ch["id"], roll, skill, reason or "check")
         _check_death(cid, ch)
     return roll
 
 
-def manual_check(cid: str, skill: str, hard: bool = False, risk: bool = False) -> dict:
-    ch = get_character(cid)
+def manual_check(cid: str, skill: str, hard: bool = False, risk: bool = False,
+                 chid: str | None = None) -> dict:
+    ch = get_character(cid, chid)
     if not ch:
         raise ValueError("no character")
     if skill not in VALID_SKILLS:
         raise ValueError(f"skill must be one of {VALID_SKILLS}")
-    state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
-    if state.get("dead"):
+    if ch_get(ch, "dead"):
         raise ValueError("This wanderer's story is concluded — begin a new voyage; the multiverse remembers.")
     shift = -1 if hard else 0
-    sit = _consume_omen(state, skill)
+    sit = _consume_omen(ch, skill)
     roll = _roll_and_log(cid, ch, skill, shift=shift, sit_mod=sit, reason="manual roll", risk=risk)
-    if sit:
-        db.execute("UPDATE campaigns SET state_json=? WHERE id=?", (jdumps(state), cid))
     return roll
 
 
-def _consume_omen(state: dict, skill: str) -> int:
+def _consume_omen(ch: dict, skill: str) -> int:
     """Consume a pending omen bonus/penalty that applies to this skill."""
-    pending = state.get("omen_bonus")
+    pending = ch_get(ch, "omen_bonus")
     if not isinstance(pending, dict):
         return 0
     if pending.get("skill") in (None, skill) or pending.get("skill") == "any":
-        state["omen_bonus"] = None
+        ch_set(ch, "omen_bonus", None)
         return max(-2, min(2, int(pending.get("mod", 0))))
     return 0
 
@@ -682,11 +769,11 @@ def get_inventory_full(cid: str) -> list[dict]:
 # The turn
 # ==========================================================================
 
-def run_turn(cid: str, action_text: str) -> dict:
+def run_turn(cid: str, action_text: str, chid: str | None = None) -> dict:
     campaign = get_campaign(cid)
     if not campaign:
         raise ValueError("campaign not found")
-    ch = get_character(cid)
+    ch = get_character(cid, chid)
     if not ch:
         raise ValueError("campaign has no character")
     pack = worldpacks.load_pack(campaign["pack_id"])
@@ -701,14 +788,13 @@ def run_turn(cid: str, action_text: str) -> dict:
                (campaign["turn"] + 1, utcnow(), cid))
     campaign["turn"] += 1
     advance_time(campaign, 1)
-    state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
-    if state.get("dead"):
+    if ch_get(ch, "dead"):
         raise ValueError("This wanderer's story is concluded — begin a new voyage; the multiverse remembers.")
     legacy.check_washashore(cid, pack)
     state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
     omen = None
     if state.get("deck_mode", "agent") == "agent" and campaign["turn"] % DECK_CADENCE == 0:
-        omen = _draw_omen(cid, pack, state)
+        omen = _draw_omen(cid, pack, ch)
 
     cfg = ai.get_ai_config()
     meta = {"ai_used": False, "fallback_reason": None, "model": None, "latency_ms": None}
@@ -750,7 +836,7 @@ def run_turn(cid: str, action_text: str) -> dict:
         chk = contract.get("check")
         if isinstance(chk, dict) and chk.get("skill") in VALID_SKILLS:
             shift = -1 if chk.get("hard") else 0
-            sit = _consume_omen(state, chk["skill"])
+            sit = _consume_omen(ch, chk["skill"])
             harm_type = chk.get("harm_type") if chk.get("harm_type") in ("vigor", "nerve") else ""
             dice = _roll_and_log(cid, ch, chk["skill"], shift=shift, sit_mod=sit,
                                  harm_type=harm_type, reason=str(chk.get("reason", ""))[:120])
@@ -770,10 +856,10 @@ def run_turn(cid: str, action_text: str) -> dict:
                 item_id = str(req.get("item_id", ""))
                 qty = int(req.get("qty", 1) or 1)
                 if req.get("action") == "give" and worldpacks.get_item(pack, item_id):
-                    if give_item(cid, pack, item_id, qty):
+                    if give_item(cid, pack, item_id, qty, chid=ch["id"]):
                         changes.append(f"Gained: {worldpacks.get_item(pack, item_id)['name']}.")
                 elif req.get("action") == "take":
-                    if take_item(cid, pack, item_id, qty):
+                    if take_item(cid, pack, item_id, qty, chid=ch["id"]):
                         changes.append(f"Lost: {item_id.replace('_', ' ')}.")
         # memory
         mem = contract.get("memory")
@@ -907,11 +993,13 @@ def _fallback_narration(pack: dict, campaign: dict, state: dict, action: str) ->
 # Omen deck (original card set supplied by the world pack)
 # ==========================================================================
 
-def _draw_omen(cid: str, pack: dict, state: dict) -> dict | None:
+def _draw_omen(cid: str, pack: dict, ch: dict) -> dict | None:
+    """The tide draws for a specific character (deck keyed per character)."""
     cards = worldpacks.get_omens(pack)
-    if not cards:
+    if not cards or not ch:
         return None
-    row = db.query_one("SELECT * FROM decks WHERE campaign_id=? AND deck_id='omens'", (cid,))
+    deck_key = "omens:" + ch["id"]
+    row = db.query_one("SELECT * FROM decks WHERE campaign_id=? AND deck_id=?", (cid, deck_key))
     if not row:
         deck = list(cards)
         for i in range(len(deck) - 1, 0, -1):
@@ -930,25 +1018,28 @@ def _draw_omen(cid: str, pack: dict, state: dict) -> dict | None:
     if row:
         db.execute(
             "UPDATE decks SET draw_json=?, discard_json=?, held_json=?, draws=?"
-            " WHERE campaign_id=? AND deck_id='omens'",
-            (jdumps(draw), jdumps(discard), jdumps(held), draws, cid),
+            " WHERE campaign_id=? AND deck_id=?",
+            (jdumps(draw), jdumps(discard), jdumps(held), draws, cid, deck_key),
         )
     else:
         db.execute(
             "INSERT INTO decks (campaign_id, deck_id, draw_json, discard_json, held_json, draws)"
             " VALUES (?,?,?,?,?,?)",
-            (cid, "omens", jdumps(draw), jdumps(discard), jdumps(held), draws),
+            (cid, deck_key, jdumps(draw), jdumps(discard), jdumps(held), draws),
         )
+    state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
     state["last_omen"] = card
+    db.execute("UPDATE campaigns SET state_json=? WHERE id=?", (jdumps(state), cid))
     if card.get("kind") == "edge" and card.get("boost"):
-        state["omen_bonus"] = {"skill": card.get("boost"), "mod": 1}
+        ch_set(ch, "omen_bonus", {"skill": card.get("boost"), "mod": 1})
     elif card.get("kind") == "complication":
-        state["omen_bonus"] = {"skill": "any", "mod": -1}
+        ch_set(ch, "omen_bonus", {"skill": "any", "mod": -1})
         # the wrong gull keeps count of every complication the deck deals
         legacy.add_clue(cid, "wrong_gull",
                         f"Omen drawn: {card.get('title', '')} — a gull somewhere kept count.",
                         "omen")
-    db.log_event(cid, "omen_draw", {"card_id": card.get("id"), "title": card.get("title")})
+    db.log_event(cid, "omen_draw", {"card_id": card.get("id"), "title": card.get("title"),
+                                    "character_id": ch["id"]})
     return card
 
 
@@ -983,29 +1074,30 @@ def _resolve_adventure(cid: str, pack: dict, adv_id: str) -> dict | None:
 # Scripted adventure beats
 # ==========================================================================
 
-def _choice_available(choice: dict, cid: str, state: dict) -> tuple[bool, str]:
+def _choice_available(choice: dict, cid: str, state: dict,
+                      chid: str | None = None) -> tuple[bool, str]:
     if choice.get("requires_flag") and choice["requires_flag"] not in state.get("flags", {}):
         return False, choice.get("locked_hint", "Something is missing.")
     if choice.get("forbid_flag") and choice["forbid_flag"] in state.get("flags", {}):
         return False, choice.get("locked_hint", "That path has closed.")
     if choice.get("requires_beads"):
-        if legacy.get_beads(cid) < int(choice["requires_beads"]):
+        if legacy.get_beads(cid, chid) < int(choice["requires_beads"]):
             return False, choice.get("locked_hint",
                                      f"That costs {choice['requires_beads']} glassbeads, and your pockets are lighter.")
     if choice.get("requires_item"):
         row = db.query_one(
-            "SELECT 1 FROM inventory WHERE campaign_id=? AND item_id=?",
-            (cid, choice["requires_item"]),
+            "SELECT 1 FROM inventory WHERE campaign_id=? AND item_id=? AND (character_id=? OR character_id IS NULL)",
+            (cid, choice["requires_item"], chid or ""),
         )
         if not row:
             return False, choice.get("locked_hint", "You lack what it requires.")
     return True, ""
 
 
-def _effects_for(cid: str, pack: dict, effects: dict) -> list[str]:
+def _effects_for(cid: str, pack: dict, effects: dict, chid: str | None = None) -> list[str]:
     changes: list[str] = []
     if effects:
-        apply_effects(cid, pack, effects, changes)
+        apply_effects(cid, pack, effects, changes, chid)
     return changes
 
 
@@ -1014,13 +1106,14 @@ def _set_beat(cid: str, state: dict, beat: str | None) -> None:
     db.execute("UPDATE campaigns SET state_json=? WHERE id=?", (jdumps(state), cid))
 
 
-def choose(cid: str, choice_id: str) -> dict:
+def choose(cid: str, choice_id: str, chid: str | None = None) -> dict:
     campaign = get_campaign(cid)
     if not campaign:
         raise ValueError("campaign not found")
     pack = worldpacks.load_pack(campaign["pack_id"])
     state = jloads(campaign["state_json"], {})
-    if state.get("dead"):
+    ch = get_character(cid, chid)
+    if ch and ch_get(ch, "dead"):
         raise ValueError("This wanderer's story is concluded — begin a new voyage; the multiverse remembers.")
     adv = _resolve_adventure(cid, pack, state.get("adventure_id") or "")
     if not adv or not state.get("beat"):
@@ -1031,7 +1124,7 @@ def choose(cid: str, choice_id: str) -> dict:
     choice = next((c for c in scene.get("choices", []) if c.get("id") == choice_id), None)
     if not choice:
         raise ValueError("unknown choice for this scene")
-    ok, why = _choice_available(choice, cid, state)
+    ok, why = _choice_available(choice, cid, state, ch["id"] if ch else None)
     if not ok:
         raise ValueError(why)
 
@@ -1043,9 +1136,8 @@ def choose(cid: str, choice_id: str) -> dict:
         skill = chk.get("skill")
         if skill not in VALID_SKILLS:
             raise ValueError("bad check skill in pack data")
-        ch = get_character(cid)
         shift = -1 if chk.get("hard") else 0
-        sit = _consume_omen(state, skill)
+        sit = _consume_omen(ch, skill)
         dice = _roll_and_log(cid, ch, skill, shift=shift, sit_mod=sit,
                              reason=choice.get("label", "")[:120])
         band = dice["outcome"]
@@ -1063,7 +1155,7 @@ def choose(cid: str, choice_id: str) -> dict:
     goto = branch.get("goto")
     if goto and goto in adv["scenes"]:
         _set_beat(cid, state, goto)
-    changes += _effects_for(cid, pack, branch.get("effects") or {})
+    changes += _effects_for(cid, pack, branch.get("effects") or {}, ch["id"] if ch else None)
 
     # endings and epilogues
     ending_id = None
@@ -1099,9 +1191,13 @@ def choose(cid: str, choice_id: str) -> dict:
             legacy.register_consequence(cid, f"ending:{adv['id']}:{ending_id}",
                                         str(ending["consequence"])[:200], {})
         # ending-level effects (rewards, clues) apply exactly once, here
-        changes += _effects_for(cid, pack, ending.get("effects") or {})
+        changes += _effects_for(cid, pack, ending.get("effects") or {}, ch["id"] if ch else None)
         legacy.record_event_memories(cid, "ending", "all",
                                      f"{adv.get('title', adv['id'])} ended: {ending_id}.")
+        # the party remembers together (multiplayer sessions only)
+        from . import mp as _mp
+        _mp.record_party_moment(cid, adv.get("title", adv["id"]), ending_id,
+                                [w["name"] for w in _mp.party_members(cid)])
 
     # narration: prefer a live GM bridge, fall back to the scene's own text
     narration = None
@@ -1151,7 +1247,7 @@ def _gm_scene_bridge(cid: str, pack: dict, campaign: dict, choice: dict, new_sce
 # Travel, rest, items
 # ==========================================================================
 
-def travel(cid: str, location_id: str) -> dict:
+def travel(cid: str, location_id: str, chid: str | None = None) -> dict:
     campaign = get_campaign(cid)
     if not campaign:
         raise ValueError("campaign not found")
@@ -1160,7 +1256,8 @@ def travel(cid: str, location_id: str) -> dict:
     if not loc:
         raise ValueError("unknown location")
     state = jloads(campaign["state_json"], {})
-    if state.get("dead"):
+    ch = get_character(cid, chid)
+    if ch and ch_get(ch, "dead"):
         raise ValueError("This wanderer's story is concluded — begin a new voyage; the multiverse remembers.")
 
     # gating: tide
@@ -1197,7 +1294,7 @@ def travel(cid: str, location_id: str) -> dict:
     # whether or not the location opens an adventure
     if first_visit and not world:
         for eff in loc.get("on_enter", []):
-            changes += _effects_for(cid, pack, eff)
+            changes += _effects_for(cid, pack, eff, ch["id"] if ch else None)
 
     if world:
         # Generated world: track the visit, ground the arrival, tint the weather.
@@ -1267,7 +1364,7 @@ def travel(cid: str, location_id: str) -> dict:
             "tide": tide, "meta": {"ai_used": loc.get("adventure") is None}}
 
 
-def rest(cid: str) -> dict:
+def rest(cid: str, chid: str | None = None) -> dict:
     campaign = get_campaign(cid)
     if not campaign:
         raise ValueError("campaign not found")
@@ -1276,7 +1373,7 @@ def rest(cid: str) -> dict:
     rest_spec = loc.get("rest")
     if not rest_spec:
         raise ValueError("This is no place to rest.")
-    ch = get_character(cid)
+    ch = get_character(cid, chid)
     owned = set(legacy.owned_upgrades(cid))
     dv = int(rest_spec.get("vigor", 2))
     dn = int(rest_spec.get("nerve", 2))
@@ -1292,13 +1389,12 @@ def rest(cid: str) -> dict:
     ch["nerve"] += max(0, dn)
     _persist_character(ch)
     # a rest refreshes the omen deck's generosity — and a befriended gull
-    legacy.reset_omen_draws(cid)
-    state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
+    legacy.reset_omen_draws(cid, ch["id"])
     extra = ""
-    if "gull_friend" in state.get("flags", []):
-        state["omen_bonus"] = {"skill": "notice", "mod": 1}
+    if "gull_friend" in jloads(db.query_one(
+            "SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {}).get("flags", []):
+        ch_set(ch, "omen_bonus", {"skill": "notice", "mod": 1})
         extra = " The white gull lands near, and its round eye misses nothing on your behalf."
-        db.execute("UPDATE campaigns SET state_json=? WHERE id=?", (jdumps(state), cid))
     if loc_id == "camp" and "camp_guestbook" in owned and secrets.randbelow(100) < 35:
         visitor = secrets.choice([
             "A door-tender's apprentice, in town to measure the Beam.",
@@ -1309,12 +1405,12 @@ def rest(cid: str) -> dict:
         extra += f" A visitor warms their hands at the fire: {visitor}"
     advance_time(campaign, 2)
     msg = loc.get("rest_text", "You rest, and the shore allows it.") + extra
-    db.add_journal(cid, f"Rested at {loc['name']}.", "rest")
-    db.log_event(cid, "rest", {"vigor": dv, "nerve": dn})
+    db.add_journal(cid, f"{ch['name']} rested at {loc['name']}.", "rest")
+    db.log_event(cid, "rest", {"vigor": dv, "nerve": dn, "character_id": ch["id"]})
     return {"narration": msg, "healed": {"vigor": dv, "nerve": dn}}
 
 
-def use_item(cid: str, item_id: str) -> dict:
+def use_item(cid: str, item_id: str, chid: str | None = None) -> dict:
     campaign = get_campaign(cid)
     if not campaign:
         raise ValueError("campaign not found")
@@ -1322,8 +1418,10 @@ def use_item(cid: str, item_id: str) -> dict:
     item = worldpacks.get_item(pack, item_id)
     if not item:
         raise ValueError("unknown item")
+    ch = get_character(cid, chid)
     row = db.query_one(
-        "SELECT id FROM inventory WHERE campaign_id=? AND item_id=?", (cid, item_id)
+        "SELECT id FROM inventory WHERE campaign_id=? AND item_id=? AND (character_id=? OR character_id IS NULL)",
+        (cid, item_id, ch["id"] if ch else ""),
     )
     if not row:
         raise ValueError("You don't have that.")
@@ -1331,9 +1429,9 @@ def use_item(cid: str, item_id: str) -> dict:
     if not effects:
         return {"narration": item.get("desc", "It does nothing — yet."), "changes": []}
     changes: list[str] = []
-    apply_effects(cid, pack, effects, changes)
+    apply_effects(cid, pack, effects, changes, ch["id"] if ch else None)
     if effects.get("consume"):
-        take_item(cid, pack, item_id, 1)
+        take_item(cid, pack, item_id, 1, chid=ch["id"] if ch else None)
         changes.append(f"Used up: {item['name']}.")
     narration = effects.get("text", f"You put the {item['name']} to use.")
     db.add_transcript(cid, "player", f"[used item] {item['name']}")
@@ -1345,13 +1443,15 @@ def use_item(cid: str, item_id: str) -> dict:
 # Views / export
 # ==========================================================================
 
-def campaign_view(cid: str) -> dict:
+def campaign_view(cid: str, chid: str | None = None) -> dict:
     campaign = get_campaign(cid)
     if not campaign:
         raise ValueError("campaign not found")
     pack = worldpacks.load_pack(campaign["pack_id"])
     state = jloads(campaign["state_json"], {})
-    ch = get_character(cid)
+    ch = get_character(cid, chid)
+    if not ch:
+        raise ValueError("campaign has no character")
     loc, world = _resolve_location(cid, pack, campaign["location_id"])
     loc = loc or {}
     adv = _resolve_adventure(cid, pack, state.get("adventure_id") or "") if state.get("adventure_id") else None
@@ -1419,8 +1519,8 @@ def campaign_view(cid: str) -> dict:
                     "label": c.get("label", c["id"]),
                     "hint": c.get("hint", ""),
                     "check": c.get("check"),
-                    "available": _choice_available(c, cid, state)[0],
-                    "locked_hint": _choice_available(c, cid, state)[1],
+                    "available": _choice_available(c, cid, state, ch["id"])[0],
+                    "locked_hint": _choice_available(c, cid, state, ch["id"])[1],
                 }
                 for c in ((scene or {}).get("choices", []))
             ],
@@ -1432,19 +1532,20 @@ def campaign_view(cid: str) -> dict:
         "weather": state.get("weather", {"key": "mist", "desc": "Sea mist."}),
         "turn": campaign["turn"],
         "drift": campaign["drift"],
-        "beads": int(state.get("beads", 0)),
+        "beads": int(ch_get(ch, "beads", 0)),
         "upgrades_owned": legacy.owned_upgrades(cid),
-        "omen_hand": legacy.omen_hand(cid),
+        "omen_hand": legacy.omen_hand(cid, ch["id"]),
         "gm_style": (lambda s: {"id": s["id"], "label": s["label"]})(legacy.normalize_style(state)),
         "washashore": state.get("washashore"),
-        "pending_roll": legacy.get_pending_roll(cid),
-        "dead": bool(state.get("dead")),
+        "pending_roll": legacy.get_pending_roll(cid, ch["id"]),
+        "dead": bool(ch_get(ch, "dead", False)),
+        "character_id": ch["id"],
         "world": ({
             "id": world["id"], "name": world["identity"].get("name", ""),
             "seed": world["seed"], "tint": world["identity"].get("tint", 0),
             "visits": world["visits"], "archetype": world["identity"].get("archetype_label", ""),
         } if world else None),
-        "inventory": get_inventory(cid),
+        "inventory": get_inventory(cid, ch["id"]),
         "journal": [dict(r) for r in reversed(journal_rows)],
         "quests": quests,
         "facts": facts,

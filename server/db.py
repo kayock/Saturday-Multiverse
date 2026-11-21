@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS campaigns (
 
 CREATE TABLE IF NOT EXISTS characters (
   id TEXT PRIMARY KEY,
-  campaign_id TEXT UNIQUE NOT NULL,
+  campaign_id TEXT NOT NULL,
   name TEXT NOT NULL,
   archetype TEXT NOT NULL,
   portrait_json TEXT NOT NULL DEFAULT '{}',
@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS characters (
 CREATE TABLE IF NOT EXISTS inventory (
   id TEXT PRIMARY KEY,
   campaign_id TEXT NOT NULL,
+  character_id TEXT,
   item_id TEXT NOT NULL,
   name TEXT NOT NULL,
   kind TEXT NOT NULL DEFAULT 'trinket',
@@ -190,7 +191,8 @@ CREATE TABLE IF NOT EXISTS events (
 );
 
 -- Milestone 3 groundwork: multiplayer sessions and invitations.
--- Not used by solo play yet; the schema ships early so the contract is fixed.
+-- Superseded in Milestone 3.0 by the mp_* tables below (hashed tokens);
+-- these legacy tables are kept untouched so old databases open cleanly.
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
   campaign_id TEXT NOT NULL,
@@ -290,6 +292,58 @@ CREATE TABLE IF NOT EXISTS consequences (
   data_json TEXT NOT NULL DEFAULT '{}',
   surfaced INTEGER NOT NULL DEFAULT 0
 );
+
+-- ==========================================================================
+-- Milestone 3: The Shared Shore. Tokens are stored as SHA-256 hashes only —
+-- raw tokens exist once, in the join response, and never at rest.
+-- ==========================================================================
+
+CREATE TABLE IF NOT EXISTS mp_sessions (
+  campaign_id TEXT PRIMARY KEY,
+  status TEXT NOT NULL DEFAULT 'lobby',      -- lobby | active | paused | ended
+  mode TEXT NOT NULL DEFAULT 'freeform',     -- freeform | turns
+  player_limit INTEGER NOT NULL DEFAULT 6,
+  settings_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS mp_players (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  display_name TEXT NOT NULL,
+  character_id TEXT,
+  is_host INTEGER NOT NULL DEFAULT 0,
+  ready INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'connected',  -- connected | offline | banned | removed
+  joined_at TEXT NOT NULL,
+  last_seen TEXT NOT NULL,
+  data_json TEXT NOT NULL DEFAULT '{}',      -- color, private notes, contributions
+  UNIQUE (campaign_id, display_name COLLATE NOCASE)
+);
+
+CREATE TABLE IF NOT EXISTS mp_invites (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  label TEXT NOT NULL DEFAULT '',
+  uses_left INTEGER NOT NULL DEFAULT 0,      -- 0 = unlimited until revoked/expired
+  expires_at TEXT,
+  revoked INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS mp_events (
+  seq INTEGER PRIMARY KEY AUTOINCREMENT,
+  campaign_id TEXT NOT NULL,
+  ts TEXT NOT NULL,
+  type TEXT NOT NULL,
+  actor TEXT,                                 -- player id, or 'gm' / 'system'
+  visibility TEXT NOT NULL DEFAULT 'party',   -- party | player:<id> | host
+  data_json TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_mp_events_campaign ON mp_events (campaign_id, seq);
 """
 
 SEARCH_SQL = """
@@ -329,10 +383,23 @@ def _migrate(conn: sqlite3.Connection, from_version: str) -> None:
     v1 -> v2: the Milestone 1.5/2.0/2.5 tables (worlds, npc_memories, clues,
     echoes, upgrades, consequences). Every statement is CREATE TABLE IF NOT
     EXISTS, so an untouched v1 save migrates with zero data loss.
+    v2 -> v3: The Shared Shore. Characters may now belong to a whole party
+    (the one-character-per-campaign UNIQUE is rebuilt away), inventory rows
+    gain a character owner, and per-character state (beads, death, pending
+    rolls, omen bonuses) moves into the character record so two players never
+    share a purse.
     """
     if from_version in ("saturday.core.v1",):
         conn.executescript(SCHEMA_SQL)
         conn.executescript(SEARCH_SQL)
+        conn.execute(
+            "UPDATE meta SET value=? WHERE key='schema_version'",
+            ("saturday.core.v2",),
+        )
+        conn.commit()
+        from_version = "saturday.core.v2"
+    if from_version in ("saturday.core.v2",):
+        _migrate_v2_to_v3(conn)
         conn.execute(
             "UPDATE meta SET value=? WHERE key='schema_version'",
             (config.SCHEMA_VERSION,),
@@ -344,6 +411,85 @@ def _migrate(conn: sqlite3.Connection, from_version: str) -> None:
         f"database schema {from_version} is newer than this build "
         f"({config.SCHEMA_VERSION}); restore a matching backup instead"
     )
+
+
+def _migrate_v2_to_v3(conn: sqlite3.Connection) -> None:
+    """Shared Shore migration. Idempotent; additive except the characters
+    table rebuild, which preserves every column and row verbatim."""
+    # 1. characters: drop the one-character-per-campaign UNIQUE constraint.
+    row = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='characters'"
+    ).fetchone()
+    if row and "UNIQUE" in (row["sql"] or ""):
+        conn.executescript("""
+CREATE TABLE characters_v3 (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  archetype TEXT NOT NULL,
+  portrait_json TEXT NOT NULL DEFAULT '{}',
+  attributes_json TEXT NOT NULL DEFAULT '{}',
+  skills_json TEXT NOT NULL DEFAULT '{}',
+  vigor INTEGER NOT NULL DEFAULT 10,
+  vigor_max INTEGER NOT NULL DEFAULT 10,
+  nerve INTEGER NOT NULL DEFAULT 10,
+  nerve_max INTEGER NOT NULL DEFAULT 10,
+  data_json TEXT NOT NULL DEFAULT '{}'
+);
+INSERT INTO characters_v3 SELECT id, campaign_id, name, archetype, portrait_json,
+  attributes_json, skills_json, vigor, vigor_max, nerve, nerve_max, data_json
+  FROM characters;
+DROP TABLE characters;
+ALTER TABLE characters_v3 RENAME TO characters;
+""")
+    # 2. inventory rows belong to a character (legacy rows adopt the campaign's
+    #    original wanderer).
+    inv_cols = {r[1] for r in conn.execute("PRAGMA table_info(inventory)")}
+    if "character_id" not in inv_cols:
+        conn.execute("ALTER TABLE inventory ADD COLUMN character_id TEXT")
+        conn.execute(
+            "UPDATE inventory SET character_id = "
+            "  (SELECT id FROM characters WHERE characters.campaign_id = inventory.campaign_id)"
+            " WHERE character_id IS NULL"
+        )
+    # 3. clue sharing flag (multiplayer share-a-clue).
+    clue_cols = {r[1] for r in conn.execute("PRAGMA table_info(clues)")}
+    if "shared" not in clue_cols:
+        conn.execute("ALTER TABLE clues ADD COLUMN shared INTEGER NOT NULL DEFAULT 0")
+    # 4. move per-character state out of the campaign blob. In solo play all
+    #    of it belonged to the single wanderer; in multiplayer a shared purse
+    #    or a shared death would be nonsense.
+    PER_CHARACTER = ("beads", "dead", "pending_roll", "omen_bonus", "omen_draws_used")
+    for camp in conn.execute("SELECT id, state_json FROM campaigns").fetchall():
+        try:
+            state = json.loads(camp["state_json"] or "{}")
+        except json.JSONDecodeError:
+            continue
+        moved = {k: state.pop(k) for k in PER_CHARACTER if k in state}
+        if not moved:
+            continue
+        chars = conn.execute(
+            "SELECT id, data_json FROM characters WHERE campaign_id=?", (camp["id"],)
+        ).fetchall()
+        for c in chars:
+            try:
+                data = json.loads(c["data_json"] or "{}")
+            except json.JSONDecodeError:
+                data = {}
+            data.update(moved)
+            conn.execute(
+                "UPDATE characters SET data_json=? WHERE id=?",
+                (json.dumps(data), c["id"]),
+            )
+            # 5. the omen deck follows its owner
+            conn.execute(
+                "UPDATE decks SET deck_id=? WHERE campaign_id=? AND deck_id='omens'",
+                ("omens:" + c["id"], camp["id"]),
+            )
+        conn.execute(
+            "UPDATE campaigns SET state_json=? WHERE id=?",
+            (json.dumps(state), camp["id"]),
+        )
 
 
 # --------------------------------------------------------------------------

@@ -1,13 +1,27 @@
-// Saturday Multiverse — API client
+// API client with optional multiplayer session token.
+// The token rides in the X-MP-Token header — a custom header browsers cannot
+// forge cross-site without CORS, which doubles as our CSRF protection.
+
+let mpToken = null;
+
+export function setMpToken(token) { mpToken = token; }
+export function getMpToken() { return mpToken; }
+
+function headers(extra = {}) {
+  const h = { "Accept": "application/json", ...extra };
+  if (mpToken) h["X-MP-Token"] = mpToken;
+  return h;
+}
+
 export async function apiGet(path) {
-  const res = await fetch(path, { headers: { "Accept": "application/json" } });
+  const res = await fetch(path, { headers: headers() });
   return handle(res);
 }
 
 export async function apiSend(path, method, body) {
   const res = await fetch(path, {
     method,
-    headers: { "Content-Type": "application/json" },
+    headers: headers({ "Content-Type": "application/json" }),
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   return handle(res);

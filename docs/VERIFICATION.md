@@ -1,123 +1,126 @@
-# Milestone verification report — The Living Multiverse (1.5 / 2.0 / 2.5)
+# Milestone verification report — The Shared Shore (3.0 / 3.1 / 3.2)
 
-Build under verification: `0.2.5-living-multiverse`, schema
-`saturday.core.v2`. This report distinguishes **executed** verification from
-anything that could not be run in this environment. Nothing here is
-projected or assumed.
+Build under verification: `0.3.2-shared-shore`, schema `saturday.core.v3`.
+Every claim below distinguishes **executed** verification from what could
+not be run in this environment. The Milestone 1.5–2.5 report it replaces is
+preserved in git history and its results are summarized here as still
+passing (the solo suite is part of the 110).
 
 ## 1. Automated tests — executed, all passing
 
-`python -m pytest tests/ -q` → **81 tests, 0 failures** (plus the
-Milestone-1 smoke walk `scripts/smoke_test.py` → 35 checks, passing).
+`python -m pytest tests/ -q` → **110 tests, 0 failures** (81 pre-existing
+solo/multi-milestone tests + 29 new multiplayer tests), plus the solo smoke
+walk (`scripts/smoke_test.py`, 35 checks) passing.
 
-Coverage by area (all executed):
+Multiplayer coverage (all executed through a multi-client harness — each
+client is an independent HTTP caller with its own session token against the
+same Flask app; concurrency is real, not simulated):
 
-| Area | Tests | Notes |
-|---|---|---|
-| M1 regression (rules, packs, GM flow, AI adapter, HTTP API) | 50 | all pre-existing tests still pass, incl. the mock-AI end-to-end turn |
-| **Database migration** | 2 | a genuine v1 save (built through the engine, pinned to `saturday.core.v1`) migrates to v2 with every row intact and continues playable; newer-schema databases are refused with a loud error |
-| **Seeded generation** | 6 | determinism (same seed → identical identity), distinct seeds differ, complete identity (3 locations / 2 NPCs / 2 mysteries / relic / playable scenario with all choice targets resolving), version stamping, storage reuse, world travel + return clearing world context |
-| **Signature scenario** | (in gen suite) | arrival → engage → refusal ending → quest done → echo offer created at profile level |
-| **GM personalities** | 2 | default classic; noir persists in state, reaches the system prompt, colors fallback outcome lines; custom-without-text rejected; unknown styles rejected |
-| **NPC memory & gossip** | 2 | tavern-scoped memory heard by Maren, NOT by Cardo; location guard; deterministic fallback lines; AI-off honesty flag |
-| **Tide & wash-ashore** | 3 | exact 12-beat cycle (6 high / 6 low), reproducible spawn (same campaign+drift → same find), single pickup (guarded), no respawn on the same beat |
-| **Tactical mechanics** | 5 | Risk declared pre-roll (+2, flag stored); Push band-bump with Vigor cost and once-per-roll; Push refused on Clean and on low Vigor; Resist halves harm with Nerve cost and refund; both rejected when inapplicable |
-| **Death & echoes** | 2 | both-lamps-out concludes the character (actions refused), Remembrance echo created; Echo lifecycle: item + trait woven into a new voyage (inventory + skill verified), reuse refused, cap enforced |
-| **Omen hand** | 2 | per-rest draw cap (2), hand cap (2), nerve cost, edge/turn play effects, complication refused, unknown card refused |
-| **Upgrades & economy** | 2 | purchase requires beads + location; double-buy refused; Camp Kettle visibly changes rest (+5 total for a warden); purchased flag recorded |
-| **Consequences & threads** | 5 | dedupe by trigger; surfaced in tavern gossip; Ninth Wave payoff at 4 clues unlocks the location (one-time gifts verified, no farming on re-entry); Wrong Gull payoff grants the rest perk; Salt-Grave ending grants echo offers + consequence + clue |
-| **Ledger** | 1 | all eleven sections present and populated |
-| **New HTTP endpoints** | 1 | styles, persona, talk, worlds generate/list, seeds, omen hand/draw, upgrades, echoes, ledger over Flask test client |
+| Area | Tests |
+|---|---|
+| Host opens session, adopts the solo character (no duplication) | 1 |
+| Invitation → join flow creates independent characters & purses | 1 |
+| Invitation expiry, revocation, use-limit enforcement | 1 |
+| Party limit + case-insensitive duplicate-name rejection | 1 |
+| Token stored hashed at rest (raw token absent from DB) | 1 |
+| Missing/forged tokens rejected on gameplay endpoints (403) | 1 |
+| Guest isolation: settings/AI/creation/campaign admin refused (403); stripped guest settings view leaks no keys or URLs | 1 |
+| Shared scene sync: one client's action appears in the other's event stream; shared turn/drift | 1 |
+| Event replay from `last_seq`: only new events, ordered, identical on retry (no duplicates) | 1 |
+| Concurrent actions from two clients serialize into an ordered log | 1 (threaded) |
+| SSE endpoint: ticket auth, one-time use, live frames | 1 |
+| Party travel: proposal → waiting-for-votes → unanimous execution (exactly once); decline cancels | 2 |
+| Per-player dice with own characters; separate pending windows (host cannot push guest's roll) | 2 |
+| Death is personal; fallen player refused, host unaffected | 1 |
+| Structured turn mode enforced server-side; out-of-turn refused; pass-lantern | 1 |
+| Chat rate limit (10/30s) + durable history | 1 |
+| Trade: consent required, stranger cannot answer, atomic move | 1 |
+| Bead gifts atomic and bounded (1–10) | 1 |
+| Shared upgrade contributions pool and purchase exactly once | 1 |
+| Party legacy recorded on a shared ending (members + consequence) | 1 |
+| Reconnect: same player, same character, catch-up; presence sweep marks offline; no character duplication | 1 |
+| Process restart (fresh app on same DB): sessions and both tokens survive | 1 |
+| Banned player refused | 1 |
+| Hostile input: oversized chat, wrong types, script text stored as data, unknown endpoints | 1 |
+| Hidden GM facts never broadcast to party streams or views | 1 |
+| Solo regression: no token, no lobby, full solo flow untouched | 1 |
+| Save migration: v2.5 save → v3 with per-character state moved (purse, deck, inventory owners) | 3 |
 
-## 2. Browser-level verification — executed (Chromium, automated)
+## 2. Browser-level verification — executed (Chromium + independent HTTP client)
 
-Flows driven through the real UI at 1440×900 and 1280×720:
+The decisive demonstration was **genuinely synchronized two-client play**:
 
-- **Save migration live**: an untouched Milestone-1 campaign ("Maren Test")
-  resumed through Continue on the v2 build — character, location, journal
-  intact; gameplay continued without re-creation.
-- **HUD additions**: tide clock dial with progress + beats-to-change,
-  glassbead counter, Omens/Shore/Ledger nav buttons all render and function.
-- **NPC conversations**: Talk button at camp; Cardo greeting + rumors;
-  topic switching re-queries grounded gossip.
-- **Seeded world journey (full UI path)**: canvas click on the magenta
-  Unstable Door → seed gate modal → suggestion chips → "Clockwork Ocean" →
-  *a new world answers* → step through → tinted arrival scene with hotspot,
-  signature scenario choices → played to the refusal ending →
-  **Echo modal opened automatically** → resume-after-reload lands mid-beat
-  ("Arrival") with world context restored.
-- **Tactical window**: risky manual roll → Push/Resist/Accept buttons appear
-  → Push executed in UI → "1 Vigor spent… rises to clean" → window closes,
-  state clean.
-- **Shore improvements**: 6 beads granted through the engine → Shore panel
-  lists six upgrades with costs/affordability → Camp Kettle built at camp →
-  toast, bead deduction (6 → 4), purchase recorded; rate limiting observed
-  working when the verification burst exceeded 30 AI-POSTs/min.
-- **Wash-ashore**: a turn landing on an eligible beat spawned the find —
-  dock strip "Something washed ashore: one perfect glassbead" → Pick it up →
-  bead granted, strip cleared. (A state-clobbering bug found here was fixed
-  and re-verified.)
-- **Memory Ledger**: worlds/people/threads/consequences/echoes sections all
-  populated from real play, chronological log intact.
-- **GM persona switch** exercised via the Settings persona chips
-  (persistence covered by tests).
-- **Reduced motion**: calm mode toggle (settings) slows canvas time by 55%,
-  suppresses rain particles, and clamps CSS animations; honors
-  `prefers-reduced-motion` for UI animations.
+- **Host in the browser**: title → *Host a Shared Voyage* → campaign picked →
+  lobby (portrait card, ready button, invitation link box) → *Begin the
+  voyage* → the shared Living Shore with the multiplayer HUD.
+- **Guest from an independent client** (separate HTTP caller, own token):
+  joined via the invitation token, acted, chatted, rolled.
+- **The host browser received everything live over SSE**: party chip updated
+  (⚓ 1/3 → 2/4), the guest's chat line appeared in the party drawer, the
+  guest's action produced a GM narration line in the host's dock, and dice
+  announcements arrived. Screenshots retained (`download/screenshots/`).
+- **Reconnection**: returning to the site and pressing Continue restored the
+  host's session automatically (token resume → stream reconnect → catch-up).
 
-Bugs found during browser verification, all **fixed and re-verified**:
-stale server process serving v0.1.0 (process hygiene); `unstable` flag
-missing from the doors view (hit-test dispatched travel instead of the seed
-gate); `panelShore`/`panelWorlds` undefined (all drawers dead) — fixed,
-plus **versioned asset URLs** (`?v=NN`) added to prevent stale-module
-failures for self-hosters upgrading; world tint too aggressive (softened to
-hue-rotate/3 + brightness); wet-sand crash on the 4th door; run_turn
-clobbering the wash-ashore spawn.
+Bugs found during browser verification — all **fixed and re-verified**:
+stale module caching broke upgrades of the running client (solved with
+versioned asset URLs across the whole import chain, plus a release rule:
+one `?v=N` for every module); a lobby element id mismatch aborted the
+enter-branch (renderLobby died silently inside a swallowed catch — errors
+are now surfaced); hosting twice collided on the host's display name (host
+re-hand now re-issues a token to the existing row); Continue on a shared
+campaign 403'd before the resume could set the token (resume now runs
+first); manual checks announced their roll text twice (dice-only emit
+added); an SSE test consumed an infinite stream in the buffered client
+(test bounded; production clients use EventSource).
 
 ## 3. Not run in this environment (stated honestly)
 
-- **A live LLM as Game Master.** All AI-path verification ran against the
-  bundled OpenAI-compatible mock model server (real HTTP, real JSON
-  contract, real retries). Quality of narration with a real model depends
-  on the model; the deterministic systems do not.
-- **Windows hosting.** The stack is pure Python + Flask with `run.bat`, but
-  only Linux was exercised here.
-- **Audio** is synthesized and its controls verified in the UI, but no
-  listening check was possible — verification is by code review and
-  non-crashing playback paths only.
-- **Multiplayer** remains schema + contract groundwork (Milestone 3 scope).
+- **Two separate physical browsers/machines.** The browser demo used one
+  real browser as host plus a genuinely independent HTTP client (own
+  credentials, own connection) — synchronization is real HTTP+SSE, but
+  pixel-level rendering of a *second* browser was not captured.
+- **A live LLM as Game Master** (mock model server used, as in solo).
+- **Windows**: Linux only; launch scripts and the waitress production path
+  are written for both but Windows was not exercised.
+- **Remote/internet deployment**: LAN-style localhost verification only;
+  TLS/reverse-proxy guidance is documented but not executed here.
+- Voice chat remains deliberately out of scope (future candidate).
 
 ## 4. Acceptance criteria self-check
 
 | Criterion | Status |
 |---|---|
-| Original game remains playable (M1 regression + migrated save) | ✅ |
-| Living Shore visibly more interactive (tide clock, wash-ashore, 4th door, upgrade visuals, storm/rain, talk) | ✅ |
-| NPCs remember actual events (scoped, grounded gossip) | ✅ |
-| GM has distinct configurable personalities (7 + custom, persistent, tone-only) | ✅ |
-| Multiple worlds via portals (deterministic seeds, persistent state, signature scenarios) | ✅ |
-| Seeds and identities persist (generator version pinned; return visits resume) | ✅ |
-| Decisions produce consequences (endings → echoes/consequences/gossip; threads → payoffs) | ✅ |
-| Tactical mechanics work without AI authority (Risk/Push/Resist in engine) | ✅ |
-| Upgrades persist and visibly affect gameplay (kettle rest, teal beam, map wall) | ✅ |
-| Echo legacies work (ending offers → NG+ weaving, caps, reuse-block) | ✅ |
-| Cross-universe influence through defined mechanics (consequences, clue threads) | ✅ |
-| Journal is interactive (Memory Ledger with cards + chronological log) | ✅ |
-| Old saves recoverable and compatible (additive migration, tested; backups) | ✅ |
-| Runs without a paid AI provider (Offline Storyteller + deterministic systems) | ✅ |
-| Windows/Linux instructions functional (launchers present; Linux executed) | ✅ Linux / ⚠️ Windows untested here |
-| Tests and documentation included (81 tests + 8 docs) | ✅ |
-| Complete ZIP delivered | ✅ `saturday-multiverse-living-multiverse-m2.5.zip` |
+| Friends can securely join a hosted campaign (hashed invites, tickets) | ✅ |
+| Independent characters with server-side ownership | ✅ |
+| Players see each other on the Living Shore (canvas presence) | ✅ |
+| Campaign state synchronizes reliably (sequenced events + replay) | ✅ |
+| Explore and enter adventures together (shared scenes, party travel) | ✅ |
+| One AI GM narrates shared actions consistently (serialized, single narration) | ✅ |
+| Host remains the sole rules authority | ✅ |
+| Players roll and spend their own resources | ✅ |
+| Parties coordinate travel and decisions (votes, turn order) | ✅ |
+| Shared chat and interactions (trades, gifts, clue sharing) | ✅ |
+| Important actions persist (events, ledger, party legacy) | ✅ |
+| Disconnected players return safely (tokens, replay, no duplicates) | ✅ |
+| Party adventures create lasting memories | ✅ |
+| Solo gameplay unchanged (regression suite) | ✅ |
+| Old saves compatible (v3 migration tested) | ✅ |
+| Works without an AI connection | ✅ |
+| Host/guest permissions enforced | ✅ |
+| Genuinely independent clients tested | ✅ (browser + independent HTTP client; two physical machines not available) |
+| Documentation and deployment instructions complete | ✅ |
+| Complete ZIP delivered | ✅ `saturday-multiverse-shared-shore-m3.2.zip` |
 
 ## 5. Known limitations
 
-- Generated worlds share the shore's vignette art (tinted per archetype)
-  rather than unique illustrations — a deliberate trade to ship six
-  fully-playable archetypes now; hand-drawn per-archetype art is the natural
-  Milestone 3 cosmetic.
-- Wash-ashore spawns only through gameplay beats (turns/travels), never
-  wall-clock time — by design ("do not force players to wait").
-- The Relamp upgrade's "seed whispering" is represented by the suggestion
-  list rather than dynamic in-fiction seed hints in this release.
-- Push/Resist do not open for scripted fate checks (documented in RULES.md).
-- Voice narration and multiplayer remain future milestones.
+- Party splitting is out of scope by design: the party shares one location
+  and one adventure beat (cooperative travel is the supported model).
+- The host cannot yet migrate a session between machines (Milestone 4
+  territory); recovery after a restart works on the same host.
+- Observers/read-only seats are not implemented (every seat is a player).
+- The structured turn timeout auto-advances on stream ticks and requests;
+  an idle party with nobody connected will not see timeouts fire until
+  someone reconnects.
+- Voice chat is not implemented.
+- The second browser's rendering was not captured (see honesty note above).

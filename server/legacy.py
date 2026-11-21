@@ -255,7 +255,7 @@ def check_washashore(cid: str, pack: dict) -> dict | None:
     return state["washashore"]
 
 
-def pick_washashore(cid: str, pack: dict) -> dict:
+def pick_washashore(cid: str, pack: dict, chid: str | None = None) -> dict:
     """Collect the thing on the beach. Exactly once (guarded), engine-applied."""
     state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
     obj = state.get("washashore")
@@ -263,7 +263,7 @@ def pick_washashore(cid: str, pack: dict) -> dict:
         raise ValueError("the sand is bare")
     changes: list[str] = []
     from . import gm as _gm
-    _gm.apply_effects(cid, pack, obj.get("effects", {}), changes)
+    _gm.apply_effects(cid, pack, obj.get("effects", {}), changes, chid)
     remember(cid, "all", "discovery", f"Found {obj['label']} on the beach.")
     if obj.get("kind") == "clue":
         changes.append("A thread tightens.")
@@ -419,9 +419,29 @@ def _trim(text: str, n: int) -> str:
     return (text or "").strip()[:n]
 
 
-def _gm_char(cid: str):
+def _gm_char(cid: str, chid: str | None = None):
     from . import gm as _gm
-    return _gm.get_character(cid)
+    return _gm.get_character(cid, chid)
+
+
+def _gm_get_character(cid: str, chid: str | None = None):
+    from . import gm as _gm
+    return _gm.get_character(cid, chid)
+
+
+def gm_ch_get(ch: dict, key: str, default=None):
+    from . import gm as _gm
+    return _gm.ch_get(ch, key, default)
+
+
+def gm_ch_set(ch: dict, key: str, value) -> None:
+    from . import gm as _gm
+    _gm.ch_set(ch, key, value)
+
+
+def _gm_persist(ch: dict) -> None:
+    from . import gm as _gm
+    _gm._persist_character(ch)
 
 
 def _gm_style_system(pack: dict, ch: dict, campaign: dict, state: dict, words: int) -> str:
@@ -550,9 +570,18 @@ UPGRADES = {
 }
 
 
-def get_beads(cid: str) -> int:
-    state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
-    return int(state.get("beads", 0))
+def _resolve_ch(cid: str, chid: str | None = None):
+    from . import gm as _gm
+    ch = _gm.get_character(cid, chid)
+    if not ch:
+        raise ValueError("campaign has no character")
+    return ch
+
+
+def get_beads(cid: str, chid: str | None = None) -> int:
+    """Glassbeads are personal — each wanderer carries their own purse."""
+    ch = _resolve_ch(cid, chid)
+    return int(gm_ch_get(ch, "beads", 0))
 
 
 def owned_upgrades(cid: str) -> list[str]:
@@ -561,19 +590,18 @@ def owned_upgrades(cid: str) -> list[str]:
     )]
 
 
-def list_upgrades(cid: str) -> list[dict]:
+def list_upgrades(cid: str, chid: str | None = None) -> list[dict]:
     owned = set(owned_upgrades(cid))
-    beads = get_beads(cid)
+    beads = get_beads(cid, chid)
     return [{
         "id": uid, **{k: u[k] for k in ("name", "cost", "location", "desc")},
         "owned": uid in owned, "affordable": beads >= u["cost"] and uid not in owned,
     } for uid, u in UPGRADES.items()]
 
 
-def buy_upgrade(cid: str, upgrade_id: str) -> dict:
+def buy_upgrade(cid: str, upgrade_id: str, chid: str | None = None) -> dict:
     if upgrade_id not in UPGRADES:
         raise ValueError("no such improvement")
-    pack = _campaign_pack(cid)
     if db.query_one("SELECT 1 FROM upgrades WHERE campaign_id=? AND upgrade_id=?", (cid, upgrade_id)):
         raise ValueError("already built")
     # must be at the upgrade's location to build it
@@ -582,28 +610,28 @@ def buy_upgrade(cid: str, upgrade_id: str) -> dict:
         raise ValueError("campaign not found")
     if UPGRADES[upgrade_id]["location"] != campaign["location_id"]:
         raise ValueError(f"you must be at the {UPGRADES[upgrade_id]['location']} to build that")
-    beads = get_beads(cid)
+    ch = _resolve_ch(cid, chid)
+    beads = get_beads(cid, ch["id"])
     cost = UPGRADES[upgrade_id]["cost"]
     if beads < cost:
         raise ValueError(f"not enough glassbeads ({beads} of {cost}) — the shore pays for adventure")
-    state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
-    state["beads"] = beads - cost
-    db.execute("UPDATE campaigns SET state_json=?, updated_at=? WHERE id=?",
-               (jdumps(state), utcnow(), cid))
+    gm_ch_set(ch, "beads", beads - cost)
     db.execute("INSERT INTO upgrades (campaign_id, upgrade_id, purchased_at) VALUES (?,?,?)",
                (cid, upgrade_id, utcnow()))
-    state_flags = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
-    flags = set(state_flags.get("flags", []))
+    state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
+    flags = set(state.get("flags", []))
     flags.add(f"up_{upgrade_id}")
-    state_flags["flags"] = sorted(flags)
-    db.execute("UPDATE campaigns SET state_json=? WHERE id=?", (jdumps(state_flags), cid))
-    db.log_event(cid, "upgrade", {"upgrade_id": upgrade_id, "cost": cost})
+    state["flags"] = sorted(flags)
+    db.execute("UPDATE campaigns SET state_json=?, updated_at=? WHERE id=?",
+               (jdumps(state), utcnow(), cid))
+    db.log_event(cid, "upgrade", {"upgrade_id": upgrade_id, "cost": cost,
+                                  "character_id": ch["id"]})
     remember(cid, "all", "event", f"The shore grew: {UPGRADES[upgrade_id]['name']} was built.")
     if upgrade_id == "tavern_mapwall":
         register_consequence(cid, "upgrade:tavern_mapwall",
                              "Maren's map wall went up; more doors whisper their seeds to her now.",
                              {})
-    return {"upgrade_id": upgrade_id, "beads_left": get_beads(cid),
+    return {"upgrade_id": upgrade_id, "beads_left": get_beads(cid, ch["id"]),
             "narration": f"Built: {UPGRADES[upgrade_id]['name']}. {UPGRADES[upgrade_id]['desc']}"}
 
 
@@ -621,33 +649,39 @@ DRAWS_PER_REST = 2
 DRAW_COST_NERVE = 1
 
 
-def _deck_row(cid: str):
-    return db.query_one("SELECT * FROM decks WHERE campaign_id=? AND deck_id='omens'", (cid,))
+def _deck_key(chid: str | None) -> str:
+    return "omens:" + (chid or "")
 
 
-def omen_hand(cid: str) -> dict:
-    state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
-    row = _deck_row(cid)
+def _deck_row(cid: str, chid: str | None = None):
+    return db.query_one(
+        "SELECT * FROM decks WHERE campaign_id=? AND deck_id=?", (cid, _deck_key(chid))
+    )
+
+
+def omen_hand(cid: str, chid: str | None = None) -> dict:
+    ch = _resolve_ch(cid, chid)
+    row = _deck_row(cid, ch["id"])
     hand = jloads(row["held_json"], []) if row else []
+    used = int(gm_ch_get(ch, "omen_draws_used", 0))
     return {
         "hand": hand,
-        "draws_used": int(state.get("omen_draws_used", 0)),
-        "draws_left": max(0, DRAWS_PER_REST - int(state.get("omen_draws_used", 0))),
+        "draws_used": used,
+        "draws_left": max(0, DRAWS_PER_REST - used),
         "hand_max": HAND_MAX,
     }
 
 
-def draw_to_hand(cid: str) -> dict:
+def draw_to_hand(cid: str, chid: str | None = None) -> dict:
     """Player-initiated draw: costs 1 Nerve, needs hand space and a fresh rest."""
     pack = _campaign_pack(cid)
     cards = worldpacks.get_omens(pack)
     if not cards:
         raise ValueError("no omen deck in this pack")
-    ch = _gm_char(cid)
-    state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
-    row = _deck_row(cid)
+    ch = _resolve_ch(cid, chid)
+    row = _deck_row(cid, ch["id"])
     hand = jloads(row["held_json"], []) if row else []
-    used = int(state.get("omen_draws_used", 0))
+    used = int(gm_ch_get(ch, "omen_draws_used", 0))
     if len(hand) >= HAND_MAX:
         raise ValueError(f"your hand holds {HAND_MAX} omens already — play one first")
     if used >= DRAWS_PER_REST:
@@ -658,7 +692,7 @@ def draw_to_hand(cid: str) -> dict:
     discard = jloads(row["discard_json"], []) if row else []
     draws = row["draws"] if row else 0
     if not row or (not draw and not discard and not hand):
-        # first interaction with the deck this campaign: build and shuffle it
+        # first interaction with this deck: build and shuffle it
         deck = list(cards)
         for i in range(len(deck) - 1, 0, -1):
             j = secrets.randbelow(i + 1)
@@ -670,29 +704,27 @@ def draw_to_hand(cid: str) -> dict:
         raise ValueError("the deck is spent")
     hand.append(card)
     ch["nerve"] -= DRAW_COST_NERVE
-    from . import gm as _gm
-    _gm._persist_character(ch)
-    state["omen_draws_used"] = used + 1
-    db.execute("UPDATE campaigns SET state_json=?, updated_at=? WHERE id=?",
-               (jdumps(state), utcnow(), cid))
+    gm_ch_set(ch, "omen_draws_used", used + 1)
+    _gm_persist(ch)
     if row:
         db.execute("UPDATE decks SET draw_json=?, discard_json=?, held_json=?, draws=?"
-                   " WHERE campaign_id=? AND deck_id='omens'",
-                   (jdumps(draw), jdumps(discard), jdumps(hand), draws + 1, cid))
+                   " WHERE campaign_id=? AND deck_id=?",
+                   (jdumps(draw), jdumps(discard), jdumps(hand), draws + 1, cid, _deck_key(ch["id"])))
     else:
         db.execute("INSERT INTO decks (campaign_id, deck_id, draw_json, discard_json, held_json, draws)"
                    " VALUES (?,?,?,?,?,?)",
-                   (cid, "omens", jdumps(draw), jdumps(discard), jdumps(hand), draws + 1))
-    db.log_event(cid, "omen_hand_draw", {"card_id": card.get("id"), "cost": "1 nerve"})
+                   (cid, _deck_key(ch["id"]), jdumps(draw), jdumps(discard), jdumps(hand), draws + 1))
+    db.log_event(cid, "omen_hand_draw", {"card_id": card.get("id"), "cost": "1 nerve",
+                                         "character_id": ch["id"]})
     return {"card": card, "hand": hand, "nerve": ch["nerve"],
             "narration": f"You pull {card['title']} from the deck. {card['text']} (1 Nerve paid.)"}
 
 
-def play_omen(cid: str, card_id: str) -> dict:
+def play_omen(cid: str, card_id: str, chid: str | None = None) -> dict:
     """Play a held omen. Edges set a +1 on their skill until used; turns grant
     a small defined boon; complications cannot be played deliberately."""
-    state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
-    row = _deck_row(cid)
+    ch = _resolve_ch(cid, chid)
+    row = _deck_row(cid, ch["id"])
     hand = jloads(row["held_json"], []) if row else []
     card = next((c for c in hand if c.get("id") == card_id), None)
     if not card:
@@ -701,62 +733,58 @@ def play_omen(cid: str, card_id: str) -> dict:
         raise ValueError("complications play themselves — that is what complications are")
     if card.get("kind") == "edge":
         skill = card.get("boost", "any")
-        state["omen_bonus"] = {"skill": skill, "mod": 1}
+        gm_ch_set(ch, "omen_bonus", {"skill": skill, "mod": 1})
         msg = f"{card['title']} is in play: +1 to {skill} checks until it lands."
     else:  # turn card: a small defined boon
-        ch = _gm_char(cid)
         ch["nerve"] = min(ch["nerve_max"], ch["nerve"] + 1)
-        from . import gm as _gm
-        _gm._persist_character(ch)
+        _gm_persist(ch)
         msg = f"{card['title']} plays out: the omen steadies you (Nerve +1)."
     hand = [c for c in hand if c.get("id") != card_id]
     discard = jloads(row["discard_json"], []) if row else []
     discard.append(card)
-    db.execute("UPDATE decks SET held_json=?, discard_json=? WHERE campaign_id=? AND deck_id='omens'",
-               (jdumps(hand), jdumps(discard), cid))
-    db.execute("UPDATE campaigns SET state_json=?, updated_at=? WHERE id=?",
-               (jdumps(state), utcnow(), cid))
-    db.log_event(cid, "omen_played", {"card_id": card_id})
+    db.execute("UPDATE decks SET held_json=?, discard_json=? WHERE campaign_id=? AND deck_id=?",
+               (jdumps(hand), jdumps(discard), cid, _deck_key(ch["id"])))
+    db.log_event(cid, "omen_played", {"card_id": card_id, "character_id": ch["id"]})
     return {"hand": hand, "narration": msg}
 
 
-def reset_omen_draws(cid: str) -> None:
-    state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
-    state["omen_draws_used"] = 0
-    db.execute("UPDATE campaigns SET state_json=? WHERE id=?", (jdumps(state), cid))
+def reset_omen_draws(cid: str, chid: str | None = None) -> None:
+    ch = _resolve_ch(cid, chid)
+    gm_ch_set(ch, "omen_draws_used", 0)
 
 
 # ==========================================================================
-# Push / Resist windows (M2.0 tactical)
+# Push / Resist windows (M2.0 tactical) — per character
 # ==========================================================================
 
-def _set_pending_roll(cid: str, roll: dict, skill: str, context: str) -> None:
-    state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
-    state["pending_roll"] = {
+def _set_pending_roll(cid: str, chid: str, roll: dict, skill: str, context: str) -> None:
+    ch = _resolve_ch(cid, chid)
+    gm_ch_set(ch, "pending_roll", {
         "roll_id": new_id("rol"), "skill": skill, "outcome": roll["outcome"],
         "harm": roll["harm"], "harm_type": roll.get("harm_type") or "nerve",
         "pushed": False, "resisted": False, "context": context[:80],
         "risk": bool(roll.get("risk")),
-    }
-    db.execute("UPDATE campaigns SET state_json=? WHERE id=?", (jdumps(state), cid))
+    })
 
 
-def get_pending_roll(cid: str) -> dict | None:
-    state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
-    return state.get("pending_roll")
+def get_pending_roll(cid: str, chid: str | None = None) -> dict | None:
+    ch = _gm_get_character(cid, chid)
+    if not ch:
+        return None
+    return gm_ch_get(ch, "pending_roll")
 
 
-def _clear_pending(cid: str) -> None:
-    state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
-    state["pending_roll"] = None
-    db.execute("UPDATE campaigns SET state_json=? WHERE id=?", (jdumps(state), cid))
+def _clear_pending(cid: str, chid: str | None = None) -> None:
+    ch = _gm_get_character(cid, chid)
+    if ch:
+        gm_ch_set(ch, "pending_roll", None)
 
 
-def push_roll(cid: str) -> dict:
+def push_roll(cid: str, chid: str | None = None) -> dict:
     """Spend 1 Vigor (floor 1) to bump a failed/partial band one step.
     Once per roll; never on crits; never from clean/surge."""
-    pack = _campaign_pack(cid)
-    pending = get_pending_roll(cid)
+    ch = _resolve_ch(cid, chid)
+    pending = get_pending_roll(cid, ch["id"])
     if not pending:
         raise ValueError("no roll awaits a decision")
     if pending["pushed"]:
@@ -764,34 +792,31 @@ def push_roll(cid: str) -> dict:
     new_outcome = rules.bump_band(pending["outcome"])
     if not new_outcome:
         raise ValueError("that roll cannot be pushed — clean, surge and fates are binding")
-    ch = _gm_char(cid)
     if ch["vigor"] < 2:
         raise ValueError("pushing costs 1 Vigor, and you dare not go below 1")
     ch["vigor"] -= 1
-    from . import gm as _gm
-    _gm._persist_character(ch)
+    _gm_persist(ch)
     old_harm = rules.harm_for(pending["outcome"], pending.get("risk", False))
     new_harm = rules.harm_for(new_outcome, pending.get("risk", False))
     # settle the harm difference (a push can spare you the remainder)
     delta = new_harm - old_harm
     if delta:
         rules.apply_harm(ch, abs(delta), pending["harm_type"])
-        _gm._persist_character(ch)
+        _gm_persist(ch)
     pending.update({"pushed": True, "outcome": new_outcome, "harm": new_harm,
                     "text": f"Pushed: the band rises to {new_outcome} (1 Vigor paid)."})
-    state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
-    state["pending_roll"] = pending
-    db.execute("UPDATE campaigns SET state_json=?, updated_at=? WHERE id=?",
-               (jdumps(state), utcnow(), cid))
-    db.log_event(cid, "roll_pushed", {"outcome": new_outcome, "skill": pending["skill"]})
+    gm_ch_set(ch, "pending_roll", pending)
+    db.log_event(cid, "roll_pushed", {"outcome": new_outcome, "skill": pending["skill"],
+                                      "character_id": ch["id"]})
     remember(cid, "all", "decision", f"Pushed a {pending['skill']} roll to {new_outcome}.")
     return {"pending": pending, "narration": f"You dig deeper — 1 Vigor spent. The outcome rises to {new_outcome}.",
-            "changes": [f"Vigor −1.", f"Outcome: {new_outcome}."], "pack": pack["id"]}
+            "changes": [f"Vigor −1.", f"Outcome: {new_outcome}."], "character_id": ch["id"]}
 
 
-def resist_roll(cid: str) -> dict:
+def resist_roll(cid: str, chid: str | None = None) -> dict:
     """Spend 1 Nerve to halve pending harm (rounds down, 1 -> 0). Once."""
-    pending = get_pending_roll(cid)
+    ch = _resolve_ch(cid, chid)
+    pending = get_pending_roll(cid, ch["id"])
     if not pending:
         raise ValueError("no roll awaits a decision")
     if pending["resisted"]:
@@ -799,12 +824,10 @@ def resist_roll(cid: str) -> dict:
     harm = int(pending.get("harm") or 0)
     if harm <= 0:
         raise ValueError("nothing to resist — you took no harm")
-    ch = _gm_char(cid)
     if ch["nerve"] < 1:
         raise ValueError("not enough Nerve to resist")
     reduced = rules.resist_harm(harm)
     ch["nerve"] -= 1
-    from . import gm as _gm
     # harm was already applied when the roll landed; refund the difference
     refund = harm - reduced
     if refund:
@@ -812,16 +835,14 @@ def resist_roll(cid: str) -> dict:
             ch["nerve"] = min(ch["nerve_max"], ch["nerve"] + refund)
         else:
             ch["vigor"] = min(ch["vigor_max"], ch["vigor"] + refund)
-    _gm._persist_character(ch)
+    _gm_persist(ch)
     pending.update({"resisted": True, "harm": reduced,
                     "text": f"Resisted: harm {harm} → {reduced} (1 Nerve paid)."})
-    state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
-    state["pending_roll"] = pending
-    db.execute("UPDATE campaigns SET state_json=?, updated_at=? WHERE id=?",
-               (jdumps(state), utcnow(), cid))
-    db.log_event(cid, "roll_resisted", {"harm": reduced, "skill": pending["skill"]})
+    gm_ch_set(ch, "pending_roll", pending)
+    db.log_event(cid, "roll_resisted", {"harm": reduced, "skill": pending["skill"],
+                                        "character_id": ch["id"]})
     return {"pending": pending, "narration": f"You brace — 1 Nerve spent. The harm eases to {reduced}.",
-            "changes": [f"Harm {harm} → {reduced}."]}
+            "changes": [f"Harm {harm} → {reduced}."], "character_id": ch["id"]}
 
 
 # ==========================================================================
@@ -1022,7 +1043,7 @@ def weave_echoes(cid: str, pack: dict, echo_ids: list[str]) -> list[str]:
 # Memory Ledger (M2.5 visual journal backend)
 # ==========================================================================
 
-def ledger(cid: str) -> dict:
+def ledger(cid: str, chid: str | None = None) -> dict:
     campaign = db.query_one("SELECT * FROM campaigns WHERE id=? AND status='active'", (cid,))
     if not campaign:
         raise ValueError("campaign not found")
@@ -1051,6 +1072,7 @@ def ledger(cid: str) -> dict:
         "SELECT quest_id, title, status, notes_json FROM quests WHERE campaign_id=? AND status='open'",
         (cid,)
     )]
+    party = party_history(cid)
     return {
         "worlds": worlds,
         "people": people,
@@ -1059,8 +1081,35 @@ def ledger(cid: str) -> dict:
         "memories": [dict(r) for r in memories],
         "endings": endings,
         "echoes": echoes,
-        "beads": int(state.get("beads", 0)),
-        "upgrades": list_upgrades(cid),
+        "beads": get_beads(cid, chid),
+        "upgrades": list_upgrades(cid, chid),
         "open_quests": [{"id": q["quest_id"], "title": q["title"]} for q in open_quests],
         "endings_seen": state.get("endings_seen", []),
+        "party": party,
     }
+
+
+def party_history(cid: str) -> dict:
+    """Shared-shore memories: who sailed together, and what they did."""
+    session = db.query_one("SELECT * FROM mp_sessions WHERE campaign_id=?", (cid,))
+    members = []
+    if session:
+        for r in db.query(
+            "SELECT display_name, character_id, is_host, status, joined_at FROM mp_players"
+            " WHERE campaign_id=? AND status IN ('connected','offline') ORDER BY joined_at",
+            (cid,),
+        ):
+            ch = db.query_one("SELECT name, archetype FROM characters WHERE id=?", (r["character_id"] or "",))
+            members.append({
+                "player": r["display_name"], "host": bool(r["is_host"]),
+                "character": ch["name"] if ch else None,
+                "archetype": ch["archetype"] if ch else None,
+                "status": r["status"],
+            })
+    moments = db.query(
+        "SELECT ts, trigger, summary FROM consequences WHERE campaign_id=?"
+        " AND trigger LIKE 'party:%' ORDER BY rowid DESC LIMIT 20",
+        (cid,),
+    )
+    return {"session": bool(session), "members": members,
+            "moments": [dict(r) for r in reversed(moments)]}
