@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 import secrets
 
-from . import ai, config, continuity, db, director, gen, legacy, library, rules, rules_dnd, worldpacks
+from . import ai, config, continuity, db, director, gen, legacy, library, routing, rules, rules_dnd, worldpacks
 from .db import jdumps, jloads, new_id, utcnow
 
 VALID_SKILLS = ["notice", "lore", "persuade", "fight", "endure", "bind"]
@@ -1117,7 +1117,13 @@ def run_turn(cid: str, action_text: str, chid: str | None = None) -> dict:
                 messages.append({"role": "user", "content": "That was not valid JSON for the contract. Reply again with ONLY the JSON object."})
                 text, callmeta = ai.chat(messages, cfg)
                 contract = ai.extract_json(text)
-            meta.update({"model": callmeta.get("model"), "latency_ms": callmeta.get("latency_ms")})
+            meta.update({
+                "model": callmeta.get("model"),
+                "latency_ms": callmeta.get("latency_ms"),
+                "host": callmeta.get("host") or "",
+                "tier": callmeta.get("tier") or "",
+                "route_note": callmeta.get("route_note") or "",
+            })
             if contract is None or not isinstance(contract.get("narration"), str):
                 meta["fallback_reason"] = "model did not return the JSON contract"
                 contract = None
@@ -1195,6 +1201,7 @@ def run_turn(cid: str, action_text: str, chid: str | None = None) -> dict:
         meta["ai_used"] = True
     else:
         narration = _fallback_narration(pack, campaign, state, action_text)
+    routing.note_narration(bool(meta.get("ai_used")))
 
     # quick suggestions (AI only; the fallback offers none — the scene shows its own)
     choices = []
@@ -1205,6 +1212,8 @@ def run_turn(cid: str, action_text: str, chid: str | None = None) -> dict:
     db.add_transcript(cid, "gm", narration, {"dice": dice, "changes": changes,
                                              "omen": omen, "scene_hint": scene_hint, **meta})
     summary = _trim(narration, 160)
+    if not meta.get("ai_used"):
+        summary = _trim("Offline Storyteller — " + narration, 160)
     db.execute("UPDATE campaigns SET summary=?, state_json=?, updated_at=? WHERE id=?",
                (summary, jdumps(state), utcnow(), cid))
     db.log_event(cid, "turn", {"ai_used": meta["ai_used"], "turn": campaign["turn"]})
@@ -1256,7 +1265,8 @@ def _build_trace(cid: str, action_text: str, ch: dict, dice: dict | None,
         steps.append({"step": "engine_effect", "detail": c[:160]})
     steps.append({
         "step": "narration",
-        "source": ("AI Game Master (" + str(meta.get("model") or "") + ")"
+        "source": (("AI Game Master (" + str(meta.get("model") or "model")
+                     + ((" on " + meta["host"]) if meta.get("host") else "") + ")")
                    if meta.get("ai_used") else "Offline Storyteller (built-in)"),
         "note": "narration never changes rules outcomes — the engine resolved "
                 "the dice and effects above first",

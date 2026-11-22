@@ -10,7 +10,7 @@ import { portraitSVG } from "./portraits.js?v=30";
 import { audio } from "./audio.js?v=30";
 import { attachScanner } from "./qr.js?v=30";
 import { openPanel, openSettings, closeSettings, initPanelChrome,
-         openSeedGate, openTalk, showEchoOffers, openEchoShelf } from "./ui.js?v=30";
+         openSeedGate, openTalk, showEchoOffers, openEchoShelf } from "./ui.js?v=32";
 import * as mpui from "./mp.js?v=30";
 import * as libui from "./library.js?v=30";
 
@@ -496,13 +496,29 @@ window.__refreshAIBadge = refreshAIBadge;
 
 function refreshAIBadge() {
   const cfg = window.__aiCfg || {};
+  const route = window.__route || {};
   const chip = $("hud-ai");
-  if (cfg.enabled && cfg.model) { chip.textContent = `GM: ${cfg.model}`; chip.className = "chip chip-ai ai-on"; }
-  else { chip.textContent = "GM offline storyteller"; chip.className = "chip chip-ai ai-fallback"; }
   const tb = $("title-ai-badge");
-  if (tb) {
-    tb.textContent = cfg.enabled && cfg.model ? `AI Game Master: ${cfg.model}` : "AI Game Master: not configured — offline storyteller active";
+  const offline = () => {
+    chip.textContent = "GM offline storyteller";
+    chip.className = "chip chip-ai ai-fallback";
+    if (tb) tb.textContent = cfg.enabled
+      ? "Offline Storyteller — the last turn was not AI narration"
+      : "AI Game Master: not configured — offline storyteller active";
+  };
+  if (!cfg.enabled || route.fallback || route.narration === "offline") { offline(); return; }
+  const name = route.model || cfg.model;
+  if (!name) { offline(); return; }
+  const host = route.host ? ` @ ${route.host}` : "";
+  if (route.narration !== "ai") {
+    chip.textContent = `GM ready: ${name}${host}`;
+    chip.className = "chip chip-ai ai-on";
+    if (tb) tb.textContent = `Game Master ready: ${name}${host}`;
+    return;
   }
+  chip.textContent = `GM: ${name}${host}`;
+  chip.className = "chip chip-ai ai-on";
+  if (tb) tb.textContent = `AI Game Master: ${name}${host}`;
 }
 
 function renderChoices() {
@@ -546,6 +562,12 @@ async function act(text) {
     const res = await apiSend(`/api/campaigns/${state.view.id}/action`, "POST", { text });
 
     window.__captureTrace?.(res);
+    if (res.meta?.ai_used && res.meta.model) {
+      window.__route = { model: res.meta.model, host: res.meta.host || "", latency_ms: res.meta.latency_ms, fallback: false };
+    } else if (res.meta) {
+      window.__route = { fallback: true };
+    }
+    refreshAIBadge();
     audio.ui();
     lastNarration = res.narration;
     lastSuggestions = res.choices || [];
@@ -819,7 +841,10 @@ async function boot() {
 
   try {
     const health = await apiGet("/api/health");
-    window.__aiCfg = (await apiGet("/api/settings")).ai;
+    const settings = await apiGet("/api/settings");
+    window.__aiCfg = settings.ai;
+    window.__routing = settings.routing || {};
+    window.__route = settings.route || {};
     refreshAIBadge();
     console.info(`Saturday Multiverse ${health.version} — data at ${health.data_dir}`);
   } catch {

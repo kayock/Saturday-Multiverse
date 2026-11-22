@@ -8,6 +8,27 @@ venv/
 # User data (campaigns, backups, exports, QR cards) — never ship or commit
 userdata/
 
+# Model weights and local model caches
+*.gguf
+*.ggml
+models/
+.cache/
+
+# Databases and backups
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+backups/
+
+# Secrets and local environment
+.env
+.env.*
+credentials.json
+secrets.json
+*.pem
+
 # OS / editor noise
 .DS_Store
 Thumbs.db

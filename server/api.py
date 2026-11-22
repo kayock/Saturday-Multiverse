@@ -221,7 +221,10 @@ def get_settings():
             return jsonify({"ai": {"enabled": bool(inner.get("enabled", False)),
                                    "model": str(inner.get("model", ""))},
                             "guest": True})
+    from . import routing
     return jsonify({"ai": ai.masked_ai_config(),
+                    "routing": routing.get_routing(),
+                    "route": routing.last_route(),
                     "host": {"token_required": bool(config.HOST_TOKEN),
                              "bind": f"{config.HOST}:{config.PORT}"}})
 
@@ -235,7 +238,16 @@ def put_settings():
             ai.set_ai_config(body["ai"])
         except (ValueError, TypeError) as exc:
             return _err(exc)
-    return jsonify({"ai": ai.masked_ai_config()})
+    if "routing" in body:
+        from . import routing
+        try:
+            routing.set_routing(body["routing"] or {})
+        except (ValueError, TypeError) as exc:
+            return _err(exc)
+    from . import routing
+    return jsonify({"ai": ai.masked_ai_config(),
+                    "routing": routing.get_routing(),
+                    "route": routing.last_route()})
 
 
 @api.post("/ai/test")
@@ -250,6 +262,14 @@ def ai_test():
     else:
         result = ai.test_connection()
     return jsonify(result)
+
+
+@api.get("/ai/fleet")
+def ai_fleet():
+    """Host-only view of lightweight and advanced endpoints. No secrets."""
+    _forbid_guest_admin()
+    from . import routing
+    return jsonify(routing.fleet_status())
 
 
 # --------------------------------------------------------------------------

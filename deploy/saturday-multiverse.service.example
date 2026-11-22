@@ -1,0 +1,28 @@
+# Example user unit. Copy to ~/.config/systemd/user/saturday-multiverse.service
+# and replace the placeholders. Do not commit a copy that contains real
+# paths, LAN addresses, or model names from a particular house.
+[Unit]
+Description=Saturday Multiverse
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/path/to/Saturday-Multiverse
+ExecStart=/path/to/Saturday-Multiverse/.venv/bin/python -m server.app
+Restart=on-failure
+RestartSec=3
+Environment=PYTHONUNBUFFERED=1
+Environment=SATURDAY_HOST=127.0.0.1
+Environment=SATURDAY_PORT=8788
+Environment=SATURDAY_PRODUCTION=1
+Environment=SATURDAY_DATA_DIR=/path/to/saturday-multiverse-data
+# Optional lightweight Game Master routing. Leave unset for manual mode.
+# Environment=SATURDAY_GM_AUTO=1
+# Environment=SATURDAY_GM_STATION_URL=http://127.0.0.1:11434/v1
+# Environment=SATURDAY_GM_PORTABLE_URL=
+# Environment=SATURDAY_GM_PRIMARY=your-local-model
+# Environment=SATURDAY_GM_FALLBACK=
+
+[Install]
+WantedBy=default.target

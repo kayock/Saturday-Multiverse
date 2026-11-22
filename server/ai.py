@@ -10,11 +10,17 @@ and robust JSON extraction for the Game Master's structured contract.
 from __future__ import annotations
 
 import json
+import re
 import time
 import urllib.error
 import urllib.request
 
 from . import config, db
+
+# Qwen-style reasoning blocks. They are not narration and must not be parsed
+# as the Game Master contract, nor counted as the reply when they never close.
+_THINK_BLOCK = re.compile(r"<think>.*?</think>", re.IGNORECASE | re.DOTALL)
+_THINK_OPEN = re.compile(r"<think>", re.IGNORECASE)
 
 DEFAULT_AI_CONFIG = {
     "enabled": False,
@@ -81,23 +87,49 @@ def chat(messages: list[dict], cfg: dict | None = None) -> tuple[str, dict]:
     Returns (content, meta) where meta carries timing and the model name.
     Raises AiError with a readable explanation on any failure.
     """
-    cfg = cfg or get_ai_config()
+    cfg = dict(cfg or get_ai_config())
     if not cfg.get("enabled"):
         raise AiError("AI Game Master is disabled. Open Settings → Model to enable it.", "config")
+    # Routing may replace the endpoint. Manual mode leaves cfg untouched.
+    # A routing failure keeps the configured endpoint rather than dropping the turn.
+    if not cfg.get("_direct"):
+        from . import routing
+        cfg = routing.apply(cfg, messages)
     if not cfg.get("model"):
         raise AiError("No model name is set. Open Settings → Model.", "config")
 
-    url = cfg["base_url"].rstrip("/") + "/chat/completions"
-    payload = {
-        "model": cfg["model"],
-        "messages": messages,
-        "temperature": float(cfg.get("temperature", 0.8)),
-        "max_tokens": int(cfg.get("max_tokens", 900)),
-        "stream": False,
-    }
+    ollama = ":11434" in cfg.get("base_url", "")
     headers = {"Content-Type": "application/json"}
     if cfg.get("api_key"):
         headers["Authorization"] = f"Bearer {cfg['api_key']}"
+    if ollama:
+        # Native Ollama chat honors think:false. The OpenAI shim on this
+        # Ollama build puts Qwen reasoning in a side field and returns an
+        # empty answer, which burns the whole token budget.
+        root = cfg["base_url"].rstrip("/")
+        if root.endswith("/v1"):
+            root = root[:-3]
+        url = root + "/api/chat"
+        payload = {
+            "model": cfg["model"],
+            "messages": messages,
+            "stream": False,
+            "think": False,
+            "keep_alive": "45m" if cfg.get("_host") == "station" else "8m",
+            "options": {
+                "temperature": float(cfg.get("temperature", 0.8)),
+                "num_predict": int(cfg.get("max_tokens", 900)),
+            },
+        }
+    else:
+        url = cfg["base_url"].rstrip("/") + "/chat/completions"
+        payload = {
+            "model": cfg["model"],
+            "messages": messages,
+            "temperature": float(cfg.get("temperature", 0.8)),
+            "max_tokens": int(cfg.get("max_tokens", 900)),
+            "stream": False,
+        }
 
     started = time.time()
     req = urllib.request.Request(
@@ -125,22 +157,56 @@ def chat(messages: list[dict], cfg: dict | None = None) -> tuple[str, dict]:
     except json.JSONDecodeError as exc:
         raise AiError("Model server returned malformed JSON.", "bad_response") from exc
 
-    try:
-        content = body["choices"][0]["message"]["content"]
-    except (KeyError, IndexError, TypeError) as exc:
-        raise AiError("Model response had no message content.", "bad_response") from exc
+    tokens_per_sec = None
+    if ollama:
+        message = body.get("message") if isinstance(body, dict) else None
+        if not isinstance(message, dict):
+            raise AiError("Model response had no message content.", "bad_response")
+        content = message.get("content")
+        # Reasoning is never treated as narration.
+        usage = {
+            "prompt_tokens": body.get("prompt_eval_count"),
+            "completion_tokens": body.get("eval_count"),
+        }
+        eval_ns = body.get("eval_duration") or 0
+        if body.get("eval_count") and eval_ns:
+            tokens_per_sec = round(body["eval_count"] / (eval_ns / 1e9), 1)
+        reported_model = body.get("model", cfg["model"])
+    else:
+        try:
+            message = body["choices"][0]["message"]
+            content = message.get("content")
+        except (KeyError, IndexError, TypeError) as exc:
+            raise AiError("Model response had no message content.", "bad_response") from exc
+        usage = body.get("usage", {})
+        reported_model = body.get("model", cfg["model"])
+    if not isinstance(content, str):
+        content = "" if content is None else str(content)
 
+    latency_ms = int((time.time() - started) * 1000)
     meta = {
-        "model": body.get("model", cfg["model"]),
-        "latency_ms": int((time.time() - started) * 1000),
-        "usage": body.get("usage", {}),
+        "model": reported_model,
+        "latency_ms": latency_ms,
+        "usage": usage,
+        "tokens_per_sec": tokens_per_sec,
+        "host": cfg.get("_host") or "",
+        "tier": cfg.get("_tier") or "configured",
+        "route_note": cfg.get("_route_note") or "",
     }
+    if cfg.get("_host") or cfg.get("_tier"):
+        from . import routing
+        routing.remember(cfg, latency_ms)
     return content, meta
 
 
 def test_connection(cfg: dict | None = None) -> dict:
-    """Small end-to-end ping used by the model-configuration screen."""
-    cfg = cfg or get_ai_config()
+    """Small end-to-end ping used by the model-configuration screen.
+
+    Always hits the endpoint in the form, never the automatic router, so
+    Test connection checks the URL the operator just typed.
+    """
+    cfg = dict(cfg or get_ai_config())
+    cfg["_direct"] = True
     try:
         content, meta = chat(
             [{"role": "user", "content": "Reply with exactly one word: READY"}], cfg
@@ -163,7 +229,11 @@ def extract_json(text: str) -> dict | None:
     """
     if not text:
         return None
-    cleaned = text.strip()
+    # Drop closed reasoning blocks. An unclosed <think> means the model never
+    # produced an answer — do not scrape a JSON object out of the reasoning.
+    cleaned = _THINK_BLOCK.sub("", text).strip()
+    if _THINK_OPEN.search(cleaned):
+        return None
     if cleaned.startswith("```"):
         # drop the first fence line and the last fence
         lines = cleaned.splitlines()
