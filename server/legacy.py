@@ -286,41 +286,78 @@ SCOPE_MAP = {
 }
 
 
-def remember(cid: str, scope: str, kind: str, text: str) -> None:
-    """Record a durable event into the NPC memory pool (engine-side only)."""
+def remember(cid: str, scope: str, kind: str, text: str) -> str | None:
+    """Record a durable event into the NPC memory pool (engine-side only).
+    Returns the new memory's id so authoritative delivery points can record
+    exactly WHICH memory a character learned (hotfix 4)."""
+    mid = new_id("mem")
     db.execute(
         "INSERT INTO npc_memories (id, campaign_id, npc_id, ts, kind, scope, text)"
         " VALUES (?,?,?,?,?,?,?)",
-        (new_id("mem"), cid, "*", utcnow(), kind[:20], scope[:20], text[:400]),
+        (mid, cid, "*", utcnow(), kind[:20], scope[:20], text[:400]),
     )
+    return mid
 
 
 def _memories_for(cid: str, npc_id: str, limit: int = 8) -> list[dict]:
+    """INTERNAL retrieval: everything this NPC knows within its hearing
+    scopes — including GM-only, hidden and deep records it must never tell.
+    Never returned to a player and never used as conversation context; see
+    _conversation_candidates for what may actually be spoken (hotfix 5)."""
     scopes = SCOPE_MAP.get(npc_id, {"all"})
     placeholders = ",".join("?" * len(scopes))
     rows = db.query(
-        f"SELECT ts, kind, scope, text FROM npc_memories WHERE campaign_id=? "
+        f"SELECT id, ts, kind, scope, text FROM npc_memories WHERE campaign_id=? "
         f"AND scope IN ({placeholders}) ORDER BY rowid DESC LIMIT ?",
         (cid, *scopes, limit),
     )
     return [dict(r) for r in reversed(rows)]
 
 
+def _conversation_candidates(cid: str, npc_id: str, limit: int = 8) -> list[dict]:
+    """What this NPC may actually TALK about (hotfix 5): internal knowledge
+    filtered through the same static player-facing rules the recap and the
+    sharing engine apply — scope whitelist plus kind restrictions. Deep,
+    GM-only, hidden and host records stay internal: the conversation never
+    quotes them, the AI prompt never sees them, and the API never returns
+    them. An NPC knowing a fact does not mean a player learned it."""
+    try:
+        from . import experience as _exp
+        scope_ok = set(_exp.RECAP_MEMORY_SCOPES)
+        kind_blocked = set(_exp.RECAP_MEMORY_KINDS_BLOCKED)
+    except Exception:  # noqa: BLE001 — the whitelist constants always import
+        scope_ok = {"all", "camp", "doors", "tavern"}
+        kind_blocked = {"secret", "hidden", "gm", "host"}
+    out: list[dict] = []
+    for m in _memories_for(cid, npc_id, limit=200):
+        if m["scope"] in scope_ok and m["kind"] not in kind_blocked:
+            out.append(m)
+            if len(out) >= limit:
+                break
+    return out
+
+
 def _gossip_lines(cid: str, pack: dict, npc: dict, topic: str, memories: list[dict],
-                  rel: int, state: dict, consequences: list[str]) -> list[str]:
+                  rel: int, state: dict, consequences: list[str]) -> tuple[list[str], list[str]]:
     """Deterministic gossip lines, grounded in records. The AI may enrich
-    these later; this fallback is the honest floor."""
+    these later; this fallback is the honest floor.
+
+    Returns (lines, disclosed_ids): the exact memories quoted into spoken
+    lines, tracked by construction (the engine built the line FROM the
+    record — no keyword matching), trimmed to the lines that survive."""
     name = npc["name"]
     lines: list[str] = [npc.get("greeting", f"{name} looks up.")]
-    topic_new = [m["text"] for m in memories if m["kind"] in ("event", "ending", "discovery")][:2]
-    topic_mystery = [m["text"] for m in memories if m["kind"] == "mystery"][:1]
+    disclosed: list[tuple[int, str]] = []
+    topic_new = [m for m in memories if m["kind"] in ("event", "ending", "discovery")][:2]
+    topic_mystery = [m for m in memories if m["kind"] == "mystery"][:1]
     rumors = npc.get("rumors", [])
 
     if topic == "rumors" and rumors:
         lines.append(secrets.choice(rumors))
     elif topic == "what's new" and topic_new:
-        for t in topic_new:
-            lines.append(f"\"{t}\" {name} says, like it happened nearer than it did.")
+        for m in topic_new:
+            lines.append(f"\"{m['text']}\" {name} says, like it happened nearer than it did.")
+            disclosed.append((len(lines) - 1, m["id"]))
     elif topic == "the shore":
         drift_row = db.query_one("SELECT drift FROM campaigns WHERE id=?", (cid,))
         lines.append("\"Tide's " + tide_phase(int(drift_row["drift"]))["tide"]
@@ -328,10 +365,12 @@ def _gossip_lines(cid: str, pack: dict, npc: dict, topic: str, memories: list[di
         if consequences:
             lines.append(f"\"{consequences[0]}\"")
     elif topic_mystery:
-        lines.append(f"\"{topic_mystery[0]}\" A shrug. \"That one doesn't close.\"")
+        lines.append(f"\"{topic_mystery[0]['text']}\" A shrug. \"That one doesn't close.\"")
+        disclosed.append((len(lines) - 1, topic_mystery[0]["id"]))
     else:
         if memories:
             lines.append(f"\"{memories[-1]['text']}\"")
+            disclosed.append((len(lines) - 1, memories[-1]["id"]))
         elif rumors:
             lines.append(secrets.choice(rumors))
         else:
@@ -343,11 +382,25 @@ def _gossip_lines(cid: str, pack: dict, npc: dict, topic: str, memories: list[di
         lines.append("A pause that is not quite friendly.")
     if state.get("gull_friend") and npc.get("id") == "old_cardo":
         lines.append("\"Your gull told me you were coming. Thing's useful.\"")
-    return lines[:6]
+    kept = lines[:6]
+    return kept, [mid for idx, mid in disclosed if idx < len(kept)]
 
 
-def talk(cid: str, npc_id: str, topic: str = "the shore") -> dict:
-    """Talk to a shore NPC. Grounded in npc_memories + records; AI enriches."""
+def talk(cid: str, npc_id: str, topic: str = "the shore",
+         chid: str | None = None) -> dict:
+    """Talk to a shore NPC. Grounded in records; AI enriches.
+
+    Hotfix 5 — internal knowledge is separated from revealed information:
+    the conversation is built from PERMITTED CANDIDATES only (never the
+    NPC's GM-only/hidden/deep internal records), and only memories the
+    conversation ACTUALLY SPEAKS are disclosed — recorded as learned by the
+    talking character (specific ids in char_knowledge) and returned in the
+    response's `memories` field. Model context sees only permitted
+    candidates; a model may declare `disclosed_ids` which are validated
+    against those candidates (restricted or unknown ids are dropped, and no
+    declaration means nothing was learned). A multiplayer caller passes the
+    authenticated player's own character id; a None teller (spectator)
+    learns nothing."""
     campaign = db.query_one("SELECT * FROM campaigns WHERE id=? AND status='active'", (cid,))
     if not campaign:
         raise ValueError("campaign not found")
@@ -362,22 +415,27 @@ def talk(cid: str, npc_id: str, topic: str = "the shore") -> dict:
     row = db.query_one("SELECT data_json FROM npcs WHERE campaign_id=? AND npc_id=?", (cid, npc_id))
     rel = jloads(row["data_json"], {}).get("rel", 0) if row else 0
     state = jloads(campaign["state_json"], {})
-    memories = _memories_for(cid, npc_id)
+    # permitted conversation candidates — NOT the NPC's internal knowledge
+    memories = _conversation_candidates(cid, npc_id)
     cons = [c["summary"] for c in recent_consequences(cid, 3)]
-    lines = _gossip_lines(cid, pack, npc, (topic or "the shore").lower(), memories, rel, state, cons)
+    lines, disclosed = _gossip_lines(cid, pack, npc, (topic or "the shore").lower(),
+                                     memories, rel, state, cons)
 
     meta = {"ai_used": False}
     if ai.get_ai_config().get("enabled"):
         try:
             ch = _gm_char(cid)
             sys_p = _gm_style_system(pack, ch, campaign, state, 120)
-            mem_text = " | ".join(f"[{m['kind']}] {m['text']}" for m in memories) or "none"
+            mem_text = " | ".join(f"[{m['id']}|{m['kind']}] {m['text']}"
+                                  for m in memories) or "none"
             user_p = (
                 f"You are {npc['name']} ({npc.get('role', '')}). Personality: {_trim(npc.get('desc', ''), 200)}. "
                 f"The player asks about: {topic}. Ground each line in these records, stay in character, 2-4 short spoken lines:\n"
                 f"RECORDS: {mem_text}\n"
                 f"DETERMINISTIC DRAFT (you may polish, never contradict): {json_dumps_lines(lines)}\n"
-                f"Respond ONLY with the JSON contract; put the spoken lines in npc_lines."
+                f"Respond ONLY with the JSON contract; put the spoken lines in npc_lines and "
+                f"the RECORDS ids you actually told the player about in disclosed_ids "
+                f"(only ids from RECORDS; omit or leave empty when you invented new content)."
             )
             text, _m = ai.chat([{"role": "system", "content": sys_p},
                                 {"role": "user", "content": user_p}], ai.get_ai_config())
@@ -387,15 +445,42 @@ def talk(cid: str, npc_id: str, topic: str = "the shore") -> dict:
                 lines = [str(l.get("line", l))[:240] if isinstance(l, dict) else str(l)[:240]
                          for l in got][:5]
                 meta = {"ai_used": True, "model": _m.get("model")}
+                # validated disclosure: the model may only declare permitted
+                # candidate ids — anything restricted, unknown or forged is
+                # dropped; no declaration means nothing was learned
+                cand_ids = {m["id"] for m in memories}
+                declared = data.get("disclosed_ids") if isinstance(data, dict) else None
+                if isinstance(declared, list):
+                    disclosed = [i for i in declared
+                                 if isinstance(i, str) and i in cand_ids]
+                else:
+                    disclosed = []
         except ai.AiError:
             pass
 
     db.add_transcript(cid, "player", f"[talked to {npc['name']} about {topic}]")
     db.add_transcript(cid, "gm", "\n".join(lines), {"npc_id": npc_id, "topic": topic, **meta})
     _npc_meet(cid, npc_id, npc["name"])
-    db.log_event(cid, "npc_talk", {"npc_id": npc_id, "topic": topic})
+    db.log_event(cid, "npc_talk", {"npc_id": npc_id, "topic": topic,
+                                   "disclosed": disclosed})
+    # only what the conversation actually revealed becomes the talking
+    # character's knowledge. The CALLER resolves who that is (the
+    # authenticated player's own character, or the campaign's character for
+    # a solo session) — a None teller (spectator) learns nothing (hotfix 4).
+    if chid and disclosed:
+        try:
+            from . import experience as _exp
+            for mid in disclosed:
+                _exp.note_memory(cid, chid, mid)
+        except Exception:  # noqa: BLE001 — knowledge bookkeeping never breaks a talk
+            pass
+    # the response carries only the memories genuinely disclosed in THIS
+    # conversation — never the NPC's internal collection (hotfix 5)
+    disclosed_set = set(disclosed)
     return {"npc": {"id": npc_id, "name": npc["name"], "role": npc.get("role", ""), "rel": rel},
-            "lines": lines, "memories": memories, "meta": meta}
+            "lines": lines,
+            "memories": [m for m in memories if m["id"] in disclosed_set],
+            "meta": meta}
 
 
 def _npc_meet(cid: str, npc_id: str, name: str) -> None:

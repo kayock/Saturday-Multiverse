@@ -251,6 +251,7 @@
         <button class="btn btn-small" data-panel="dice">Dice</button>
         <button class="btn btn-small" data-panel="combat" id="nav-combat" hidden>Combat</button>
         <button class="btn btn-small" data-panel="director">Director</button>
+        <button class="btn btn-small" data-panel="trace">Trace</button>
         <button class="btn btn-small" data-panel="shore">Shore</button>
         <button class="btn btn-small" data-panel="party" id="nav-party">Party</button>
         <button class="btn btn-small" id="nav-chat">Chat</button>
@@ -265,6 +266,11 @@
         <button id="tp-yes" class="btn btn-small btn-primary">Step through with them</button>
         <button id="tp-no" class="btn btn-small btn-ghost">Not this time</button>
       </div>
+      <div id="recap-banner" class="omen-card" hidden>
+        <div class="dock-hint">The shore remembers</div>
+        <div id="recap-items"></div>
+        <button id="recap-dismiss" class="btn btn-small btn-ghost">Dismiss — until something else changes</button>
+      </div>
       <div id="dock-omen" class="omen-card" hidden></div>
       <div id="dock-wash" class="wash-strip" hidden>
         <span id="dock-wash-label"></span>
@@ -275,7 +281,7 @@
         <span id="dock-scene-hint" class="dock-hint"></span>
         <span id="dock-talk" class="dock-talk"></span>
       </div>
-      <div id="dock-narration" class="dock-narration">…</div>
+      <div id="dock-narration" class="dock-narration" aria-live="polite">…</div>
       <div id="dock-dice" class="dock-dice" hidden></div>
       <div id="dock-changes" class="dock-changes"></div>
       <div id="dock-choices" class="dock-choices"></div>

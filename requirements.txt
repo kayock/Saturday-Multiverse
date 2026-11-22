@@ -1,3 +1,4 @@
 flask>=3.0
 waitress>=3.0  # optional production WSGI server (SATURDAY_PRODUCTION=1)
 pypdf>=5.0   # optional: PDF import for the Infinite Library
+# cryptography>=3.4  # optional: only needed for scripts/cert_setup.py (HTTPS certificate generation)

@@ -12,3 +12,8 @@ userdata/
 .DS_Store
 Thumbs.db
 *.log
+
+# local HTTPS certificates live in the user data directory only
+userdata/certs/
+*.key
+!docs/**/*.key

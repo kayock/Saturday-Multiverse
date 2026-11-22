@@ -61,6 +61,61 @@ pending roll windows (Push/Resist), death. Hidden GM facts are never
 broadcast — they stay in the host's database and are used only inside the
 GM's prompt.
 
+## Explicit campfire knowledge sharing (v0.4.0-hotfix3/4)
+
+Telling a campfire story shares **nothing by itself** — your tale is
+player-authored flavor, never a knowledge grant. When you actually want to
+spread information, the campfire form lists what YOUR character may share
+(their visited places, discoveries, and the specific rumors the engine has
+recorded them learning) and you tick exactly the items to give the party:
+
+- **The picker is authorized (hotfix 4).** On a campaign with an active
+  multiplayer session a valid player token is required: missing, invalid,
+  banned, removed or wrong-campaign tokens receive **403** with no
+  character-owned knowledge, and never fall back to the campaign's main
+  character. Solo campaigns need no token — the campaign's actual session
+  state decides, never a caught authentication failure. Spectators receive
+  an empty picker (they hold no character).
+- **Knowledge is per specific memory (hotfix 4/5).** A hearing scope
+  (`kind='heard', ref='tavern'`) is evidence of a past interaction, not
+  proof of knowing every present and future rumor there. The engine records
+  which exact memories a character learned at authoritative delivery points
+  — an NPC conversation that actually speaks them, their own arrival tale,
+  a visitor tale told at their rest, or a party member sharing it at the
+  fire. Only those memories (plus public `all`-scoped world news) appear in
+  the picker and may be shared. Leave the tavern and the later rumors are
+  not yours to tell; return and hear them, and they become shareable — in
+  the picker AND in the returning-player recap, which since hotfix 5 uses
+  the same specific-memory rule (a past visit never discloses later
+  rumors). NPC conversations carry only what the NPC actually said: their
+  internal GM-only, hidden and deep records never enter dialogue, AI
+  prompts, responses, transcripts or events, and are never recorded as
+  learned. Scripted mysteries reveal through explicit engine-authorized
+  story events (`experience.reveal_memory`).
+- **The engine validates every selection server-side.** You can only share
+  what your character genuinely holds; another character's discovery, a
+  GM-only secret, a forged or cross-campaign memory id, or a memory you
+  never heard is refused with a reason and granted to no one — even when a
+  modified client submits the id directly, bypassing the picker.
+- **A hearing scope is never granted.** You share one specific rumor, not
+  "everything the tavern says": rumors recorded at that place LATER stay
+  private until someone hears them in person or shares them explicitly.
+- **What was already recorded at share time stays readable** to the party;
+  future discoveries and future rumors do not flow automatically.
+- **Every grant is auditable** (the `knowledge_shares` table: what, by
+  whom, when, from which story) and idempotent — retries never duplicate a
+  grant. Shared knowledge survives disconnects and application restarts.
+- **Spectators** follow the shared feed: explicitly shared items reach
+  them; private discoveries and unshared place gossip never do.
+- **Old saves migrate conservatively** (see `docs/MIGRATION.md`):
+  historical blanket shares stay readable but no longer authorize memories
+  created after they were made.
+
+API surface: `GET /campaigns/<cid>/campfire/shareable` (the picker, per
+teller) and `POST /campaigns/<cid>/campfire` with an optional `share` array
+of place refs and/or memory ids; the response reports `share.shared` and
+`share.rejected` with reasons.
+
 ## Traveling together
 
 One player proposes a door (click it). Everyone sees the proposal; the
@@ -153,3 +208,36 @@ An in-process daemon thread (no extra service) sweeps every 15 seconds:
 expired structured-mode turns auto-advance with a visible system line, and
 idle combat turns are auto-defended. Sweeps are idempotent, timestamp-driven
 and therefore safe across restarts.
+
+
+## Per-player recaps and dismissal (v0.4.0-hotfix2)
+
+- **Your recap is yours.** What your character has visited, discovered and
+  heard in person drives what the recap shows. A tavern tale reaches only
+  characters who were in the tavern — or those it was shared with.
+- **Sharing happens at the campfire.** Posting a story shares the teller's
+  knowledge with the whole party (spectators included). Nothing else grants
+  another player's discoveries.
+- **Dismissal is per player.** `POST /api/campaigns/<cid>/recap/dismiss`
+  records only YOUR last-seen markers; other players' unseen events stay
+  unseen. Markers live in SQLite (`recap_seen`) and survive disconnects,
+  application restarts and save/restore.
+- **Legacy saves migrate conservatively**: every existing viewer starts from
+  the old shared marker (per-player history never existed), new events after
+  that marker appear, and nothing is fabricated or replayed.
+
+## LAN and HTTPS (v0.4.0-hotfix1)
+
+- Hosting on the LAN: run with `SATURDAY_HOST=0.0.0.0` and share
+  `http://<lan-ip>:8788/?join=<invite token>`. Invitation links are built by
+  the browser from its own address (`location.origin`), so an HTTPS host
+  automatically produces `https://…` links.
+- Personal expedition goals are owned by their creator: other guests cannot
+  progress or abandon them (the host may manage any goal). Party goals stay
+  open to every member. Verified goal progress only comes from engine events
+  — manual progress is recorded as player-authored.
+- The returning-player recap is player-aware when a session token is
+  presented, and never contains deep-scoped NPC knowledge or split-party
+  narration (those remain behind the usual visibility filters).
+- Over HTTPS, SSE streams and reconnection behave identically; see
+  docs/DEPLOYMENT.md for certificate setup and client trust steps.

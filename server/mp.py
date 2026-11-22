@@ -116,30 +116,53 @@ def emit(cid: str, etype: str, actor: str | None, data: dict | None = None,
     return int(row["s"]) if row else 0
 
 
-def events_since(cid: str, last_seq: int, player: dict | None = None) -> list[dict]:
-    """Replay events this player is permitted to see, in order."""
-    rows = db.query(
-        "SELECT seq, ts, type, actor, visibility, data_json FROM mp_events"
-        " WHERE campaign_id=? AND seq>? ORDER BY seq LIMIT 500",
-        (cid, max(0, int(last_seq))),
+REPLAY_PAGE = 500          # visible events returned per replay call
+REPLAY_SCAN_CAP = 20000    # rows scanned per call — the cursor always advances
+
+
+def _event_allowed(r, player, my_loc) -> bool:
+    vis = r["visibility"]
+    return (
+        vis == "party"
+        or (player and vis == f"player:{player['id']}")
+        or (player and bool(player["is_host"]) and vis == "host")
+        or (my_loc and vis == f"loc:{my_loc}")
     )
+
+
+def events_since_page(cid: str, last_seq: int, player: dict | None = None) -> dict:
+    """Visibility-filtered replay that CANNOT starve: the scan cursor advances
+    through invisible events too (bounded pagination), so a wall of private
+    events can never hide a later public event. Returns the visible events and
+    the scan position the client may safely resume from."""
     my_loc = char_location(cid, player) if player else None
     out = []
-    for r in rows:
-        vis = r["visibility"]
-        allowed = (
-            vis == "party"
-            or (player and vis == f"player:{player['id']}")
-            or (player and bool(player["is_host"]) and vis == "host")
-            or (my_loc and vis == f"loc:{my_loc}")
+    cursor = max(0, int(last_seq))
+    scanned = 0
+    while scanned < REPLAY_SCAN_CAP and len(out) < REPLAY_PAGE:
+        rows = db.query(
+            "SELECT seq, ts, type, actor, visibility, data_json FROM mp_events"
+            " WHERE campaign_id=? AND seq>? ORDER BY seq LIMIT 500",
+            (cid, cursor),
         )
-        if not allowed:
-            continue
-        out.append({
-            "seq": r["seq"], "ts": r["ts"], "type": r["type"], "actor": r["actor"],
-            "data": jloads(r["data_json"], {}),
-        })
-    return out
+        if not rows:
+            break
+        for r in rows:
+            cursor = max(cursor, r["seq"])
+            scanned += 1
+            if _event_allowed(r, player, my_loc):
+                out.append({
+                    "seq": r["seq"], "ts": r["ts"], "type": r["type"],
+                    "actor": r["actor"], "data": jloads(r["data_json"], {}),
+                })
+                if len(out) >= REPLAY_PAGE:
+                    break
+    return {"events": out, "cursor": cursor, "latest": latest_seq(cid)}
+
+
+def events_since(cid: str, last_seq: int, player: dict | None = None) -> list[dict]:
+    """Replay events this player is permitted to see, in order (starvation-proof)."""
+    return events_since_page(cid, last_seq, player)["events"]
 
 
 def latest_seq(cid: str) -> int:
@@ -401,6 +424,11 @@ def set_location(cid: str, player: dict, location_id: str) -> dict:
     if location_id == (camp_loc["location_id"] if camp_loc else None):
         return regroup(cid, player)
     db.execute("UPDATE characters SET location_id=? WHERE id=?", (location_id, chid))
+    try:
+        from . import experience as _exp
+        _exp.note_visit(cid, chid, location_id)
+    except Exception:
+        pass
     name = player["display_name"]
     emit(cid, "system", player["id"],
          {"text": f"{name} slips away toward {location_id}."},

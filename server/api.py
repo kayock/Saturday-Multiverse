@@ -12,10 +12,13 @@ import base64
 import time
 from collections import defaultdict, deque
 
+import os
+from pathlib import Path
+
 from flask import Blueprint, Response, jsonify, request
 
 from .db import jdumps, jloads, new_id, utcnow
-from . import ai, config, continuity, db, director, forge, gen, gm, legacy, library, mp, qr, rules_dnd, combat, worldpacks
+from . import ai, config, continuity, db, experience, director, forge, gen, gm, legacy, library, mp, qr, rules_dnd, combat, worldpacks
 
 api = Blueprint("api", __name__, url_prefix="/api")
 
@@ -170,8 +173,39 @@ def _forbid_guest_admin():
 @api.get("/health")
 def health():
     db.init_db()
-    return jsonify({"ok": True, "name": config.APP_NAME, "version": config.APP_VERSION,
-                    "data_dir": str(config.DATA_DIR)})
+    import os as _os
+    payload = {"ok": True, "name": config.APP_NAME, "version": config.APP_VERSION,
+               "data_dir": str(config.DATA_DIR),
+               "schema": config.SCHEMA_VERSION,
+               "fts5": db.fts_available(),
+               "fts_warning": db.fts_warning(),
+               "data_dir_writable": _os.access(config.DATA_DIR, _os.W_OK)
+               if config.DATA_DIR.exists() else False,
+               "ai_configured": bool(ai.get_ai_config().get("enabled"))}
+    # truthful listener reporting: the advertised protocol always matches
+    # what actually serves this port (direct TLS vs plain HTTP + proxy)
+    try:
+        from .app import startup_plan
+        plan = startup_plan()
+    except Exception:  # noqa: BLE001
+        plan = {"mode": "off", "listener": "http"}
+    payload["listener"] = plan.get("listener", "http")
+    tls_requested = _os.environ.get("SATURDAY_TLS", "").strip() in ("1", "true", "yes")
+    payload["tls"] = {"requested": tls_requested, "mode": plan.get("mode", "off")}
+    if plan.get("mode") in ("direct", "proxy"):
+        # certificate health for the operator; no paths with secrets, no keys
+        try:
+            from . import tls as _tls
+            user_cert = _os.environ.get("SATURDAY_TLS_CERT", "").strip()
+            cert_path = Path(user_cert) if user_cert else _tls.SERVER_CERT
+            report = _tls.diagnose(cert_path)
+            payload["tls"].update({"days_left": report.get("days_left"),
+                                   "certificate_ok": bool(report.get("ok")),
+                                   "problems": report.get("problems", [])})
+        except Exception as exc:  # noqa: BLE001
+            payload["tls"].update({"certificate_ok": False,
+                                   "problems": [str(exc)[:120]]})
+    return jsonify(payload)
 
 
 @api.get("/settings")
@@ -398,9 +432,18 @@ def styles_list():
 def campaign_talk(cid):
     body = request.get_json(silent=True) or {}
     try:
-        player, _chid = _mp_resolve(cid)
+        player, chid = _mp_resolve(cid)
+        if not player:
+            # no multiplayer session exists: a legitimate solo request — the
+            # teller is the campaign's own character (hotfix 4: this fallback
+            # is decided by session state, never by an auth failure)
+            chid = experience.teller_character(cid, None)
         with _mp_locked(cid):
-            res = legacy.talk(cid, body.get("npc_id", ""), body.get("topic", "the shore"))
+            # hotfix 4: the authenticated player's own character hears this
+            # conversation; a spectator carries no character and learns none
+            # of it
+            res = legacy.talk(cid, body.get("npc_id", ""), body.get("topic", "the shore"),
+                              chid=chid)
             if player:
                 mp.emit(cid, "system", "system",
                         {"text": f"{player['display_name']} speaks with {res['npc']['name']}."})
@@ -919,8 +962,9 @@ def mp_events_replay(cid):
     try:
         player = _mp_auth(cid)
         since = int(request.args.get("last_seq", 0) or 0)
-        return jsonify({"events": mp.events_since(cid, since, player),
-                        "latest_seq": mp.latest_seq(cid)})
+        page = mp.events_since_page(cid, since, player)
+        return jsonify({"events": page["events"], "cursor": page["cursor"],
+                        "latest_seq": page["latest"]})
     except (ValueError, mp.MpDenied) as exc:
         return _err(exc)
 
@@ -1248,6 +1292,11 @@ def combat_act(cid):
         player, chid = _mp_resolve(cid)
         mp.require_player(player)
         if not chid:
+            # solo voyage: the campaign's own character acts (the same engine,
+            # the same validation; a multiplayer session keeps token ownership)
+            ch = gm.get_character(cid)
+            chid = ch["id"] if ch else None
+        if not chid:
             raise mp.MpDenied("you have no character in this fight")
         if body.get("chid") and body["chid"] != chid:
             raise mp.MpDenied("you may act only for your own character")
@@ -1376,10 +1425,11 @@ def forge_job_retry(job_id):
 
 @api.post("/forge/jobs/<job_id>/run")
 def forge_job_run(job_id):
-    """Run/resume a job synchronously (the worker thread also claims queued jobs)."""
+    """Run/resume a job synchronously under a manual lease (the watchdog uses
+    the same claim path, so two workers can never share one job)."""
     _forbid_guest_admin()
     try:
-        return jsonify(forge.run_job(job_id))
+        return jsonify(forge.run_job(job_id, worker="manual"))
     except (ValueError, forge.JobError) as exc:
         return _err(exc)
 
@@ -1641,4 +1691,192 @@ def forge_collab_approve(draft_id):
             _forbid_guest_admin()
         return jsonify(forge.collab_approve(draft_id, actor_id))
     except (ValueError, forge.ForgeError, mp.MpDenied, mp.MpError) as exc:
+        return _err(exc)
+
+
+# --------------------------------------------------------------------------
+# v0.4.0 — The Living Worlds: recaps, Engine Trace, goals, campfire, timelines
+# --------------------------------------------------------------------------
+
+@api.get("/campaigns/<cid>/recap")
+def recap_view(cid):
+    """Player-aware recap: when a multiplayer session is active, the token
+    scopes what this specific traveler may see; solo voyages pass through."""
+    try:
+        player, _chid = _mp_resolve(cid)
+        return jsonify(experience.recap(cid, player=player))
+    except ValueError as exc:
+        return _err(exc, 404)
+
+
+@api.post("/campaigns/<cid>/recap/dismiss")
+def recap_dismiss(cid):
+    """Per-player dismissal: resolves the multiplayer identity (solo voyages
+    use the 'local' viewer) and records THIS viewer's last-seen marker only."""
+    try:
+        player, _chid = _mp_resolve(cid)
+        return jsonify(experience.dismiss_recap(cid, player=player))
+    except ValueError as exc:
+        return _err(exc, 404)
+
+
+@api.get("/campaigns/<cid>/goals")
+def goals_list(cid):
+    return jsonify({"goals": experience.list_goals(cid)})
+
+
+@api.post("/campaigns/<cid>/goals")
+def goals_create(cid):
+    body = _mp_body()
+    try:
+        player, _chid = _mp_resolve(cid)
+        pid = player["id"] if player else "local"
+        # a multiplayer guest may only create personal goals owned by
+        # themselves; party goals and forged ownership are refused
+        scope = body.get("scope", "party")
+        if player and scope == "personal" and body.get("owner_player_id")                 and body["owner_player_id"] != player["id"]:
+            raise mp.MpDenied("you cannot set another traveler as the owner")
+        if player and scope == "personal" and not body.get("owner_player_id"):
+            body = dict(body, owner_player_id=player["id"])
+        return jsonify(experience.create_goal(
+            cid, body.get("title", ""), body.get("target", 3),
+            scope, pid, body.get("detail", "")))
+    except ValueError as exc:
+        return _err(exc)
+
+
+@api.post("/campaigns/<cid>/goals/<goal_id>/progress")
+def goals_progress(cid, goal_id):
+    """Voluntary player-authored progress. This endpoint can never produce
+    engine-verified progress (no `verified` switch is exposed to clients);
+    verified achievements come only from engine events."""
+    body = _mp_body()
+    try:
+        delta = int(body.get("delta", 1))
+    except (TypeError, ValueError):
+        return _err(ValueError("delta must be an integer"))
+    try:
+        experience.goal_view_scoped(cid, goal_id)
+    except ValueError as exc:
+        return _err(exc, 404)
+    try:
+        player, _chid = _mp_resolve(cid)
+        return jsonify(experience.goal_progress(cid, goal_id, delta,
+                                                body.get("reason", "player progress"),
+                                                verified=False, player=player))
+    except (ValueError, mp.MpDenied) as exc:
+        return _err(exc)
+
+
+@api.post("/campaigns/<cid>/goals/<goal_id>/abandon")
+def goals_abandon(cid, goal_id):
+    try:
+        experience.goal_view_scoped(cid, goal_id)
+    except ValueError as exc:
+        return _err(exc, 404)
+    try:
+        player, _chid = _mp_resolve(cid)
+        return jsonify(experience.abandon_goal(cid, goal_id, player=player))
+    except (ValueError, mp.MpDenied) as exc:
+        return _err(exc)
+
+
+@api.get("/campaigns/<cid>/campfire")
+def campfire_list(cid):
+    return jsonify({"stories": experience.list_stories(cid)})
+
+
+@api.get("/campaigns/<cid>/campfire/shareable")
+def campfire_shareable(cid):
+    """What the requesting teller may explicitly share at the fire: their own
+    places and specific eligible memories (empty for spectators).
+
+    Hotfix 4: failed multiplayer authorization is NEVER treated as "solo".
+    When an active session exists, a valid player token is required
+    (`_mp_resolve` → `mp.auth` raises → 403, with no character-owned
+    knowledge in the response); the solo fallback to the campaign's own
+    character is reached only when NO multiplayer session exists."""
+    try:
+        player, _chid = _mp_resolve(cid)
+    except mp.MpDenied as exc:
+        return _err(exc, 403)
+    except ValueError as exc:  # includes mp.MpError
+        return _err(exc)
+    try:
+        teller = player["character_id"] if player \
+            else experience.teller_character(cid, None)
+        return jsonify(experience.shareable_knowledge(cid, teller))
+    except ValueError as exc:
+        return _err(exc, 404)
+
+
+@api.post("/campaigns/<cid>/campfire")
+def campfire_add(cid):
+    body = _mp_body()
+    try:
+        player, _chid = _mp_resolve(cid)
+        pid = player["id"] if player else "local"
+        pname = player["display_name"] if player else "the local player"
+        return jsonify(experience.add_story(cid, pid, pname, body.get("kind", "story"),
+                                            body.get("text", ""),
+                                            body.get("related_event_seq"),
+                                            share_refs=body.get("share")))
+    except ValueError as exc:
+        return _err(exc)
+
+
+@api.post("/campaigns/<cid>/timelines")
+def timeline_branch(cid):
+    body = _mp_body()
+    try:
+        player, _chid = _mp_resolve(cid)
+        return jsonify(experience.branch_campaign(
+            cid, body.get("checkpoint_id"), body.get("name", "Alternate Timeline"),
+            player["id"] if player else "local"))
+    except ValueError as exc:
+        return _err(exc, 404)
+
+
+@api.get("/campaigns/<cid>/timelines")
+def timeline_list(cid):
+    return jsonify({"branches": experience.list_branches(cid)})
+
+
+@api.get("/campaigns/<cid>/timelines/compare/<other_cid>")
+def timeline_compare(cid, other_cid):
+    try:
+        return jsonify(experience.compare_timelines(cid, other_cid))
+    except ValueError as exc:
+        return _err(exc, 404)
+
+
+@api.post("/forge/collab/<draft_id>/playtest")
+def workshop_playtest(draft_id):
+    """Launch a draft world into an isolated playtest portal — a real campaign
+    from the draft pack; approved worlds and real saves are untouched."""
+    _forbid_guest_admin()
+    body = _mp_body()
+    try:
+        return jsonify(forge.start_playtest(draft_id, body.get("name", "")))
+    except (ValueError, forge.ForgeError) as exc:
+        return _err(exc)
+
+
+@api.post("/forge/collab/<draft_id>/playtest/stop")
+def workshop_playtest_stop(draft_id):
+    _forbid_guest_admin()
+    body = _mp_body()
+    try:
+        return jsonify(forge.stop_playtest(draft_id, body.get("campaign_id", "")))
+    except (ValueError, forge.ForgeError) as exc:
+        return _err(exc)
+
+
+@api.get("/forge/collab/<draft_id>/playtest/report")
+def workshop_playtest_report(draft_id):
+    _forbid_guest_admin()
+    body = request.get_json(silent=True) or {}
+    try:
+        return jsonify(forge.playtest_report(draft_id, body.get("campaign_id", "")))
+    except (ValueError, forge.ForgeError) as exc:
         return _err(exc)

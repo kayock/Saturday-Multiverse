@@ -18,11 +18,12 @@ export function openPanel(name) {
     quests: "Quests & Mysteries", dice: "Dice Log", character: "Character",
     ledger: "The Memory Ledger", omens: "The Omen Deck", shore: "The Growing Shore",
     worlds: "Known Worlds", party: "The Party", combat: "Combat",
-    director: "The Living Director" }[name] || "Panel";
+    director: "The Living Director", trace: "Engine Trace" }[name] || "Panel";
   panelBody.innerHTML = { map: panelMap, journal: panelJournal, inventory: panelInventory,
     quests: panelQuests, dice: panelDice, character: panelCharacter,
     ledger: panelLedger, omens: panelOmens, shore: panelShore, worlds: panelWorlds,
-    party: panelParty, combat: panelCombat, director: panelDirector }[name]?.() || "";
+    party: panelParty, combat: panelCombat, director: panelDirector, trace: panelTrace
+  }[name]?.() || "";
   wirePanel(name);
   root.hidden = false;
   audio.ui();
@@ -39,6 +40,8 @@ export function openPanel(name) {
   }
   if (name === "combat") refreshCombatPanel();
   if (name === "director") refreshDirectorPanel();
+  if (name === "trace") refreshTracePanel();
+  if (name === "ledger") { refreshGoalsPanel(); refreshCampfirePanel(); refreshTimelinePanel(); }
   if (name === "party") refreshPartySplit?.();
 }
 
@@ -391,7 +394,10 @@ function panelLedger() {
   return `<div id="ledger-body"><div class="fact-line">Opening the ledger…</div></div>
     <div class="sect"><h4>Checkpoints</h4>
       <div class="setting-row"><button class="btn btn-small" data-cp-save="1">Save a checkpoint</button></div>
-      <div id="checkpoint-body"><div class="fact-line">…</div></div></div>`;
+      <div id="checkpoint-body"><div class="fact-line">…</div></div></div>
+    <div class="sect"><h4>Expedition goals</h4><div id="goals-body"><div class="fact-line">…</div></div></div>
+    <div class="sect"><h4>Campfire stories</h4><div id="campfire-body"><div class="fact-line">…</div></div></div>
+    <div class="sect"><h4>What-If timelines</h4><div id="timeline-body"><div class="fact-line">…</div></div></div>`;
 }
 
 function ledgerHTML(led) {
@@ -1021,6 +1027,18 @@ export async function refreshCombatPanel() {
     const enc = res.encounter;
     if (!enc) { body.innerHTML = "<div class='fact-line'>The field is quiet — no encounter runs.</div>"; return; }
     const me = enc.players.find((p) => p.is_me);
+    // initiative order with the active turn highlighted (server state only)
+    const orderRows = (enc.order || []).map((o, i) => `
+      <div class="fact-line ${o === enc.turn ? "current-turn" : ""}">
+        ${o === enc.turn ? "▶ " : "&nbsp;&nbsp;"} ${i + 1}. ${esc(o.name || "")}
+        ${o.kind === "monster" ? "<span class='lc-kind'>foe</span>" : ""}</div>`).join("");
+    const slotsRow = Object.entries(enc.slots || {}).length
+      ? `<div class="fact-line">spell slots: ${Object.entries(enc.slots)
+          .map(([k, v]) => `${k}:${v}`).join(" · ")}</div>` : "";
+    const concRow = enc.concentration
+      ? `<div class="fact-line">concentrating: ${esc(enc.concentration.spell)}</div>` : "";
+    const timeoutRow = enc.turn && enc.turn.kind === "player" && !enc.my_turn
+      ? `<div class="fact-line" style="color:var(--dim)">waiting on ${esc(enc.turn.name)} — idle turns are auto-defended by the server</div>` : "";
     const hpBar = (hp, max) => `<span class="bar bar-vigor" style="width:90px"><i style="width:${max ? Math.max(0, Math.min(100, hp / max * 100)) : 0}%"></i></span>`;
     const players = enc.players.map((p) => `
       <div class="fact-line"><strong>${esc(p.name)}${p.is_me ? " (you)" : ""}</strong> — ♥${p.hp}/${p.hp_max}
@@ -1049,6 +1067,8 @@ export async function refreshCombatPanel() {
       </div>` : `<div class="fact-line">${enc.status === "complete" ? "The encounter is over." : "Not your turn — " + esc(enc.turn?.name || "waiting") + " acts."}</div>`;
     body.innerHTML = `
       <div class="sect"><h4>${esc(enc.monster_name)} — round ${enc.round}</h4>${players}<div class="sect"></div>${monsters}</div>
+      <div class="sect"><h4>Initiative</h4>${orderRows || "<div class='fact-line'>—</div>"}</div>
+      ${me ? slotsRow : ""}${concRow}${timeoutRow}
       ${acts}
       <div class="sect"><h4>Log</h4>${log}</div>`;
     body.querySelectorAll("[data-attack]").forEach((b) => b.addEventListener("click", () =>
@@ -1100,4 +1120,159 @@ export async function refreshDirectorPanel() {
   } catch (e) {
     body.innerHTML = `<div class='fact-line'>${esc(e.message)}</div>`;
   }
+}
+
+
+// ---------- v0.4.0: Engine Trace, goals, campfire, timelines ----------
+function panelTrace() {
+  return `<div id="trace-body"><div class="fact-line">Act once and the rules behind it appear here.</div></div>`;
+}
+
+export async function refreshTracePanel() {
+  const body = document.getElementById("trace-body");
+  if (!body) return;
+  const t = window.__lastTrace;
+  if (!t || !t.steps) {
+    body.innerHTML = "<div class='fact-line'>No turn resolved yet in this session.</div>";
+    return;
+  }
+  body.innerHTML = `<div class="sect"><h4>Turn ${esc(String(t.turn))} — how the rules resolved it</h4>` +
+    t.steps.map((s) => {
+      if (s.step === "roll") {
+        return `<div class="ledger-card card-paid"><div class="lc-kind">the dice</div>
+          <div class="fact-line">${esc(s.rule || "")}</div>
+          <div class="fact-line">dice ${esc(JSON.stringify(s.dice || []))}${s.mods && s.mods.length ? " · " + esc(s.mods.join(", ")) : ""}${s.difficulty ? " · difficulty " + esc(String(s.difficulty)) : ""}</div>
+          <div class="fact-line">result: <strong>${esc(s.result || "")}</strong> ${esc(s.text || "")}</div></div>`;
+      }
+      if (s.step === "narration") {
+        return `<div class="ledger-card"><div class="lc-kind">narration</div>
+          <div class="fact-line">source: ${esc(s.source || "")}</div>
+          <div class="fact-line">${esc(s.note || "")}</div></div>`;
+      }
+      return `<div class="fact-line">• <strong>${esc(s.step)}</strong>: ${esc(s.detail || "")}</div>`;
+    }).join("") + `</div>
+    <div class="fact-line">The engine resolved the dice and effects first; the Game Master only describes them. GM-only knowledge stays hidden.</div>`;
+}
+
+async function refreshGoalsPanel() {
+  const box = document.getElementById("goals-body");
+  if (!box) return;
+  try {
+    const res = await apiGet(`/api/campaigns/${window.__campaignId}/goals`);
+    const rows = (res.goals || []).map((g) => `
+      <div class="ledger-card ${g.status === "complete" ? "card-paid" : ""}">
+        <div class="lc-kind">${esc(g.scope)} · ${esc(g.status)} · ${g.progress}/${g.target}</div>
+        <strong>${esc(g.title)}</strong>
+        <div class="bar bar-vigor"><i style="width:${Math.min(100, g.progress / Math.max(1, g.target) * 100)}%"></i></div>
+        ${g.status === "active" ? `<button class="btn btn-small" data-goal-tick="${esc(g.id)}">Progress</button>
+        <button class="btn btn-small btn-ghost" data-goal-drop="${esc(g.id)}">Abandon</button>` : ""}
+      </div>`).join("") || "<div class='fact-line'>No expedition goals yet.</div>";
+    box.innerHTML = rows + `<div class="setting-row">
+      <input id="goal-title" class="input" maxlength="80" placeholder="Set a shared goal (e.g. recover three relics)">
+      <button id="goal-add" class="btn btn-small btn-primary">Add</button></div>`;
+    document.getElementById("goal-add")?.addEventListener("click", async () => {
+      const el = document.getElementById("goal-title");
+      try {
+        await apiSend(`/api/campaigns/${window.__campaignId}/goals`, "POST",
+                      { title: el.value, target: 3 });
+        refreshGoalsPanel();
+      } catch (e) { window.__toast?.(e.message, "bad"); }
+    });
+    box.querySelectorAll("[data-goal-tick]").forEach((b) => b.addEventListener("click", async () => {
+      await apiSend(`/api/campaigns/${window.__campaignId}/goals/${b.dataset.goalTick}/progress`, "POST", { delta: 1 });
+      refreshGoalsPanel();
+    }));
+    box.querySelectorAll("[data-goal-drop]").forEach((b) => b.addEventListener("click", async () => {
+      await apiSend(`/api/campaigns/${window.__campaignId}/goals/${b.dataset.goalDrop}/abandon`, "POST", {});
+      refreshGoalsPanel();
+    }));
+  } catch { /* not in game */ }
+}
+
+async function refreshCampfirePanel() {
+  const box = document.getElementById("campfire-body");
+  if (!box) return;
+  try {
+    const res = await apiGet(`/api/campaigns/${window.__campaignId}/campfire`);
+    const rows = (res.stories || []).map((s) => `
+      <div class="ledger-card">
+        <div class="lc-kind">player-authored · ${esc(s.kind)} · ${esc(s.author_name)}</div>
+        <div class="fact-line">${esc(s.text)}</div>
+      </div>`).join("") || "";
+    // hotfix 3: a story shares nothing by itself — the teller explicitly
+    // picks discoveries / rumors to share (server-validated)
+    let shareBlock = "";
+    try {
+      const sh = await apiGet(`/api/campaigns/${window.__campaignId}/campfire/shareable`);
+      const items = [
+        ...(sh.places || []).map((p) => ({ ref: p.ref, label: `[place] ${p.label}` })),
+        ...(sh.memories || []).map((m) => ({ ref: m.ref, label: `[rumor] ${m.text}` })),
+      ].slice(0, 12);
+      if (items.length) {
+        shareBlock = `<div class="fact-line">Share specific knowledge with the party (optional — a story alone reveals nothing):</div>`
+          + items.map((it) => `<label class="fact-line" style="display:flex;gap:6px;align-items:center">
+              <input type="checkbox" class="fire-share" value="${esc(it.ref)}">
+              <span>${esc(it.label)}</span></label>`).join("");
+      }
+    } catch { /* sharing picker unavailable */ }
+    box.innerHTML = rows + `<div class="setting-row">
+      <select id="fire-kind" class="input" style="max-width:130px">
+        <option value="story">Story</option><option value="memory">Memory</option>
+        <option value="memorial">Memorial</option><option value="record">Record</option>
+        <option value="goal_idea">Goal idea</option></select>
+      <input id="fire-text" class="input" maxlength="400" placeholder="Tell it around the fire…">
+      <button id="fire-add" class="btn btn-small btn-primary">Share</button></div>
+      ${shareBlock}
+      <div class="fact-line">Stories are marked player-authored — the Memory Ledger keeps them beside the mechanically verified records, never mistaken for them. Telling a story reveals nothing extra; only what you explicitly tick above is shared with the party.</div>`;
+    document.getElementById("fire-add")?.addEventListener("click", async () => {
+      try {
+        const share = [...document.querySelectorAll(".fire-share:checked")]
+          .map((c) => c.value);
+        await apiSend(`/api/campaigns/${window.__campaignId}/campfire`, "POST",
+                      { kind: document.getElementById("fire-kind").value,
+                        text: document.getElementById("fire-text").value,
+                        ...(share.length ? { share } : {}) });
+        refreshCampfirePanel();
+      } catch (e) { window.__toast?.(e.message, "bad"); }
+    });
+  } catch { /* not in game */ }
+}
+
+async function refreshTimelinePanel() {
+  const box = document.getElementById("timeline-body");
+  if (!box) return;
+  try {
+    const res = await apiGet(`/api/campaigns/${window.__campaignId}/timelines`);
+    const cps = await apiGet(`/api/campaigns/${window.__campaignId}/checkpoints`);
+    const rows = (res.branches || []).map((b) => `
+      <div class="setting-row"><span style="flex:1">${esc(b.branch_name || b.name)}
+        <span style="color:var(--dim);font-size:0.85em">· ${esc(b.branched_at || "")}</span></span>
+        <button class="btn btn-small btn-ghost" data-tl-cmp="${esc(b.campaign_id)}">Compare</button></div>`).join("")
+      || "<div class='fact-line'>No alternate timelines yet — branch from a checkpoint before a big decision.</div>";
+    const cpsel = (cps.checkpoints || []).map((cp) =>
+      `<option value="${esc(cp.id)}">${esc(cp.name)} · ${esc(cp.created_at)}</option>`).join("");
+    box.innerHTML = rows + `<div class="setting-row">
+      <select id="tl-cp" class="input" style="max-width:220px">${cpsel || "<option>save a checkpoint first</option>"}</select>
+      <input id="tl-name" class="input" maxlength="60" placeholder="Name this timeline">
+      <button id="tl-branch" class="btn btn-small btn-primary" ${cpsel ? "" : "disabled"}>Branch</button></div>
+      <div id="tl-compare"></div>`;
+    document.getElementById("tl-branch")?.addEventListener("click", async () => {
+      try {
+        const r = await apiSend(`/api/campaigns/${window.__campaignId}/timelines`, "POST",
+                                { checkpoint_id: document.getElementById("tl-cp").value,
+                                  name: document.getElementById("tl-name").value });
+        window.__toast?.(`Timeline branched: ${r.branch_name}`, "good");
+        refreshTimelinePanel();
+      } catch (e) { window.__toast?.(e.message, "bad"); }
+    });
+    box.querySelectorAll("[data-tl-cmp]").forEach((b) => b.addEventListener("click", async () => {
+      try {
+        const cmp = await apiGet(`/api/campaigns/${window.__campaignId}/timelines/compare/${b.dataset.tlCmp}`);
+        document.getElementById("tl-compare").innerHTML =
+          `<div class="sect"><h4>Differences</h4>` +
+          (cmp.diffs || []).map((d) => `<div class="fact-line">• <strong>${esc(d.kind)}</strong>: ${esc(d.detail)}</div>`).join("") +
+          `</div>`;
+      } catch (e) { window.__toast?.(e.message, "bad"); }
+    }));
+  } catch { /* not in game */ }
 }

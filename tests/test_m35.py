@@ -395,5 +395,5 @@ def test_multiplayer_join_dnd_campaign(app):
 # ================================================================ migration
 def test_v4_migration_preserves_campaigns(campaign):
     marker = db.query_one("SELECT value FROM meta WHERE key='schema_version'")
-    assert marker["value"] == "saturday.core.v5"
+    assert marker["value"] == "saturday.core.v8"
     assert gm.campaign_view(campaign)["character"]["name"]

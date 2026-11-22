@@ -68,3 +68,56 @@ python scripts/smoke_test.py
 ./run.sh            # then open http://127.0.0.1:8788
 python scripts/mock_gm_server.py   # optional AI stand-in on :8090
 ```
+
+## v0.4.0-hotfix3 — suite status (2026-11-22)
+
+- `python -m pytest tests/ -q --ignore=tests/browser` → **260 tests** (228
+  prior + 32 new regressions in `tests/test_m42_hotfix3.py`), all passing.
+- `python -m pytest tests/browser/test_browser_flows.py -q` → 4 browser
+  acceptance flows passing (Chromium; note: run the FILE — the suite-level
+  `collect_ignore_glob` intentionally ignores `tests/browser/*` when
+  collecting the whole tree, so the CI browser job names the file
+  explicitly).
+- `scripts/verify_hotfix3_lan.py` → 35/35 live checks: real HTTP + HTTPS
+  servers, CA-verified clients, explicit campfire sharing over TLS, SSE,
+  strict certificate refusals at startup, and a genuine hotfix2 → hotfix3
+  save migration against the pristine hotfix2 tree.
+- Cross-platform CI: no Unix-only imports remain in any CI-scheduled test
+  module (enforced by `test_ci_suite_has_no_unix_only_code`); subprocess
+  startup output is captured by a bounded background reader thread and
+  children are always reaped; `requirements-dev.txt` installs
+  `cryptography>=3.4` (still optional for players). The GitHub Actions
+  matrix itself has not been executed from this environment — the Windows
+  legs are code-verified only until the workflow runs on GitHub.
+
+## v0.4.0-hotfix4 — suite status (2026-11-22)
+
+- `python -m pytest tests/ -q --ignore=tests/browser` → **285 tests** (260
+  prior + 25 new regressions in `tests/test_m43_hotfix4.py`), all passing.
+  Four hotfix3-era tests that encoded the too-permissive scope-based
+  sharing were updated to the hotfix-4 contract (acquisition recorded
+  through the engine's delivery primitive before sharing).
+- `pytest tests/browser/test_browser_flows.py -q` → 4 browser flows passing.
+- `scripts/verify_hotfix4_lan.py` → 26/26 live checks over direct HTTPS:
+  picker authorization (403 without a valid token, no fallback), real
+  NPC-conversation acquisition, exact party-share grants, forged-reference
+  refusals, restart persistence, and the solo no-token flows over HTTP.
+- `scripts/verify_hotfix3_lan.py` → 36/36 (its two knowledge checks were
+  updated to the hotfix-4 authorization semantics).
+
+## v0.4.0-hotfix5 — suite status (2026-11-22)
+
+- `python -m pytest tests/ -q --ignore=tests/browser` → **310 tests** (285
+  prior + 25 new regressions in `tests/test_m44_hotfix5.py`), all passing.
+  13 of them reproduced the two confirmed defects against the untouched
+  hotfix-4 source (failing-first). Four hotfix2/3 tests encoding the old
+  recap presence-rule were updated to record delivery; hotfix-4 talk tests
+  now use disclosure-triggering conversation topics.
+- `pytest tests/browser/test_browser_flows.py -q` → 4 browser flows passing.
+- `scripts/verify_hotfix5_lan.py` → 29/29 live checks over direct HTTPS:
+  the Lampkeeper's GM-only deep secret absent from response, knowledge,
+  transcripts, events, picker and share attempts; disclosure-tracked tavern
+  conversations; exact party shares; unified recap entitlement; restart
+  persistence; solo flows over plain HTTP.
+- `scripts/verify_hotfix4_lan.py` → 26/26 (talk topics updated to the
+  disclosure-tracking semantics). `scripts/verify_hotfix3_lan.py` → 36/36.

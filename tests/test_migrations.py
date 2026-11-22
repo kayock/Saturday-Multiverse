@@ -18,7 +18,7 @@ def _pin(cid: str, version: str) -> None:
     db.init_db()
 
 
-def test_v25_save_migrates_to_v5_and_preserves_everything(campaign):
+def test_v25_save_migrates_to_v7_and_preserves_everything(campaign):
     """A Living-Multiverse (v2.5) save opens under the Shared Shore build."""
     from server import legacy
     # give the wanderer state that v3 must move into the character record
@@ -31,7 +31,7 @@ def test_v25_save_migrates_to_v5_and_preserves_everything(campaign):
 
     _pin(campaign, "saturday.core.v2")
     marker = db.query_one("SELECT value FROM meta WHERE key='schema_version'")
-    assert marker["value"] == "saturday.core.v5"
+    assert marker["value"] == "saturday.core.v8"
     # v4 additions exist and default sanely
     assert db.query_one("SELECT ruleset FROM campaigns WHERE id=?", (campaign,))["ruleset"] == "undertow"
     # the v4 library tables exist and work (the shared DB may hold other docs)
@@ -56,7 +56,7 @@ def test_v1_pin_migrates_through_the_full_chain(campaign):
     """Pinning the oldest marker walks v1 → v2 → v3 in one open."""
     _pin(campaign, "saturday.core.v1")
     assert db.query_one("SELECT value FROM meta WHERE key='schema_version'")["value"] \
-        == "saturday.core.v5"
+        == "saturday.core.v8"
     view = gm.campaign_view(campaign)
     assert view["character"]["name"]
     assert gm.run_turn(campaign, "The old road still holds.")["narration"]

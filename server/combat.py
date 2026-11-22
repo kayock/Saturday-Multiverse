@@ -168,6 +168,8 @@ def view(cid: str, for_chid: str | None = None) -> dict | None:
     return {
         "encounter_id": enc["id"], "status": enc["status"], "round": enc["round"],
         "turn": current, "my_turn": my_turn, "monster_name": state["monster_name"],
+        "order": [{"name": e["name"], "kind": e["kind"],
+                   "init": e["init"], "slot": e["slot"]} for e in order],
         "players": players, "monsters": monsters,
         "conditions": state["conditions"],
         "concentration": state.get("concentration"),
@@ -492,7 +494,23 @@ def action(cid: str, enc_id: str, chid: str, act: dict) -> dict:
         spell = rules_dnd.SPELLS.get(spell_id)
         if not spell:
             raise CombatError("no such spell in the open rules")
-        result = rules_dnd.cast_spell(sheet, spell_id)
+        # validate EVERYTHING the spell needs BEFORE spending a slot:
+        # turn ownership was checked above; now spell knowledge, then target
+        pre_m = None
+        pre_tp = None
+        if spell.get("damage") or spell.get("paralyze_rounds"):
+            pre_idx = int(act.get("target", -1))
+            pre_m = next((x for x in state["monsters"]
+                          if x["idx"] == pre_idx and x["alive"]), None)
+            if not pre_m:
+                raise CombatError("choose a living target for that spell")
+        if spell.get("heal"):
+            pre_tid = act.get("target") or chid
+            pre_tp = next((x for x in state["participants"]
+                           if x["chid"] == pre_tid), None)
+            if not pre_tp:
+                raise CombatError("choose a party member to heal")
+        result = rules_dnd.cast_spell(sheet, spell_id)  # consumes the slot only now
         gm._persist_character(ch)  # slot consumption persisted
         _log = f"{p['name']} casts {spell['name']}."
         if spell.get("concentration"):
@@ -504,10 +522,7 @@ def action(cid: str, enc_id: str, chid: str, act: dict) -> dict:
         if spell.get("buff") == "ac" and act.get("target"):
             _add_cond(state, f"p:{act['target']}", "shielded", 10)
         if spell.get("damage"):
-            idx = int(act.get("target", -1))
-            m = next((x for x in state["monsters"] if x["idx"] == idx and x["alive"]), None)
-            if not m:
-                raise CombatError("choose a living target for that spell")
+            m = pre_m  # validated before the slot was spent
             if spell.get("attack"):
                 atk = rules_dnd.attack_roll(sheet, m["ac"])
                 if atk["hit"]:
@@ -518,6 +533,7 @@ def action(cid: str, enc_id: str, chid: str, act: dict) -> dict:
                     state["log"].append(f"{p['name']}'s {spell['name']} misses {m['name']}.")
             elif spell.get("auto"):
                 dmg, det = rules_dnd.roll_damage(spell["damage"])
+                m = pre_m
                 m["hp"] -= dmg
                 state["log"].append(f"{p['name']}'s {spell['name']} never misses {m['name']} ({det}).")
             else:  # save-based damage
@@ -534,10 +550,7 @@ def action(cid: str, enc_id: str, chid: str, act: dict) -> dict:
                 m["alive"] = False
                 state["log"].append(f"{m['name']} falls!")
         if spell.get("paralyze_rounds"):
-            idx = int(act.get("target", -1))
-            m = next((x for x in state["monsters"] if x["idx"] == idx and x["alive"]), None)
-            if not m:
-                raise CombatError("choose a living target")
+            m = pre_m
             save = _plain_save("wis", 13)
             if save["success"]:
                 state["log"].append(f"{m['name']} resists {spell['name']}.")
@@ -545,10 +558,7 @@ def action(cid: str, enc_id: str, chid: str, act: dict) -> dict:
                 _add_cond(state, f"m:{m['idx']}", "paralyzed", spell["paralyze_rounds"])
                 state["log"].append(f"{m['name']} is held in place!")
         if spell.get("heal"):
-            tid = act.get("target") or chid
-            tp = next((x for x in state["participants"] if x["chid"] == tid), None)
-            if not tp:
-                raise CombatError("choose a party member to heal")
+            tp = pre_tp  # validated before the slot was spent
             mod = max(0, sheet["ability_mods"][rules_dnd.CLASSES[sheet["class"]]["primary"]])
             amount, det = rules_dnd.roll_damage(spell["heal"].replace("ability", f"+{mod}"))
             before = tp["hp"]
@@ -742,6 +752,8 @@ def last_view(cid: str) -> dict | None:
     return {
         "encounter_id": enc["id"], "status": enc["status"], "round": enc["round"],
         "turn": None, "my_turn": False, "monster_name": state["monster_name"],
+        "order": [{"name": e["name"], "kind": e["kind"],
+                   "init": e["init"], "slot": e["slot"]} for e in state.get("order", [])],
         "players": players, "monsters": monsters,
         "conditions": state["conditions"],
         "concentration": state.get("concentration"),
@@ -818,6 +830,11 @@ def _finish(enc: dict, outcome: str, fleeing: str | None = None) -> dict:
                     db.log_event(cid, "level_up", {"chid": p["chid"], "level": level["level"]})
         db.log_event(cid, "combat_victory", {"xp": state["xp_pool"],
                                              "monster": state["monster_name"]})
+        try:
+            from . import experience as _exp
+            _exp.auto_credit(cid, "combat_victory", f"victory over {state['monster_name']}")
+        except Exception:
+            pass
         mp.remember(cid, "party", "combat",
                     f"The party won a fight against {state['monster_name']}.")
     elif outcome == "defeat":

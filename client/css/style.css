@@ -412,3 +412,44 @@ body.calm * { animation-duration: 0.01s !important; }
 /* ---------- The Infinite Library ---------- */
 #library-body .sect, #forge-body .sect, #preview-body .sect { margin-bottom: 1.1em; }
 #library-body h4, #forge-body h4, #preview-body h4 { color: var(--gold); margin-bottom: 0.4em; }
+
+
+/* ---------- v0.4.0 accessibility + combat + feedback ---------- */
+body.reduced-motion *, body.reduced-motion *::before, body.reduced-motion *::after {
+  animation-duration: 0.001s !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001s !important;
+  scroll-behavior: auto !important;
+}
+body.high-contrast {
+  --text: #f4f7ff;
+  --dim: #c4cede;
+  --teal: #5ce8db;
+  --gold: #ffd772;
+}
+body.high-contrast .fact-line, body.high-contrast .dock-narration {
+  text-shadow: none;
+}
+:focus-visible {
+  outline: 2px solid var(--gold, #e8b84b);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+#dock-dice.dice-crit { animation: dice-crit 0.9s ease; }
+#dock-dice.dice-fail { animation: dice-fail 0.9s ease; }
+@keyframes dice-crit {
+  0% { box-shadow: 0 0 0 rgba(232, 184, 75, 0); }
+  35% { box-shadow: 0 0 24px rgba(232, 184, 75, 0.8); transform: scale(1.02); }
+  100% { box-shadow: 0 0 0 rgba(232, 184, 75, 0); }
+}
+@keyframes dice-fail {
+  0% { box-shadow: 0 0 0 rgba(224, 80, 80, 0); }
+  35% { box-shadow: 0 0 22px rgba(224, 80, 80, 0.7); }
+  100% { box-shadow: 0 0 0 rgba(224, 80, 80, 0); }
+}
+.current-turn { color: var(--gold, #e8b84b); font-weight: 600; }
+#recap-banner { border-color: var(--gold, #e8b84b); }
+@media (max-width: 640px) {
+  #hud-nav { flex-wrap: wrap; }
+  .current-turn { font-size: 0.9em; }
+}

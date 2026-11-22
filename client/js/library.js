@@ -538,6 +538,8 @@ export async function renderWorkshop(v) {
       <div class="fact-line">${esc(pack.summary || "")}</div>
       <div class="fact-line">head revision ${head} · ${secrets} hidden secret${secrets === 1 ? "" : "s"} ${meCreator ? "(all visible to you)" : "(yours only — others stay hidden)"}</div>
       <div class="setting-row">
+        ${meCreator && v.status === "draft" ? `<button id="btn-ws-playtest" class="btn btn-small">Playtest in an isolated portal</button>
+        <button id="btn-ws-playtest-report" class="btn btn-small btn-ghost">Playtest report</button>` : ""}
         ${meCreator && v.status === "draft" ? `<button id="btn-ws-approve" class="btn btn-small btn-primary">Validate &amp; install into the Library</button>` : ""}
         ${v.status === "approved" ? `<span class="chip">installed — it is a playable portal now</span>` : ""}
         <button id="btn-ws-refresh" class="btn btn-small btn-ghost">Refresh</button>
@@ -549,6 +551,28 @@ export async function renderWorkshop(v) {
     <div class="sect"><h4>Cast</h4><div class="fact-line">${esc((pack.npcs || []).map((n) => n.name).join(" · ") || "none yet")}</div></div>
     <div class="sect"><h4>Quests</h4><div class="fact-line">${esc((pack.intro_quests || []).map((q) => q.title).join(" · ") || "none yet")}</div></div>`;
   $("btn-ws-refresh").addEventListener("click", () => openWorkshopDraft(v.draft_id));
+  $("btn-ws-playtest")?.addEventListener("click", async () => {
+    try {
+      const r = await apiSend(`/api/forge/collab/${v.draft_id}/playtest`, "POST", {});
+      window.__toast?.(`Playtest portal open — a test campaign was created (${r.campaign_id}).`, "good");
+      window.__campaignId = r.campaign_id;
+      window.location.hash = "#playtest";
+      window.__toast?.("The portal is a real campaign from your draft; nothing approved or saved is touched.", "");
+    } catch (e) { window.__toast?.(e.message, "bad"); }
+  });
+  $("btn-ws-playtest-report")?.addEventListener("click", async () => {
+    try {
+      const r = await apiGet(`/api/forge/collab/${v.draft_id}/playtest/report`);
+      const items = [
+        ...(r.validation_problems || []).map((x) => `validation: ${x}`),
+        ...(r.flow_findings || []).map((x) => `flow: ${x}`),
+        ...(r.items_missing || []).map((x) => `items: ${x}`),
+        ...(r.continuity_findings || []).map((x) => `continuity: ${x.detail || x}`),
+      ];
+      window.__toast?.(items.length ? items.slice(0, 3).join(" | ") : "Report clean — no findings.", items.length ? "" : "good");
+      if (items.length) console.log("playtest report:", items);
+    } catch (e) { window.__toast?.(e.message, "bad"); }
+  });
   $("btn-ws-approve")?.addEventListener("click", async () => {
     try {
       const res = await apiSend(`/api/forge/collab/${v.draft_id}/approve`, "POST", {});

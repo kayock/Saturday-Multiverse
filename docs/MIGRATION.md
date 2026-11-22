@@ -86,3 +86,65 @@ Additive migration from v4 (and from v1/v2/v3 through the existing chain):
 - `campaign_checkpoints` — snapshot/restore-as-new
 
 Old saves migrate in place; tests cover v2.5 → v5 with content preserved.
+
+## v8 stays v8 (0.4.0-hotfix3 — explicit campfire sharing)
+
+Schema `saturday.core.v8` is NOT bumped. One new table,
+`knowledge_shares` (the auditable campfire-sharing ledger: what was shared,
+by whom, when, from which story; `UNIQUE(campaign_id, ref)` so retries are
+idempotent), is created by the standard idempotent `CREATE TABLE IF NOT
+EXISTS` pass that runs on every open — the same mechanism hotfix2 used for
+`recap_seen`. Any save from v1 through hotfix2's v8 opens under this build
+with every row intact and gains the table automatically; nothing is
+rewritten, no version marker moves, and a rollback to the hotfix2 build
+keeps working (the extra table is simply unused there).
+
+**Behavioral migration policy (documented, conservative):** the blanket
+party-wide `shared` rows written by the hotfix2 campfire are NOT deleted or
+rewritten — no knowledge a party already received is erased, and no
+historical sharing event is fabricated. Because those rows carry no evidence
+of exactly which facts were communicated, they now authorize only what was
+already recorded at their grant timestamp: memories created afterwards stay
+private until heard in person or explicitly shared. New sharing always
+records a specific, auditable grant.
+
+## v8 stays v8 (0.4.0-hotfix4 — verified character knowledge)
+
+No schema change and no version marker move. Hotfix 4 records WHICH
+specific npc_memories a character actually learned as new `kind='memory'`
+rows in the existing `char_knowledge` table — a new VALUE, not a new table
+or column, so every save from v1 through hotfix3 opens unchanged. Nothing
+is deleted or rewritten.
+
+**What old saves get, honestly:** places, discoveries and hearing scopes
+are preserved exactly; memories whose delivery was never recorded are NOT
+offered as individually verified shareable knowledge — on old saves the
+picker offers places, public `all`-scoped news, and any specific
+acquisitions the save itself carries (including hotfix3-era party-wide
+memory grants, which still count as delivery to the whole party). This is
+narrower than hotfix3's scope-based offer by design: the engine no longer
+claims a character knows every rumor in a scope they once visited. New
+acquisition points (conversations, arrivals, rest-fire tales, campfire
+shares) accumulate normally going forward.
+
+## v8 stays v8 (0.4.0-hotfix5 — unified disclosure rules)
+
+Again no schema change and no version marker move. Hotfix 5 changes POLICY,
+not structure: recaps and NPC conversations now follow the same
+specific-memory entitlement as campfire sharing, and only information an
+NPC actually speaks is recorded as learned (`char_knowledge` kind='memory'
+rows, written idempotently). Every save from v1 through hotfix4 opens
+unchanged; nothing is deleted or rewritten.
+
+**About hotfix-4-era saves (honest limitation):** the hotfix-4 conversation
+code recorded every internally-retrieved candidate as learned, so an old
+save may hold acquisition rows for memories the character never actually
+heard. These cannot be reliably distinguished from legitimate records
+(no provenance was stored), so they are left in place rather than risking
+legitimate progress. They are largely inert: rows for restricted kinds
+(gm/secret/hidden/host) and out-of-whitelist scopes (deep) never surface —
+the static rules dominate in the recap, the picker and the sharing engine.
+Rows for ordinary rumors may remain re-shareable; treat them as folklore
+your party has heard around the fire. Going forward, acquisitions are exact
+and disclosure-tracked, and `reveal_memory` is the only sanctioned way
+internal knowledge becomes player-facing.

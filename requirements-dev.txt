@@ -1,0 +1,6 @@
+# Development and test dependencies (not needed for playing the game)
+pytest>=8.0
+cryptography>=3.4  # required by the TLS test suite and scripts/cert_setup.py
+                   # (stays OPTIONAL for players: only needed when HTTPS is enabled)
+# browser acceptance specs (tests/browser) additionally need:
+#   playwright>=1.45  +  playwright install chromium

@@ -18,6 +18,7 @@ import html as html_mod
 import io
 import json
 import re
+import sqlite3
 import zipfile
 from xml.etree import ElementTree as ET
 
@@ -393,6 +394,8 @@ def search(query: str, doc_id: str | None = None, k: int = 8) -> list[dict]:
     where = "WHERE doc_id=?" if doc_id else ""
     params = (doc_id,) if doc_id else ()
     try:
+        if not db.fts_available():
+            raise sqlite3.OperationalError("fts5 unavailable in this build")
         words_in = [w for w in re.findall(r"\w+", query) if w.upper() not in ("OR", "AND", "NOT")]
         match = " OR ".join(words_in or [query])[:200]
         rows = db.query(

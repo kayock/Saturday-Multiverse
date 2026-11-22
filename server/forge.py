@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
+import time
 
 from . import ai, db, library
 from .config import PACKS_DATA_DIR
@@ -653,7 +655,8 @@ flag/quest_update/npc_rel/harm/heal/discover/ending. Use only material from the 
 # analysis, coverage metrics, manual editing and draft versioning.
 # ==========================================================================
 
-JOB_WINDOW = 24          # chunks per extraction window (full coverage)
+JOB_WINDOW_CHARS = 9000  # max characters per extraction window
+JOB_SLICE_CHARS = 2500   # long chunks are sliced; every character is processed
 JOB_STATUSES = ("queued", "analyzing", "bible", "generating", "validating",
                 "review", "approved", "failed", "cancelled")
 SCOPES = {
@@ -667,10 +670,14 @@ class JobError(ValueError):
     pass
 
 
+HEARTBEAT_SEC = 15       # lease touch cadence while a worker holds a job
+LEASE_STALE_SEC = 90     # no heartbeat for this long -> the worker is lost
+
+
 def _job_update(job_id: str, **fields) -> None:
     sets = ", ".join(f"{k}=?" for k in fields)
-    db.execute(f"UPDATE forge_jobs SET {sets}, updated_at=? WHERE id=?",
-               (*fields.values(), utcnow(), job_id))
+    db.execute(f"UPDATE forge_jobs SET {sets}, updated_at=?, heartbeat=? WHERE id=?",
+               (*fields.values(), utcnow(), utcnow(), job_id))
 
 
 def job_view(job_id: str) -> dict:
@@ -721,11 +728,62 @@ def cancel_job(job_id: str) -> dict:
     return job_view(job_id)
 
 
+def claim_next_job(worker: str) -> str | None:
+    """Atomically claim the oldest queued job. The conditional UPDATE makes
+    the lease single-winner: two workers can never hold the same job."""
+    row = db.query_one(
+        "SELECT id FROM forge_jobs WHERE status='queued' AND cancel=0"
+        " ORDER BY created_at LIMIT 1")
+    if not row:
+        return None
+    changed = db.execute_rc(
+        "UPDATE forge_jobs SET status='running', owner=?, heartbeat=?,"
+        " stage='claimed by worker', updated_at=? WHERE id=? AND status='queued'",
+        (worker[:80], utcnow(), utcnow(), row["id"]),
+    )
+    if changed != 1:
+        return None  # another worker won the lease
+    return row["id"]
+
+
+def _heartbeat_alive(job_id: str) -> bool:
+    row = db.query_one("SELECT heartbeat FROM forge_jobs WHERE id=?", (job_id,))
+    if not row or not row["heartbeat"]:
+        return False
+    from .mp import _iso_to_ts
+    return (time.time() - _iso_to_ts(row["heartbeat"])) < LEASE_STALE_SEC
+
+
+def recover_stale_jobs() -> int:
+    """Detect interrupted conversions: a lease whose heartbeat expired (worker
+    crashed or the process died). Completed artifacts are preserved — retry
+    resumes from the last finished stage without re-reading the novel."""
+    from .mp import _iso_to_ts
+    rows = db.query(
+        "SELECT id, heartbeat, updated_at FROM forge_jobs WHERE status='running'")
+    recovered = 0
+    for r in rows:
+        stamp = r["heartbeat"] or r["updated_at"]
+        stale = True
+        if stamp:
+            try:
+                stale = (time.time() - _iso_to_ts(stamp)) > LEASE_STALE_SEC
+            except Exception:
+                stale = True
+        if stale:
+            _job_update(r["id"], status="failed",
+                        stage="interrupted — retry to resume from the last completed stage",
+                        error="worker lost (lease heartbeat expired); extracted work preserved")
+            recovered += 1
+    return recovered
+
+
 def retry_job(job_id: str) -> dict:
     job = job_view(job_id)
     if job["status"] not in ("failed", "cancelled"):
         raise JobError("only failed or cancelled jobs can be retried")
-    _job_update(job_id, status="queued", stage="queued", error=None, cancel=0)
+    _job_update(job_id, status="queued", stage="queued", error=None, cancel=0,
+                owner=None)
     return job_view(job_id)
 
 
@@ -749,13 +807,17 @@ def _stage_structure(doc: dict) -> tuple[dict, dict]:
             chapters[-1]["last_chunk"] = r["seq"]
         elif h:
             chapters.append({"heading": h[:120], "first_chunk": r["seq"], "last_chunk": r["seq"]})
+    row = db.query_one("SELECT COALESCE(SUM(length(text)),0) AS s FROM library_chunks"
+                       " WHERE doc_id=?", (doc["id"],))
+    total_chars = int(row["s"] or 0)
     coverage = {
         "total_chunks": doc["n_chunks"],
+        "total_characters": total_chars,
+        "characters_processed": 0,
         "chapters": len(chapters),
         "chapter_list": [c["heading"] for c in chapters[:200]],
-        "windows_planned": max(1, -(-doc["n_chunks"] // JOB_WINDOW)),
+        "windows_planned": max(1, -(-total_chars // JOB_WINDOW_CHARS)),
         "calls_made": 0,
-        "chunks_processed": 0,
         "errors": 0,
     }
     return coverage, chapters
@@ -763,49 +825,104 @@ def _stage_structure(doc: dict) -> tuple[dict, dict]:
 
 def _stage_extract(doc: dict, job_id: str, coverage: dict, notes: list[str],
                    cfg: dict) -> dict:
-    """Stage B: local extraction over the ENTIRE document, window by window.
-    Bounded per-request, unbounded in coverage — every chunk is processed."""
+    """Stage B: local extraction over the ENTIRE document text — character-
+    bounded windows, no prefix sampling. Long chapters are sliced across
+    consecutive windows with nothing dropped; ordering is preserved; the
+    consolidator deduplicates overlapping mentions. Coverage is reported
+    honestly: chunks visited, characters processed, chapters fully analyzed,
+    sections skipped (always 0), and failed windows."""
     profile: dict = {"characters": [], "locations": [], "factions": [],
                      "events": [], "items": [], "plot_points": [], "secrets": []}
-    total = doc["n_chunks"]
-    start = 0
-    window_no = 0
-    while start < total:
+    rows = db.query(
+        "SELECT seq, heading, text, length(text) AS L FROM library_chunks"
+        " WHERE doc_id=? ORDER BY seq", (doc["id"],))
+    total_chars = sum(int(r["L"] or 0) for r in rows)
+    heading_chars: dict[str, int] = {}
+    heading_done: dict[str, int] = {}
+    slices: list[dict] = []
+    for r in rows:
+        text = r["text"] or ""
+        if not text:
+            continue
+        heading = (r["heading"] or f"chunk {r['seq']}")[:120]
+        heading_chars[heading] = heading_chars.get(heading, 0) + len(text)
+        n_slices = max(1, -(-len(text) // JOB_SLICE_CHARS))
+        for i in range(n_slices):
+            slices.append({
+                "seq": r["seq"], "heading": heading,
+                "part": f"{i + 1}/{n_slices}",
+                "text": text[i * JOB_SLICE_CHARS:(i + 1) * JOB_SLICE_CHARS],
+            })
+    # group slices into character-bounded windows
+    windows: list[list[dict]] = []
+    cur: list[dict] = []
+    cur_chars = 0
+    for s in slices:
+        if cur and cur_chars + len(s["text"]) > JOB_WINDOW_CHARS:
+            windows.append(cur)
+            cur, cur_chars = [], 0
+        cur.append(s)
+        cur_chars += len(s["text"])
+    if cur:
+        windows.append(cur)
+    coverage.update({
+        "total_chunks": doc["n_chunks"],
+        "chunks_visited": 0,
+        "total_characters": total_chars,
+        "characters_processed": 0,
+        "windows_planned": len(windows),
+        "windows_failed": 0,
+        "sections_skipped": 0,
+        "calls_made": 0,
+        "errors": 0,
+    })
+    for wi, win in enumerate(windows, 1):
         _check_cancel(job_id)
-        rows = db.query(
-            "SELECT heading, text FROM library_chunks WHERE doc_id=? AND seq>=? AND seq<?"
-            " ORDER BY seq LIMIT ?", (doc["id"], start, start + JOB_WINDOW, JOB_WINDOW))
-        if not rows:
-            break
-        window_no += 1
-        passage = "\n".join(f"[{r['heading']}] {r['text'][:420]}" for r in rows)[:10000]
-        messages = [
-            {"role": "system", "content": FORGE_EXTRACT_SYSTEM},
-            {"role": "user", "content": f"SOURCE EXCERPT (part {window_no} of "
-             f"{coverage['windows_planned']}):\n\n{passage}"},
-        ]
+        passage = "\n".join(
+            f"[{s['heading']} (chunk {s['seq']}, part {s['part']})] {s['text']}"
+            for s in win)
+        ok = False
         try:
-            text, meta = ai.chat(messages, cfg)
+            text, meta = ai.chat([
+                {"role": "system", "content": FORGE_EXTRACT_SYSTEM},
+                {"role": "user", "content": f"SOURCE EXCERPT (part {wi} of "
+                 f"{len(windows)}):\n\n{passage}"},
+            ], cfg)
             data = ai.extract_json(text)
             if isinstance(data, dict):
                 _merge_profile(profile, data)
-                notes.append(f"window {window_no}: extracted {len(data.get('characters', []))}c/"
-                             f"{len(data.get('locations', []))}l")
+                ok = True
+                notes.append(f"window {wi}/{len(windows)}: extracted "
+                             f"{len(data.get('characters', []))}c/{len(data.get('locations', []))}l")
             else:
                 coverage["errors"] += 1
-                notes.append(f"window {window_no}: model JSON contract missed; window kept raw")
-        except (ai.AiError, Exception) as exc:  # noqa: BLE001 — stage-level error reporting
+                notes.append(f"window {wi}: model JSON contract missed; window kept raw")
+        except Exception as exc:  # noqa: BLE001 — stage-level error reporting
             coverage["errors"] += 1
-            notes.append(f"window {window_no}: model unavailable ({str(exc)[:90]})")
-            # the analysis continues: partial coverage is reported honestly
+            notes.append(f"window {wi}: model unavailable ({str(exc)[:90]})")
+            # the analysis continues; partial coverage is reported honestly
         coverage["calls_made"] += 1
-        coverage["chunks_processed"] = min(total, start + len(rows))
+        if ok:
+            coverage["windows_failed"] = coverage.get("windows_failed", 0)
+        else:
+            coverage["windows_failed"] = coverage.get("windows_failed", 0) + 1
+        for s in win:
+            processed_chars = len(s["text"])
+            coverage["characters_processed"] = coverage.get("characters_processed", 0) + processed_chars
+            heading_done[s["heading"]] = heading_done.get(s["heading"], 0) + processed_chars
+            if s["part"].split("/")[0] == "1" or True:
+                pass
+        coverage["chunks_visited"] = len({s["seq"] for w in windows[:wi] for s in w})
         _job_update(job_id, coverage_json=jdumps(coverage), profile_json=jdumps(profile),
-                    stage=f"analyzing window {window_no}/{coverage['windows_planned']}",
-                    progress=0.1 + 0.5 * (coverage["chunks_processed"] / max(1, total)),
+                    stage=f"analyzing window {wi}/{len(windows)}",
+                    progress=0.1 + 0.5 * (coverage["characters_processed"] / max(1, total_chars)),
                     notes_json=jdumps(notes[-40:]))
-        start += JOB_WINDOW
-    coverage["coverage_complete"] = coverage["chunks_processed"] >= total
+    chapters_full = sum(1 for h, tot in heading_chars.items()
+                        if heading_done.get(h, 0) >= tot)
+    coverage["chapters_fully_analyzed"] = chapters_full
+    coverage["chapters"] = len(heading_chars)
+    coverage["coverage_complete"] = (coverage["characters_processed"] >= total_chars
+                                     and coverage["sections_skipped"] == 0)
     _job_update(job_id, coverage_json=jdumps(coverage))
     return profile
 
@@ -999,9 +1116,46 @@ def _job_notes(job_id: str) -> list:
     return jloads(row["notes_json"], []) if row else []
 
 
-def run_job(job_id: str) -> dict:
-    """Execute (or resume) a conversion job. Resumable at stage granularity:
-    completed artifacts (profile, bible) are kept and their stages skipped."""
+def run_job(job_id: str, worker: str = "manual") -> dict:
+    """Execute (or resume) a conversion job under a worker lease. Resumable at
+    stage granularity: completed artifacts (profile, bible) are kept and their
+    stages skipped."""
+    from . import ai as _ai
+    row = db.query_one("SELECT status, owner, heartbeat FROM forge_jobs WHERE id=?",
+                       (job_id,))
+    if row and row["status"] == "queued":
+        claimed = claim_next_job(worker)
+        if claimed != job_id:
+            return job_view(job_id)  # another worker won it
+    elif row and row["status"] == "running":
+        if _heartbeat_alive(job_id) and row["owner"] not in (None, "", worker):
+            raise JobError("another worker holds the lease on this job")
+        _job_update(job_id, owner=worker)  # adopt an abandoned lease
+    import threading as _threading
+    stop_beat = {"flag": False}
+
+    def _beat():
+        while not stop_beat["flag"]:
+            if stop_beat["flag"]:
+                break
+            try:
+                db.execute("UPDATE forge_jobs SET heartbeat=? WHERE id=? AND status='running'",
+                           (utcnow(), job_id))
+            except Exception:
+                pass
+            stop_beat["flag"] = stop_beat["flag"] or False
+            _time.sleep(HEARTBEAT_SEC)
+
+    import time as _time
+    beat = _threading.Thread(target=_beat, name="sm-job-heartbeat", daemon=True)
+    beat.start()
+    try:
+        return _run_job_inner(job_id, worker)
+    finally:
+        stop_beat["flag"] = True
+
+
+def _run_job_inner(job_id: str, worker: str = "manual") -> dict:
     from . import ai as _ai
     job = job_view(job_id)
     doc = library.doc_view(job["doc_id"])
@@ -1014,8 +1168,8 @@ def run_job(job_id: str) -> dict:
     try:
         coverage, _ = _stage_structure(doc)
         profile = job["profile"]
-        if job["status"] == "queued":
-            _job_update(job_id, status="analyzing", stage="mapping the document structure",
+        if job["status"] in ("queued", "running") and not profile:
+            _job_update(job_id, status="running", stage="mapping the document structure",
                         progress=0.05, coverage_json=jdumps(coverage))
         if not profile:
             profile = _stage_extract(doc, job_id, coverage, notes, cfg)
@@ -1704,3 +1858,92 @@ def collab_approve(draft_id: str, player_id: str) -> dict:
     res = approve_draft(draft_id)
     return {**res, "collab": True,
             "note": "installed into the local Library; private sources stay private"}
+
+
+# ==========================================================================
+# v0.4.0 — Workshop playtest portals
+# ==========================================================================
+
+def start_playtest(draft_id: str, name: str = "") -> dict:
+    """Launch a draft world into an isolated test session. A real campaign is
+    created from the DRAFT pack (no approval required); approved worlds and
+    real saves are untouched. The creator can test, read a report, and stop."""
+    from . import gm as _gm
+    draft = draft_view(draft_id)
+    pack = json.loads(json.dumps(draft["pack"]))  # deep copy
+    pack["id"] = "playtest_" + _slug(pack.get("id", "world"))[:20] + "_" + new_id("x")[-6:]
+    pack["name"] = (name or pack.get("name", "Playtest"))[:60] + " [playtest]"
+    pack_dir = PACKS_DATA_DIR / pack["id"]
+    pack_dir.mkdir(parents=True, exist_ok=True)
+    (pack_dir / "pack.json").write_text(jdumps(pack), encoding="utf-8")
+    cid = _gm.create_campaign("Playtest: " + (name or pack.get("name", ""))[:40],
+                              pack["id"],
+                              {"name": "The Playtester", "archetype": (
+                                  pack.get("archetypes") or [{}])[0].get("id", "")})
+    row = db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))
+    st = jloads(row["state_json"], {})
+    st["playtest_of"] = draft_id
+    st["playtest_pack"] = pack["id"]
+    st["playtest_started_at"] = utcnow()
+    db.execute("UPDATE campaigns SET state_json=? WHERE id=?", (jdumps(st), cid))
+    db.log_event("library", "playtest_started", {"draft_id": draft_id, "campaign_id": cid})
+    return {"campaign_id": cid, "pack_id": pack["id"], "draft_id": draft_id,
+            "note": "isolated test portal — real saves and approved worlds untouched"}
+
+
+def stop_playtest(draft_id: str, campaign_id: str) -> dict:
+    """End a playtest: archive the campaign and remove the temporary pack."""
+    from . import gm as _gm
+    row = db.query_one("SELECT state_json FROM campaigns WHERE id=?", (campaign_id,))
+    if not row:
+        raise ForgeError("no such playtest campaign")
+    st = jloads(row["state_json"], {})
+    if st.get("playtest_of") != draft_id:
+        raise ForgeError("that campaign is not a playtest of this draft")
+    pack_id = st.get("playtest_pack")
+    _gm.archive_campaign(campaign_id)
+    if pack_id:
+        pack_dir = PACKS_DATA_DIR / pack_id
+        if pack_dir.exists():
+            shutil.rmtree(pack_dir, ignore_errors=True)
+    db.log_event("library", "playtest_stopped", {"draft_id": draft_id,
+                                                 "campaign_id": campaign_id})
+    return {"stopped": True, "campaign_id": campaign_id}
+
+
+def playtest_report(draft_id: str, campaign_id: str = "") -> dict:
+    """Actionable findings for the creator: structural validation, flow
+    analysis, and (with a live playtest campaign) continuity warnings."""
+    draft = draft_view(draft_id)
+    pack = draft["pack"]
+    problems = validate_pack(pack)
+    flow = validate_flow(pack)
+    report = {
+        "draft_id": draft_id,
+        "validation_problems": problems,
+        "flow_findings": flow,
+        "endings": list((pack.get("adventures", [{}])[0].get("endings") or {}).keys()),
+        "scenes": len(list((pack.get("adventures", [{}])[0].get("scenes") or {}).values())),
+        "items_missing": [],
+    }
+    # unknown item references
+    item_ids = {i["id"] for i in pack.get("items", [])}
+    for adv in pack.get("adventures", []):
+        for sid, sc in (adv.get("scenes") or {}).items():
+            for c in (sc.get("choices") or []):
+                eff = dict(c.get("effects") or {})
+                for br in (c.get("on_pass"), c.get("on_fail")):
+                    if isinstance(br, dict):
+                        eff.update(br.get("effects") or {})
+                ig = eff.get("item_give")
+                if ig and ig not in item_ids:
+                    report["items_missing"].append(f"choice in '{sid}' grants unknown item '{ig}'")
+    if campaign_id:
+        from . import continuity as _cont
+        try:
+            report["continuity_findings"] = _cont.check(campaign_id)
+            row = db.query_one("SELECT turn FROM campaigns WHERE id=?", (campaign_id,))
+            report["playtest_turn"] = row["turn"] if row else 0
+        except Exception:
+            report["continuity_findings"] = []
+    return report

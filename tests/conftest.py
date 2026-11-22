@@ -75,3 +75,6 @@ def campaign():
     })
     yield cid
     gm.archive_campaign(cid)
+
+# Browser specs need Playwright + Chromium; CI runs them as a separate job.
+collect_ignore_glob = ["browser/*"]

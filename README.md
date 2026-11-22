@@ -24,7 +24,143 @@ itself owns every rule, every die, and every consequence.
 - **Extensible toward multiplayer.** The schema and API are already host-authoritative;
   Milestones 3–4 add invitations, synchronization, and cross-server guest portals.
 
-### v0.3.6 — The Living Campaign (new in this build)
+### v0.4.0-hotfix5 — Final Release Hotfix (newest)
+
+- **Recaps remember only what a character genuinely knows.** The recap now
+  uses the same specific-memory entitlement as the campfire sharing engine:
+  visiting a place once no longer discloses rumors recorded there later —
+  return and hear them (or receive them at the fire) and they appear.
+- **NPCs keep their secrets.** What an NPC knows internally is now
+  separated from what they may say: GM-only, hidden and deep records never
+  enter dialogue, AI prompts, conversation responses, transcripts or game
+  events, and are never recorded as learned. Only information the
+  conversation actually speaks is disclosed, acquired and shown.
+- **AI dialogue stays grounded and safe:** the model sees only permitted
+  candidates and may only declare disclosure of those; forged or restricted
+  ids are dropped. Scripted revelations remain possible through an explicit
+  engine-authorized story event (`experience.reveal_memory`).
+- **310 tests pass** (285 + 25 new regressions), all four browser flows
+  pass, and 91 live LAN checks pass over real HTTP/HTTPS — see
+  [docs/VERIFICATION.md](docs/VERIFICATION.md).
+
+### v0.4.0-hotfix4 — Final Release Hotfix
+
+- **The campfire picker is properly authorized.** A missing, invalid,
+  banned or wrong-campaign multiplayer token can no longer read another
+  character's shareable knowledge: failed authorization is answered with
+  403 and never falls back to the campaign's main character. Solo play
+  needs no token — access is decided by the campaign's actual session
+  state. No new accounts, tokens or login screens.
+- **You can only share what you actually heard.** Sharing a rumor now
+  requires a specific record that YOUR character learned that exact memory
+  (recorded by the engine when a conversation delivers it, when you arrive
+  on the shore, when a visitor tale is told at your rest, or when a party
+  member shares it at the fire). Having once been at the tavern no longer
+  makes every future tavern rumor yours to tell — leave, and the newer
+  rumors stay private until you return and hear them.
+- The picker and the sharing engine enforce the same rule; forged or
+  cross-campaign memory ids are refused and write nothing; GM secrets stay
+  unshareable; every grant keeps its auditable ledger record.
+- **285 tests pass** (260 + 25 new regressions), all four browser flows
+  pass, and 62 live LAN checks pass over real HTTP/HTTPS — see
+  [docs/VERIFICATION.md](docs/VERIFICATION.md).
+
+### v0.4.0-hotfix3 — Final Release Hotfix
+
+- **Campfire stories share nothing by default.** Telling a tale no longer
+  blanket-shares the teller's whole knowledge scope with the party. When
+  you WANT to share, pick specific discoveries, places or individual
+  rumors in the campfire form (the engine validates every selection — you
+  can only share what your character genuinely knows, and GM-only secrets
+  can never be shared). Sharing one tavern rumor does not unlock future
+  tavern rumors; what was already recorded at share time stays readable;
+  anything newer waits until it is heard in person or shared too.
+- **Recaps survive crowds of secrets.** Hidden and unauthorized NPC
+  memories can no longer crowd an authorized rumor out of the recap: the
+  eligibility filter now runs before the 8-item display window, with a
+  bounded retrieval walk. Per-player dismissal markers are unchanged.
+- **HTTPS demands real identities.** Strict validation now uses the actual
+  Subject Alternative Name extension only — a Common Name is never a
+  substitute; an IP address must be covered by a real `IPAddress` SAN; and
+  certificates whose validity has not begun yet (or has expired, is
+  unreadable, or mismatches the key) are refused at startup, compared
+  exactly in UTC.
+- **The CI matrix can actually run the suite on Windows.** The TLS test
+  helper no longer imports Unix-only `fcntl` (portable background output
+  collection instead), `requirements-dev.txt` installs the TLS test
+  dependency (`cryptography` — still optional for players), and the browser
+  job runs its four real flows. 260 tests pass (228 + 32 new regressions);
+  see [docs/VERIFICATION.md](docs/VERIFICATION.md).
+
+### v0.4.0-hotfix2 — Final Release Hotfix
+
+- **Recaps are player-aware.** Your recap reflects what YOUR character has
+  seen, visited and been told: place-scoped shore gossip reaches only the
+  characters who were there, discoveries belong to their discoverer, and the
+  campfire story you tell shares your knowledge with the whole party.
+  Spectators see public events and shared tales only.
+- **Per-player recap dismissal.** Each player's "seen" markers are their own
+  (SQLite): dismissing your recap never clears another player's unseen
+  events, and your markers survive disconnects and restarts. Old saves
+  migrate safely and conservatively.
+- **Production HTTPS tells the truth.** With `SATURDAY_PRODUCTION=1
+  SATURDAY_TLS=1`, the banner and `/api/health` state plainly that the port
+  serves plain HTTP with TLS at your reverse proxy (set
+  `SATURDAY_TLS_PROXY_URL` to display the external HTTPS address), or serve
+  real TLS from this process with `SATURDAY_TLS_DEVSERVER=1`.
+- **Invalid certificates are rejected, not served.** Expired, missing,
+  mismatched or non-covering certificates stop startup with an actionable
+  message; coverage is checked against real client-facing names (never the
+  0.0.0.0 bind address).
+
+### v0.4.0-hotfix1 — LAN HTTPS & Reliability
+
+- **Recap privacy.** Deep-scoped NPC secrets can no longer appear in a
+  returning-player recap; achievements/discoveries are filtered by reliable
+  per-table last-seen markers (old saves migrate safely); ongoing objectives
+  are distinguished from genuinely new developments.
+- **Goal integrity.** Goal mutations are scoped to the supplied campaign
+  (cross-campaign mutations rejected); engine-verified progress is separated
+  from player-authored progress; personal-goal ownership is enforced for
+  multiplayer guests.
+- **LAN verified.** Solo and multiplayer play from other devices over
+  `SATURDAY_HOST=0.0.0.0` — no lobby needed for solo; SSE reconnection and
+  save/resume covered by automated integration tests.
+- **Optional LAN HTTPS.** `python scripts/cert_setup.py generate` creates a
+  local CA + certificates covering your LAN addresses; `SATURDAY_TLS=1`
+  enables encrypted connections; client trust is a manual per-device step
+  (Windows/Linux/Android/iOS instructions in docs/DEPLOYMENT.md). HTTP
+  behavior is unchanged when HTTPS is off.
+
+### v0.4.0 — The Living Worlds
+
+- **Defect audit & repairs.** Every reported problem from three independent
+  reviews was reproduced and verified; six confirmed defects (solo combat
+  rejection, spell-slot loss on invalid targets, event-replay starvation,
+  stuck Forge jobs, rejected actions advancing the clock, FTS5-less startup
+  failure) plus two integrity gaps (spoiler horizon, honest extraction
+  coverage) are repaired with failing-first regression tests.
+- **The Shore remembers.** Returning players get a recap built from real
+  engine events — achievements, open threads, discoveries, NPC memory
+  movement — dismissible until something new happens.
+- **Expedition goals & Campfire Stories.** Shared and personal goals progress
+  through engine-validated events; stories around the fire are explicitly
+  player-authored and never mistaken for verified records.
+- **Engine Trace.** An optional panel that shows exactly how one turn was
+  resolved: the rule, the dice, the difficulty, the validated effects, and the
+  narration source.
+- **What-If Timelines.** Branch any checkpoint into a new campaign; compare
+  endings, fates and inventory across timelines; the original stays untouched.
+- **Workshop playtesting.** Launch a draft world into an isolated portal, get
+  an actionable report, then return to the editor.
+- **Onboarding & accessibility.** A first-night tutorial (with D&D-specific
+  notes), reduced-motion and high-contrast modes, visible focus, aria-live
+  narration.
+- **Reliability.** GitHub Actions CI (Linux/Windows, browser job included),
+  `scripts/preflight.py` diagnostics, real startup smoke test, honest
+  dependency split, and lease-based job recovery that survives crashes.
+
+### v0.3.6 — The Living Campaign
 
 - **Player-controlled D&D combat.** Encounters are persistent, turn-based and
   engine-resolved: initiative, player-selected actions (attack, cast, defend,

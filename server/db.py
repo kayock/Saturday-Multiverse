@@ -285,6 +285,48 @@ CREATE TABLE IF NOT EXISTS upgrades (
 );
 
 -- M2.5: cross-world consequences, grounded in recorded triggers.
+CREATE TABLE IF NOT EXISTS char_knowledge (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL,
+  character_id TEXT NOT NULL,                -- character id, or '*party*' for shared
+  kind TEXT NOT NULL,                        -- visited|discovery|heard|shared
+  ref TEXT NOT NULL,                         -- location id or place scope tag
+  ts TEXT NOT NULL,
+  UNIQUE (campaign_id, character_id, kind, ref)
+);
+CREATE INDEX IF NOT EXISTS idx_knowledge_campaign ON char_knowledge (campaign_id, character_id);
+
+-- Hotfix 3: auditable campfire sharing — exactly what was shared with the
+-- party, by whom, and when (one row per granted ref; retries are idempotent).
+CREATE TABLE IF NOT EXISTS knowledge_shares (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL,
+  ref TEXT NOT NULL,                         -- place ref, or the shared memory's id
+  ref_kind TEXT NOT NULL,                    -- place | memory
+  source_kind TEXT NOT NULL,                 -- visited | discovery | memory
+  shared_by_player_id TEXT NOT NULL DEFAULT 'local',
+  shared_by_character_id TEXT,
+  story_id TEXT,                             -- the campfire story that carried it
+  ts TEXT NOT NULL,
+  UNIQUE (campaign_id, ref)
+);
+CREATE INDEX IF NOT EXISTS idx_kshares_campaign ON knowledge_shares (campaign_id, ref);
+
+-- Per-player recap last-seen markers: one player's dismissal must never mark
+-- another player's unseen events as read. player_id 'local' is the solo /
+-- local-console viewer; mp players key their own row. Legacy campaign-wide
+-- markers stay in campaigns.state_json and are lazily seeded per player.
+CREATE TABLE IF NOT EXISTS recap_seen (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL,
+  player_id TEXT NOT NULL,
+  seen_rowids_json TEXT NOT NULL DEFAULT '{}',
+  seen_turn INTEGER NOT NULL DEFAULT 0,
+  seen_ts TEXT,
+  dismissed_at TEXT,
+  UNIQUE (campaign_id, player_id)
+);
+
 CREATE TABLE IF NOT EXISTS consequences (
   id TEXT PRIMARY KEY,
   campaign_id TEXT NOT NULL,
@@ -413,7 +455,7 @@ CREATE TABLE IF NOT EXISTS forge_jobs (
   doc_id TEXT NOT NULL,
   mode TEXT NOT NULL DEFAULT 'faithful',      -- faithful | rewrite
   scope TEXT NOT NULL DEFAULT 'short',        -- short | multi_session | extended
-  status TEXT NOT NULL DEFAULT 'queued',      -- queued|analyzing|bible|generating|validating|review|approved|failed|cancelled
+  status TEXT NOT NULL DEFAULT 'queued',      -- queued|running|review|approved|failed|cancelled
   stage TEXT NOT NULL DEFAULT '',             -- human-readable stage line
   progress REAL NOT NULL DEFAULT 0,           -- 0..1
   coverage_json TEXT NOT NULL DEFAULT '{}',
@@ -424,6 +466,8 @@ CREATE TABLE IF NOT EXISTS forge_jobs (
   error TEXT,
   cancel INTEGER NOT NULL DEFAULT 0,
   draft_id TEXT,
+  owner TEXT,                                 -- worker lease holder
+  heartbeat TEXT,                             -- lease heartbeat (UTC)
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -468,6 +512,35 @@ CREATE TABLE IF NOT EXISTS director_threads (
 );
 CREATE INDEX IF NOT EXISTS idx_director_campaign ON director_threads (campaign_id, status);
 
+CREATE TABLE IF NOT EXISTS party_goals (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  detail TEXT NOT NULL DEFAULT '',
+  target INTEGER NOT NULL DEFAULT 3,
+  progress INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'active',      -- active|complete|abandoned
+  scope TEXT NOT NULL DEFAULT 'party',        -- party|personal
+  owner_player_id TEXT,
+  verified_progress INTEGER NOT NULL DEFAULT 0,  -- engine-credited only
+  last_source TEXT NOT NULL DEFAULT 'player',    -- engine|player (last change)
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_goals_campaign ON party_goals (campaign_id, status);
+
+CREATE TABLE IF NOT EXISTS campfire_stories (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL,
+  author_player_id TEXT NOT NULL DEFAULT 'local',
+  author_name TEXT NOT NULL DEFAULT '',
+  kind TEXT NOT NULL DEFAULT 'story',         -- story|memory|memorial|record|goal_idea
+  text TEXT NOT NULL,
+  related_event_seq INTEGER,                  -- optional link to a VERIFIED event
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_campfire_campaign ON campfire_stories (campaign_id, created_at);
+
 CREATE TABLE IF NOT EXISTS campaign_checkpoints (
   id TEXT PRIMARY KEY,
   campaign_id TEXT NOT NULL,
@@ -476,6 +549,33 @@ CREATE TABLE IF NOT EXISTS campaign_checkpoints (
   created_at TEXT NOT NULL
 );
 """
+
+_FTS_STATE = {"available": True, "warning": None}
+
+
+def fts_available() -> bool:
+    """True when SQLite full-text search is in use; False when the LIKE
+    fallback is active (optional module missing in this build)."""
+    return bool(_FTS_STATE["available"])
+
+
+def fts_warning() -> str | None:
+    return _FTS_STATE["warning"]
+
+
+def _try_fts(conn, script: str, label: str) -> bool:
+    """Create an optional FTS5 virtual table; degrade to LIKE search instead
+    of failing startup when the build lacks the module."""
+    try:
+        conn.executescript(script)
+        return True
+    except Exception as exc:  # noqa: BLE001 — any fts5/lifecycle failure degrades
+        _FTS_STATE["available"] = False
+        _FTS_STATE["warning"] = (
+            f"full-text search unavailable ({str(exc)[:120]}) — {label} uses the LIKE fallback")
+        print("[Saturday] " + _FTS_STATE["warning"], flush=True)
+        return False
+
 
 SEARCH_SQL = """
 CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(
@@ -496,16 +596,13 @@ def init_db() -> None:
     conn = get_conn()
     with _LOCK:
         conn.executescript(SCHEMA_SQL)
-        conn.executescript(SEARCH_SQL)
+        _try_fts(conn, SEARCH_SQL, "campaign search")
         # Infinite Library full-text index (FTS5 when the build supports it)
-        try:
-            conn.executescript("""
+        _try_fts(conn, """
 CREATE VIRTUAL TABLE IF NOT EXISTS library_fts USING fts5(
   doc_id UNINDEXED, seq UNINDEXED, heading, text
 );
-""")
-        except Exception:
-            pass  # LIKE search still works without FTS5
+""", "library search")
         row = conn.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()
         if row is None:
             conn.execute(
@@ -542,6 +639,9 @@ def _migrate(conn: sqlite3.Connection, from_version: str) -> None:
         _migrate_v2_to_v3(conn)
         _migrate_v3_to_v4(conn)
         _migrate_v4_to_v5(conn)
+        _migrate_v5_to_v6(conn)
+        _migrate_v6_to_v7(conn)
+        _migrate_v7_to_v8(conn)
         conn.execute(
             "UPDATE meta SET value=? WHERE key='schema_version'",
             (config.SCHEMA_VERSION,),
@@ -551,6 +651,8 @@ def _migrate(conn: sqlite3.Connection, from_version: str) -> None:
     if from_version in ("saturday.core.v3",):
         _migrate_v3_to_v4(conn)
         _migrate_v4_to_v5(conn)
+        _migrate_v5_to_v6(conn)
+        _migrate_v6_to_v7(conn)
         conn.execute(
             "UPDATE meta SET value=? WHERE key='schema_version'",
             (config.SCHEMA_VERSION,),
@@ -559,6 +661,34 @@ def _migrate(conn: sqlite3.Connection, from_version: str) -> None:
         return
     if from_version in ("saturday.core.v4",):
         _migrate_v4_to_v5(conn)
+        _migrate_v5_to_v6(conn)
+        _migrate_v6_to_v7(conn)
+        conn.execute(
+            "UPDATE meta SET value=? WHERE key='schema_version'",
+            (config.SCHEMA_VERSION,),
+        )
+        conn.commit()
+        return
+    if from_version in ("saturday.core.v5",):
+        _migrate_v5_to_v6(conn)
+        _migrate_v6_to_v7(conn)
+        conn.execute(
+            "UPDATE meta SET value=? WHERE key='schema_version'",
+            (config.SCHEMA_VERSION,),
+        )
+        conn.commit()
+        return
+    if from_version in ("saturday.core.v6",):
+        _migrate_v6_to_v7(conn)
+        _migrate_v7_to_v8(conn)
+        conn.execute(
+            "UPDATE meta SET value=? WHERE key='schema_version'",
+            (config.SCHEMA_VERSION,),
+        )
+        conn.commit()
+        return
+    if from_version in ("saturday.core.v7",):
+        _migrate_v7_to_v8(conn)
         conn.execute(
             "UPDATE meta SET value=? WHERE key='schema_version'",
             (config.SCHEMA_VERSION,),
@@ -617,6 +747,78 @@ CREATE TABLE IF NOT EXISTS forge_drafts (
 """)
 
 
+def _migrate_v7_to_v8(conn: sqlite3.Connection) -> None:
+    """Player-specific recap privacy: per-character knowledge tracking and
+    per-player recap last-seen markers. Additive tables only — no rows are
+    rewritten, and the legacy campaign-wide markers in campaigns.state_json
+    are left in place (they seed each player's marker lazily and conservatively)."""
+    conn.execute("""CREATE TABLE IF NOT EXISTS char_knowledge (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL,
+  character_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  ref TEXT NOT NULL,
+  ts TEXT NOT NULL,
+  UNIQUE (campaign_id, character_id, kind, ref)
+)""")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_knowledge_campaign ON char_knowledge (campaign_id, character_id)")
+    conn.execute("""CREATE TABLE IF NOT EXISTS knowledge_shares (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL,
+  ref TEXT NOT NULL,
+  ref_kind TEXT NOT NULL,
+  source_kind TEXT NOT NULL,
+  shared_by_player_id TEXT NOT NULL DEFAULT 'local',
+  shared_by_character_id TEXT,
+  story_id TEXT,
+  ts TEXT NOT NULL,
+  UNIQUE (campaign_id, ref)
+)""")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_kshares_campaign ON knowledge_shares (campaign_id, ref)")
+    conn.execute("""CREATE TABLE IF NOT EXISTS recap_seen (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL,
+  player_id TEXT NOT NULL,
+  seen_rowids_json TEXT NOT NULL DEFAULT '{}',
+  seen_turn INTEGER NOT NULL DEFAULT 0,
+  seen_ts TEXT,
+  dismissed_at TEXT,
+  UNIQUE (campaign_id, player_id)
+)""")
+
+
+def _migrate_v6_to_v7(conn: sqlite3.Connection) -> None:
+    """Goal-progress integrity: engine-verified progress is separated from
+    player-authored progress so a manual request can never fabricate a
+    mechanically validated achievement. Additive columns only."""
+    cols = set()
+    if "party_goals" in {r[0] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'")}:
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(party_goals)")}
+    if "verified_progress" not in cols:
+        conn.execute("ALTER TABLE party_goals ADD COLUMN verified_progress INTEGER NOT NULL DEFAULT 0")
+    if "last_source" not in cols:
+        conn.execute("ALTER TABLE party_goals ADD COLUMN last_source TEXT NOT NULL DEFAULT 'player'")
+
+
+def _migrate_v5_to_v6(conn: sqlite3.Connection) -> None:
+    """Living Worlds lease columns: durable worker ownership + heartbeat for
+    conversion jobs, so interrupted jobs are detectable and resumable."""
+    cols = set()
+    if "forge_jobs" in {r[0] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'")}:
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(forge_jobs)")}
+    if "owner" not in cols:
+        conn.execute("ALTER TABLE forge_jobs ADD COLUMN owner TEXT")
+    if "heartbeat" not in cols:
+        conn.execute("ALTER TABLE forge_jobs ADD COLUMN heartbeat TEXT")
+    # legacy active states become owned-running rows with a stale heartbeat so
+    # the recovery sweep can pick them up deterministically
+    conn.execute(
+        "UPDATE forge_jobs SET status='running', heartbeat=NULL"
+        " WHERE status IN ('analyzing','bible','generating','validating')")
+
+
 def _migrate_v4_to_v5(conn: sqlite3.Connection) -> None:
     """Living Campaign migration: split-party locations, spectator roles,
     encounter/jobs/revisions/director/checkpoint tables."""
@@ -637,6 +839,29 @@ def _migrate_v4_to_v5(conn: sqlite3.Connection) -> None:
         if "collab_json" not in draft_cols:
             conn.execute("ALTER TABLE forge_drafts ADD COLUMN collab_json TEXT NOT NULL DEFAULT '{}'")
     conn.executescript("""
+CREATE TABLE IF NOT EXISTS party_goals (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  detail TEXT NOT NULL DEFAULT '',
+  target INTEGER NOT NULL DEFAULT 3,
+  progress INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'active',
+  scope TEXT NOT NULL DEFAULT 'party',
+  owner_player_id TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS campfire_stories (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL,
+  author_player_id TEXT NOT NULL DEFAULT 'local',
+  author_name TEXT NOT NULL DEFAULT '',
+  kind TEXT NOT NULL DEFAULT 'story',
+  text TEXT NOT NULL,
+  related_event_seq INTEGER,
+  created_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS forge_contrib (
   id TEXT PRIMARY KEY,
   draft_id TEXT NOT NULL,
@@ -813,6 +1038,16 @@ def execute(sql: str, params: tuple = ()) -> None:
         conn = get_conn()
         conn.execute(sql, params)
         conn.commit()
+
+
+def execute_rc(sql: str, params: tuple = ()) -> int:
+    """Execute and return the affected rowcount — for atomic conditional
+    updates such as single-winner worker leases."""
+    with _LOCK:
+        conn = get_conn()
+        cur = conn.execute(sql, params)
+        conn.commit()
+        return cur.rowcount
 
 
 def get_setting(key: str, default: str | None = None) -> str | None:

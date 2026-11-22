@@ -318,12 +318,104 @@ function enterGame(view, shared = false) {
   window.__campaignId = view.id;
   window.__refreshCombatPanel?.();
   refreshView();
+  showRecapIfReturning(view.id);
   if (shared) {
     $("nav-chat").hidden = false;
     $("nav-party").hidden = false;
     $("mp-conn").hidden = false;
     toast("You are back on the shared shore.", "good");
   }
+}
+
+// ---------- v0.4.0: interactive tutorial + accessibility ----------
+const TUTORIAL_KEY = "sm_tutorial_done_v1";
+const TUTORIAL_STEPS = [
+  { sel: "#hud-nav", text: "These are your panels: the map, your journal, the Memory Ledger, quests, dice — everything the shore remembers lives here." },
+  { sel: "#scene-stage", text: "This is the Living Shore — a persistent beach between worlds. Doors in the shallows are portals into adventures." },
+  { sel: "#composer", text: "Say anything in your own words — the Game Master listens. The engine decides all dice and consequences; the GM only narrates them." },
+  { sel: "#dock-choices", text: "Choices offered here are always valid — picking one moves the story through engine-validated steps." },
+  { sel: "#hud-char", text: "Your character: vigor and nerve are your health and resolve. Rest at safe places to recover." },
+];
+const DND_TUTORIAL_NOTES = {
+  combat: "D&D combat is turn-based: initiative decides the order, you act on your own turn, and the engine rolls every die. HP persists between fights — the dead stay dead.",
+  dice: "D&D checks are d20 + modifier against a difficulty. 20s crit, 1s fail badly. Death saves happen when you drop to 0 HP.",
+};
+
+function tutorialSteps() {
+  const steps = TUTORIAL_STEPS.slice();
+  if ((window.__ruleset || "") === "dnd5e") {
+    steps.splice(2, 0, { sel: "#composer", text: DND_TUTORIAL_NOTES.combat, dnd: true });
+    steps.splice(4, 0, { sel: "#dock-dice", text: DND_TUTORIAL_NOTES.dice, dnd: true });
+  }
+  return steps;
+}
+
+function startTutorial(force = false) {
+  if (!force && localStorage.getItem(TUTORIAL_KEY)) return;
+  const steps = tutorialSteps();
+  let i = 0;
+  const prev = document.createElement("div");
+  prev.id = "tutorial-overlay";
+  prev.style.cssText = "position:fixed;inset:0;background:rgba(4,6,14,0.72);z-index:9999;display:flex;align-items:flex-end;justify-content:center;padding:2vh 3vw;";
+  const card = document.createElement("div");
+  card.style.cssText = "background:var(--deep,#141a2e);border:1px solid var(--teal,#39d0c4);border-radius:14px;max-width:560px;width:100%;padding:18px 20px;color:var(--text,#e8ecf6);font:inherit;";
+  prev.appendChild(card);
+  const render = () => {
+    const s = steps[i];
+    card.innerHTML = `<div style="color:var(--gold,#e8b84b);font-size:0.8em;text-transform:uppercase;letter-spacing:0.12em">First night on the shore · ${i + 1}/${steps.length}${s.dnd ? " · D&D" : ""}</div>
+      <p style="margin:0.6em 0">${s.text}</p>
+      <div style="display:flex;gap:0.5em;justify-content:flex-end">
+        <button data-tut="skip" class="btn btn-small btn-ghost">Skip</button>
+        <button data-tut="next" class="btn btn-small btn-primary">${i + 1 === steps.length ? "Set sail" : "Next"}</button>
+      </div>`;
+    card.querySelector("[data-tut=\"next\"]").onclick = () => {
+      i += 1;
+      if (i >= steps.length) { finish(); return; }
+      render();
+      highlight();
+    };
+    card.querySelector("[data-tut=\"skip\"]").onclick = finish;
+  };
+  const highlight = () => {
+    try {
+      const el = document.querySelector(steps[i].sel);
+      if (el) { el.scrollIntoView({ block: "center", behavior: "smooth" }); }
+    } catch { /* fine */ }
+  };
+  const finish = () => {
+    localStorage.setItem(TUTORIAL_KEY, "1");
+    prev.remove();
+  };
+  document.body.appendChild(prev);
+  render();
+  highlight();
+}
+window.__startTutorial = startTutorial;
+
+function applyAccessibility() {
+  const prefs = JSON.parse(localStorage.getItem("sm_a11y") || "{}");
+  document.body.classList.toggle("reduced-motion", !!prefs.reduced_motion);
+  document.body.classList.toggle("high-contrast", !!prefs.high_contrast);
+}
+window.__applyAccessibility = applyAccessibility;
+
+async function showRecapIfReturning(cid) {
+  try {
+    const r = await apiGet(`/api/campaigns/${cid}/recap`);
+    const banner = document.getElementById("recap-banner");
+    if (!banner) return;
+    if (r.is_returning && (r.items || []).length) {
+      document.getElementById("recap-items").innerHTML = (r.items || []).map((i) =>
+        `<div class="fact-line">• <strong>${esc(i.kind)}</strong>: ${esc(i.text)}</div>`).join("");
+      banner.hidden = false;
+      document.getElementById("recap-dismiss").onclick = async () => {
+        await apiSend(`/api/campaigns/${cid}/recap/dismiss`, "POST", {});
+        banner.hidden = true;
+      };
+    } else {
+      banner.hidden = true;
+    }
+  } catch { /* solo older save without the endpoint */ }
 }
 
 async function refreshView() {
@@ -452,6 +544,8 @@ async function act(text) {
   composerBtn.disabled = true;
   try {
     const res = await apiSend(`/api/campaigns/${state.view.id}/action`, "POST", { text });
+
+    window.__captureTrace?.(res);
     audio.ui();
     lastNarration = res.narration;
     lastSuggestions = res.choices || [];
@@ -479,11 +573,24 @@ async function doChoose(choiceId) {
   busy = true;
   try {
     const res = await apiSend(`/api/campaigns/${state.view.id}/choose`, "POST", { choice_id: choiceId });
+    window.__captureTrace?.(res);
     lastNarration = res.narration;
     lastSuggestions = [];
     $("dock-narration").textContent = res.narration;
     $("dock-narration").dataset.pending = "0";
-    if (res.dice) { audio.dice(); showDice(res.dice); }
+    if (res.dice) {
+      audio.dice();
+      showDice(res.dice);
+      const dock = document.getElementById("dock-dice");
+      if (dock && !document.body.classList.contains("reduced-motion")) {
+        const outcome = (res.dice.outcome || "").toLowerCase();
+        if (outcome.includes("triumph") || outcome.includes("crit") || outcome.includes("great")) {
+          dock.classList.add("dice-crit"); setTimeout(() => dock.classList.remove("dice-crit"), 900);
+        } else if (outcome.includes("disaster") || outcome.includes("fail") || outcome.includes("wreck")) {
+          dock.classList.add("dice-fail"); setTimeout(() => dock.classList.remove("dice-fail"), 900);
+        }
+      }
+    }
     if (res.ending) { audio.chime(); toast(`Ending witnessed: ${res.ending.replace(/_/g, " ")}`, "good"); }
     showChanges(res.changes || []);
     if (res.echo_offers?.length) showEchoOffers(res.echo_offers);
@@ -650,12 +757,18 @@ function wireMultiplayerScreens() {
   $("btn-import-go").addEventListener("click", () => libui.doImport());
   window.__startPortal = (packId) => showCreate(packId);
   $("btn-forge-open").addEventListener("click", () => libui.showForge());
+  applyAccessibility();
+  setTimeout(() => startTutorial(), 900);
   $("btn-workshop-open").addEventListener("click", () => libui.showWorkshop());
   window.__openCombatPanel = () => {
     const b = document.getElementById("nav-combat");
     if (b) { b.hidden = false; b.click(); }
   };
   window.__refreshCombatPanel = () => import("./ui.js?v=30").then((ui) => ui.refreshCombatPanel?.());
+  // Engine Trace: keep the last authoritative turn explanation
+  window.__captureTrace = (res) => {
+    if (res && res.trace) { window.__lastTrace = res.trace; }
+  };
   window.__combatAct = async (act) => {
     try {
       const enc = await apiGet(`/api/campaigns/${window.__campaignId}/combat`);

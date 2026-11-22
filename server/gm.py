@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 import secrets
 
-from . import ai, config, continuity, db, director, gen, legacy, rules, rules_dnd, worldpacks
+from . import ai, config, continuity, db, director, gen, legacy, library, rules, rules_dnd, worldpacks
 from .db import jdumps, jloads, new_id, utcnow
 
 VALID_SKILLS = ["notice", "lore", "persuade", "fight", "endure", "bind"]
@@ -158,6 +158,7 @@ def create_campaign(name: str, pack_id: str, character_spec: dict) -> str:
         "weather": {"key": "mist", "desc": "Low sea mist."},
         "endings_seen": [],
     }
+    _bind_source(cid, state, pack)
     if start_adv:
         adv0 = worldpacks.get_adventure(pack, start_adv)
         if adv0 and adv0.get("entry"):
@@ -192,7 +193,18 @@ def create_campaign(name: str, pack_id: str, character_spec: dict) -> str:
     db.add_journal(cid, f"The voyage begins at {loc.get('name', hub)}. {loc.get('desc', '')}", "auto")
     db.log_event(cid, "campaign_created", {"name": name, "pack": pack_id, "archetype": archetype_id})
     db.add_transcript(cid, "system", f"Campaign '{name}' forged on {ts}.")
-    legacy.remember(cid, "tavern", "visitor", f"A newcomer named {char_name} arrived on the shore.")
+    mid = legacy.remember(cid, "tavern", "visitor", f"A newcomer named {char_name} arrived on the shore.")
+    try:
+        from . import experience as _exp
+        _owner = db.query_one(
+            "SELECT character_id FROM campaigns WHERE id=?", (cid,))["character_id"]
+        _exp.note_heard(cid, _owner, "tavern")
+        # hotfix 4: the character learns their own arrival tale — a specific,
+        # authoritative acquisition (they may retell exactly this at the fire)
+        if mid:
+            _exp.note_memory(cid, _owner, mid)
+    except Exception:
+        pass
     echo_ids = character_spec.get("echo_ids") or []
     if echo_ids:
         for c in legacy.weave_echoes(cid, pack, echo_ids):
@@ -269,7 +281,14 @@ def create_character(cid: str, spec: dict) -> str:
     for item_id in arc.get("kit", []) if not dnd_sheet else []:
         give_item(cid, pack, item_id, silent=True, chid=chid)
     db.add_transcript(cid, "system", f"{char_name} steps out of the sea-foam.")
-    legacy.remember(cid, "tavern", "visitor", f"A newcomer named {char_name} arrived on the shore.")
+    mid = legacy.remember(cid, "tavern", "visitor", f"A newcomer named {char_name} arrived on the shore.")
+    try:
+        from . import experience as _exp
+        # hotfix 4: the joining character learns their own arrival tale
+        if mid:
+            _exp.note_memory(cid, chid, mid)
+    except Exception:
+        pass
     echo_ids = spec.get("echo_ids") or []
     if echo_ids:
         for c in legacy.weave_echoes(cid, pack, echo_ids):
@@ -517,6 +536,13 @@ def apply_effects(cid: str, pack: dict, effects: dict, changes: list[str],
         db.execute("UPDATE campaigns SET state_json=? WHERE id=?", (jdumps(state), cid))
     if effects.get("discover"):
         loc_id = str(effects["discover"])
+        try:
+            from . import experience as _exp
+            _exp.auto_credit(cid, "discovery", f"discovered {loc_id}")
+            _exp.note_visit(cid, chid, loc_id)
+            _exp.note_discovery(cid, chid, loc_id)
+        except Exception:
+            pass
         db.execute(
             "INSERT INTO locations_state (campaign_id, location_id, discovered, data_json)"
             " VALUES (?,?,1,'{}') ON CONFLICT(campaign_id, location_id)"
@@ -540,6 +566,12 @@ def apply_effects(cid: str, pack: dict, effects: dict, changes: list[str],
             "UPDATE campaigns SET location_id=?, scene_id='hub', state_json=?, updated_at=? WHERE id=?",
             (hub, jdumps(state), utcnow(), cid),
         )
+        try:
+            from . import experience as _exp
+            for _row in db.query("SELECT id FROM characters WHERE campaign_id=?", (cid,)):
+                _exp.note_visit(cid, _row["id"], hub)
+        except Exception:
+            pass
         changes.append("Returned to the Living Shore.")
     beads = effects.get("beads")
     if isinstance(beads, int) and beads != 0:
@@ -582,6 +614,12 @@ def _quest_update(cid: str, qu: dict) -> None:
         notes = []
         if qu.get("note"):
             notes.append(str(qu["note"])[:200])
+        if status == "done":
+            try:
+                from . import experience as _exp
+                _exp.auto_credit(cid, "quest_resolved", f"quest {qid} resolved")
+            except Exception:
+                pass
         db.execute(
             "UPDATE quests SET status=?, notes_json=notes_json WHERE id=?",
             (status, existing["id"]),
@@ -629,6 +667,71 @@ UNDERTOW_TO_DND = {
     "notice": "perception", "lore": "history", "persuade": "persuasion",
     "fight": "athletics", "endure": "athletics", "bind": "arcana",
 }
+
+
+def _source_doc_for(pack: dict):
+    """Match the indexed library document this pack adapts, by title/author
+    (never by a fixed doc id — reindexing keeps links intact)."""
+    lic = pack.get("license", {}) or {}
+    title = (lic.get("source_title") or "").strip()
+    author = (lic.get("author") or "").strip()
+    if not title and not author:
+        return None
+    best, score = None, 0
+    for d in library.list_docs():
+        s = 0
+        if title and title.lower()[:40] in (d["title"] or "").lower():
+            s += 2
+        if author and author.lower()[:30] in (d["author"] or "").lower():
+            s += 2
+        if s > score:
+            best, score = d, s
+    return best if best and score >= 2 else None
+
+
+def _initial_horizon(doc_id: str) -> tuple[int, int]:
+    """Where the story's revealed window begins: the first 15% of the book,
+    clamped to a chapter boundary so the opening chapters are present."""
+    row = db.query_one("SELECT MAX(seq) AS m FROM library_chunks WHERE doc_id=?", (doc_id,))
+    total = int(row["m"] or 0) + 1
+    target = max(0, min(total - 1, int(total * 0.15)))
+    row2 = db.query_one(
+        "SELECT MAX(seq) AS s FROM (SELECT seq, heading, LAG(heading) OVER (ORDER BY seq)"
+        " ph FROM library_chunks WHERE doc_id=?) WHERE ph IS NOT NULL AND heading != ph"
+        " AND seq <= ?", (doc_id, target))
+    boundary = int(row2["s"]) if row2 and row2["s"] is not None else target
+    return boundary, total
+
+
+def _bind_source(cid: str, state: dict, pack: dict) -> None:
+    """Bind a source-linked pack to its indexed document and open the story's
+    revealed window. Later chapters stay unretrievable until discoveries and
+    scene progress legitimately advance the horizon."""
+    if state.get("source_doc_id"):
+        return  # already bound
+    doc = _source_doc_for(pack)
+    if not doc:
+        return
+    boundary, total = _initial_horizon(doc["id"])
+    state["source_doc_id"] = doc["id"]
+    state["source_total"] = total
+    state["source_horizon"] = boundary
+    db.log_event(cid, "source_bound", {"doc_id": doc["id"], "horizon": boundary,
+                                       "total": total})
+
+
+def _advance_horizon(cid: str, state: dict, frac: float, reason: str) -> None:
+    """Advance the revealed window (engine-defined mechanic: scene progress
+    and discoveries legitimately reveal more of the book)."""
+    total = int(state.get("source_total") or 0)
+    horizon = int(state.get("source_horizon") or 0)
+    if not total:
+        return
+    new_h = min(total - 1, max(horizon, int(horizon + total * frac)))
+    if new_h > horizon:
+        state["source_horizon"] = new_h
+        db.log_event(cid, "horizon_advance", {"reason": reason, "horizon": new_h,
+                                              "total": total})
 
 
 def _effective_location(cid: str, ch: dict | None, campaign: dict | None = None) -> str:
@@ -943,12 +1046,12 @@ def run_turn(cid: str, action_text: str, chid: str | None = None) -> dict:
         raise ValueError("say what you do")
 
     state = jloads(campaign["state_json"], {})
+    if ch_get(ch, "dead"):
+        raise ValueError("This wanderer's story is concluded — begin a new voyage; the multiverse remembers.")
     db.execute("UPDATE campaigns SET turn=?, updated_at=? WHERE id=?",
                (campaign["turn"] + 1, utcnow(), cid))
     campaign["turn"] += 1
     advance_time(campaign, 1)
-    if ch_get(ch, "dead"):
-        raise ValueError("This wanderer's story is concluded — begin a new voyage; the multiverse remembers.")
     legacy.check_washashore(cid, pack)
     state = jloads(db.query_one("SELECT state_json FROM campaigns WHERE id=?", (cid,))["state_json"], {})
     omen = None
@@ -1107,6 +1210,8 @@ def run_turn(cid: str, action_text: str, chid: str | None = None) -> dict:
     db.log_event(cid, "turn", {"ai_used": meta["ai_used"], "turn": campaign["turn"]})
     db.add_journal(cid, _trim(narration, 240), "auto")
 
+    trace = _build_trace(cid, action_text, ch, dice, changes, meta, omen,
+                         contract, campaign["turn"])
     return {
         "narration": narration,
         "scene_hint": scene_hint,
@@ -1115,7 +1220,48 @@ def run_turn(cid: str, action_text: str, chid: str | None = None) -> dict:
         "omen": omen,
         "choices": choices,
         "meta": meta,
+        "trace": trace,
     }
+
+
+def _build_trace(cid: str, action_text: str, ch: dict, dice: dict | None,
+                 changes: list, meta: dict, omen: dict | None,
+                 contract: dict | None, turn: int) -> dict:
+    """Engine Trace — the rules behind one turn, from authoritative data only.
+    Shows the action, the roll with modifiers and difficulty, the validated
+    consequences, and the narration source. Never reveals GM-only knowledge
+    or hidden future outcomes."""
+    steps = [{"step": "action", "detail": action_text[:200]}]
+    if dice:
+        mods = []
+        omen_note = ""
+        if omen:
+            omen_note = f" omen '{omen.get('title', '')}' ({omen.get('kind', '')})"
+        if ch:
+            bonus = ch_get(ch, "omen_bonus")
+            if bonus:
+                mods.append(f"omen {bonus.get('skill', 'any')} +{bonus.get('mod', 0)}")
+        steps.append({
+            "step": "roll",
+            "rule": "2d6 + attribute (Undertow)" if "dnd" not in (ch or {}).get("data", {}) else
+                    "d20 + modifier (SRD 5.1)",
+            "dice": dice.get("dice", []),
+            "mods": mods,
+            "difficulty": dice.get("difficulty"),
+            "result": dice.get("outcome"),
+            "text": dice.get("text", ""),
+            "omen": omen_note.strip(),
+        })
+    for c in changes[:8]:
+        steps.append({"step": "engine_effect", "detail": c[:160]})
+    steps.append({
+        "step": "narration",
+        "source": ("AI Game Master (" + str(meta.get("model") or "") + ")"
+                   if meta.get("ai_used") else "Offline Storyteller (built-in)"),
+        "note": "narration never changes rules outcomes — the engine resolved "
+                "the dice and effects above first",
+    })
+    return {"turn": turn, "steps": steps}
 
 
 def _gm_outcome_narration(cid: str, pack: dict, campaign: dict, state: dict, dice: dict) -> str | None:
@@ -1368,6 +1514,7 @@ def choose(cid: str, choice_id: str, chid: str | None = None) -> dict:
     goto = branch.get("goto")
     if goto and goto in adv["scenes"]:
         _set_beat(cid, state, goto)
+        _advance_horizon(cid, state, 0.10, "scene progress")
     changes += _effects_for(cid, pack, branch.get("effects") or {}, ch["id"] if ch else None)
 
     # endings and epilogues
@@ -1375,6 +1522,8 @@ def choose(cid: str, choice_id: str, chid: str | None = None) -> dict:
     epilogue = None
     offers = []
     eff = (branch.get("effects") or {})
+    if eff.get("discover"):
+        _advance_horizon(cid, state, 0.05, "discovery")
     if eff.get("ending"):
         ending_id = str(eff["ending"])
         ending = adv.get("endings", {}).get(ending_id, {})
@@ -1383,6 +1532,7 @@ def choose(cid: str, choice_id: str, chid: str | None = None) -> dict:
             state["endings_seen"].append(ending_id)
         state["adventure_done"] = True
         state["beat"] = None
+        _advance_horizon(cid, state, 1.0, "ending reached")
         ret = ending.get("return_location", pack.get("hub_location"))
         db.execute(
             "UPDATE campaigns SET location_id=?, scene_id='hub', state_json=?, updated_at=? WHERE id=?",
@@ -1432,7 +1582,14 @@ def choose(cid: str, choice_id: str, chid: str | None = None) -> dict:
             "ending": ending_id,
             "echo_offers": [{"kind": o.get("kind"), "title": o.get("title"),
                              "detail": o.get("detail")} for o in (offers or [])],
-            "scene": goto, "meta": {"ai_used": bool(narration and ending_id is None and not epilogue)}}
+            "scene": goto, "meta": {"ai_used": bool(narration and ending_id is None and not epilogue)},
+            "trace": {"turn": campaign["turn"], "steps": [
+                {"step": "choice", "detail": str(choice.get("label") or choice.get("id", ""))[:160]},
+                *[{"step": "engine_effect", "detail": c[:160]} for c in changes[:8]],
+                {"step": "narration",
+                 "source": "GM narration of an engine-resolved outcome",
+                 "note": "effects above were validated by the engine before narrating"},
+            ]}}
 
 
 def _gm_scene_bridge(cid: str, pack: dict, campaign: dict, choice: dict, new_scene: dict) -> str | None:
@@ -1532,6 +1689,7 @@ def travel(cid: str, location_id: str, chid: str | None = None) -> dict:
             raise ValueError("adventure pack data missing")
         state["adventure_id"] = adv["id"]
         state["beat_location"] = loc["id"]
+        _bind_source(cid, state, pack)
         resume = (
             state.get("beat") in adv.get("scenes", {})
             and not state.get("adventure_done")
@@ -1554,6 +1712,12 @@ def travel(cid: str, location_id: str, chid: str | None = None) -> dict:
         )
         # shared travel moves the whole party: clear split overrides
         db.execute("UPDATE characters SET location_id=NULL WHERE campaign_id=?", (cid,))
+        try:
+            from . import experience as _exp
+            for _row in db.query("SELECT id FROM characters WHERE campaign_id=?", (cid,)):
+                _exp.note_visit(cid, _row["id"], location_id)
+        except Exception:
+            pass
     else:
         db.execute(
             "UPDATE campaigns SET location_id=?, scene_id='hub', updated_at=? WHERE id=?",
@@ -1590,6 +1754,11 @@ def rest(cid: str, chid: str | None = None) -> dict:
     if not rest_spec:
         raise ValueError("This is no place to rest.")
     ch = get_character(cid, chid)
+    try:
+        from . import experience as _exp
+        _exp.note_visit(cid, chid, campaign["location_id"])
+    except Exception:
+        pass
     if _campaign_ruleset(cid) == "dnd5e":
         sheet = _dnd_sheet(ch)
         if not sheet:
@@ -1631,7 +1800,16 @@ def rest(cid: str, chid: str | None = None) -> dict:
             "A quiet cartographer buying accuracy with stories.",
             "A pilgrim of the Lantern Law, walking every fire on the shore.",
         ])
-        legacy.remember(cid, "tavern", "visitor", f"{visitor} signed Cardo's guestbook.")
+        mid = legacy.remember(cid, "tavern", "visitor", f"{visitor} signed Cardo's guestbook.")
+        try:
+            from . import experience as _exp
+            _exp.note_heard(cid, ch["id"], "tavern")
+            # hotfix 4: the resting character hears THIS visitor tale told at
+            # the fire — a specific, authoritative acquisition
+            if mid:
+                _exp.note_memory(cid, ch["id"], mid)
+        except Exception:
+            pass
         extra += f" A visitor warms their hands at the fire: {visitor}"
     advance_time(campaign, 2)
     msg = loc.get("rest_text", "You rest, and the shore allows it.") + extra

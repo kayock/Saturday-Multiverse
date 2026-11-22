@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: ${{ matrix.os }} · py${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Python syntax compilation
+        run: python -m compileall -q server scripts tests
+
+      - name: JavaScript syntax check
+        shell: bash
+        run: |
+          node --version
+          for f in client/js/*.js; do
+            node --check "$f"
+          done
+
+      - name: World-pack validation
+        run: python scripts/validate_packs.py
+
+      - name: Run the test suite
+        env:
+          SATURDAY_RATE_MULT: "100"
+        # The full suite — including the HTTPS/TLS tests — is cross-platform
+        # (no fcntl/termios/pty, portable subprocess handling) and runs on
+        # every leg of the matrix; test dependencies come from
+        # requirements-dev.txt (pytest + cryptography).
+        run: pytest tests/ -q --ignore=tests/browser
+
+      - name: Startup smoke test (production WSGI)
+        shell: bash
+        run: python scripts/smoke_startup.py
+
+  browser:
+    name: browser · chromium
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+          pip install playwright
+          playwright install --with-deps chromium
+      - name: Browser acceptance flows
+        env:
+          SATURDAY_RATE_MULT: "100"
+        # name the spec file explicitly: tests/conftest.py collect-ignores
+        # browser/*, so the directory alone would collect nothing
+        run: pytest tests/browser/test_browser_flows.py -q

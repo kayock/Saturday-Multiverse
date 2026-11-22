@@ -11,8 +11,8 @@ import os
 from pathlib import Path
 
 APP_NAME = "Saturday Multiverse"
-APP_VERSION = "0.3.6-living-campaign"
-SCHEMA_VERSION = "saturday.core.v5"
+APP_VERSION = "0.4.0-living-worlds"
+SCHEMA_VERSION = "saturday.core.v8"
 
 # Repository root: server/config.py -> server/ -> project root
 ROOT_DIR = Path(__file__).resolve().parent.parent
