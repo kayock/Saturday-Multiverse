@@ -10,9 +10,9 @@ import { portraitSVG } from "./portraits.js?v=30";
 import { audio } from "./audio.js?v=30";
 import { attachScanner } from "./qr.js?v=30";
 import { openPanel, openSettings, closeSettings, initPanelChrome,
-         openSeedGate, openTalk, showEchoOffers, openEchoShelf } from "./ui.js?v=32";
+         openSeedGate, openTalk, showEchoOffers, openEchoShelf } from "./ui.js?v=33";
 import * as mpui from "./mp.js?v=30";
-import * as libui from "./library.js?v=30";
+import * as libui from "./library.js?v=33";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

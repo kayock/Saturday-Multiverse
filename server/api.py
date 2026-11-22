@@ -221,10 +221,11 @@ def get_settings():
             return jsonify({"ai": {"enabled": bool(inner.get("enabled", False)),
                                    "model": str(inner.get("model", ""))},
                             "guest": True})
-    from . import routing
+    from . import forge_ai, routing
     return jsonify({"ai": ai.masked_ai_config(),
                     "routing": routing.get_routing(),
                     "route": routing.last_route(),
+                    "forge_ai": forge_ai.masked(),
                     "host": {"token_required": bool(config.HOST_TOKEN),
                              "bind": f"{config.HOST}:{config.PORT}"}})
 
@@ -244,10 +245,17 @@ def put_settings():
             routing.set_routing(body["routing"] or {})
         except (ValueError, TypeError) as exc:
             return _err(exc)
-    from . import routing
+    if "forge_ai" in body:
+        from . import forge_ai
+        try:
+            forge_ai.set_config(body["forge_ai"] or {})
+        except (ValueError, TypeError) as exc:
+            return _err(exc)
+    from . import forge_ai, routing
     return jsonify({"ai": ai.masked_ai_config(),
                     "routing": routing.get_routing(),
-                    "route": routing.last_route()})
+                    "route": routing.last_route(),
+                    "forge_ai": forge_ai.masked()})
 
 
 @api.post("/ai/test")
@@ -1186,7 +1194,8 @@ def forge_create():
     body = _mp_body()
     try:
         return jsonify(forge.create_draft(body.get("doc_id", ""),
-                                          body.get("mode", "faithful")))
+                                          body.get("mode", "faithful"),
+                                          transmit_approved=bool(body.get("transmit_approved"))))
     except (ValueError, forge.ForgeError) as exc:
         return _err(exc)
 
@@ -1206,7 +1215,8 @@ def forge_regen(draft_id):
     body = _mp_body()
     try:
         return jsonify(forge.regenerate_section(draft_id, body.get("section", ""),
-                                                body.get("notes", "")))
+                                                body.get("notes", ""),
+                                                transmit_approved=bool(body.get("transmit_approved"))))
     except (ValueError, forge.ForgeError) as exc:
         return _err(exc)
 
@@ -1411,7 +1421,8 @@ def forge_job_create():
     body = _mp_body()
     try:
         return jsonify(forge.create_job(body.get("doc_id", ""), body.get("mode", "faithful"),
-                                        body.get("scope", "short")))
+                                        body.get("scope", "short"),
+                                        transmit_approved=bool(body.get("transmit_approved"))))
     except (ValueError, forge.JobError, forge.ForgeError) as exc:
         return _err(exc)
 
@@ -1441,6 +1452,58 @@ def forge_job_retry(job_id):
         return jsonify(forge.retry_job(job_id))
     except (ValueError, forge.JobError) as exc:
         return _err(exc)
+
+
+@api.post("/forge/jobs/<job_id>/retry-windows")
+def forge_job_retry_windows(job_id):
+    """Re-run failed extraction windows only. Does not contact an online provider
+    unless that job was already an approved online conversion."""
+    _forbid_guest_admin()
+    try:
+        return jsonify(forge.retry_failed_windows(job_id))
+    except (ValueError, forge.JobError) as exc:
+        return _err(exc)
+
+
+@api.get("/forge/ai")
+def forge_ai_status():
+    _forbid_guest_admin()
+    from . import forge_ai
+    doc_id = request.args.get("doc_id", "")
+    chars = 0
+    if doc_id:
+        row = db.query_one("SELECT COALESCE(SUM(length(text)),0) AS s FROM library_chunks WHERE doc_id=?",
+                           (doc_id,))
+        chars = int((row or {"s": 0})["s"] or 0)
+    return jsonify({"catalog": forge_ai.catalog(), "preview": forge_ai.preview(chars)})
+
+
+@api.post("/forge/ai/test")
+def forge_ai_test():
+    """Ping the Forge endpoint with no manuscript text."""
+    _forbid_guest_admin()
+    from . import forge_ai
+    body = request.get_json(silent=True) or {}
+    try:
+        if body.get("forge_ai"):
+            current = forge_ai.get_config()
+            trial = dict(current)
+            trial.update({k: v for k, v in body["forge_ai"].items() if k in forge_ai.DEFAULT})
+            if not trial.get("api_key"):
+                trial["api_key"] = current.get("api_key") or ""
+            cfg = forge_ai._direct(trial.get("base_url") or "", trial.get("model") or "",
+                                   key=trial.get("api_key") or "", tier="test")
+            if not cfg["base_url"] or not cfg["model"]:
+                return jsonify({"ok": False, "detail": "Set an endpoint and a model first."})
+        else:
+            cfg = forge_ai.resolve(transmit_approved=True)
+            if cfg.get("_tier") == "online" and not body.get("transmit_approved"):
+                return jsonify({"ok": False, "detail": forge_ai._approval_message(
+                    forge_ai.get_config().get("provider_name") or "", cfg.get("base_url") or "")})
+        result = ai.test_connection(cfg)
+    except forge_ai.ForgeAiError as exc:
+        return jsonify({"ok": False, "detail": str(exc)})
+    return jsonify(result)
 
 
 @api.post("/forge/jobs/<job_id>/run")
@@ -1691,8 +1754,13 @@ def forge_collab_reject(draft_id, pid2):
 def forge_collab_suggest(draft_id):
     body = _mp_body()
     try:
+        from . import forge_ai
+        try:
+            cfg = forge_ai.resolve(transmit_approved=bool(body.get("transmit_approved")))
+        except forge_ai.ForgeAiError:
+            cfg = {"enabled": False}
         return jsonify(forge.collab_suggest(draft_id, body.get("kind", "npc"),
-                                            body.get("prompt", ""), ai.get_ai_config()))
+                                            body.get("prompt", ""), cfg))
     except (ValueError, forge.ForgeError) as exc:
         return _err(exc)
 

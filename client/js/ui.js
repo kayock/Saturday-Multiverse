@@ -803,7 +803,7 @@ function settingsHTML() {
     <h4>Game Master</h4>
     <div id="gm-route-status" class="fact-line">Checking hosts…</div>
     <h4>Advanced AI</h4>
-    <div class="fact-line">Campaign Forge may use a larger model when one is already running. Ordinary turns stay on the lightweight Game Master. Nothing here starts a large model. If that model is unavailable, Forge continues on the lightweight Game Master.</div>
+    <div class="fact-line">Ordinary turns stay on the lightweight Game Master. Campaign Forge has its own conversion model, chosen in the Forge, and does not change this one. Nothing here starts a large model.</div>
     <div class="setting-row"><label><input type="checkbox" id="ai-escalate" ${(window.__routing?.escalation || "on") === "on" ? "checked" : ""}> enable escalation</label></div>
     <div class="setting-row"><label>Advanced model</label><select id="ai-advanced" class="input"><option value="|">None — lightweight Game Master only</option></select></div>
     <div class="setting-row"><button type="button" id="ai-fleet-refresh" class="btn btn-small">Refresh status</button></div>

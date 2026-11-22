@@ -23,6 +23,42 @@ Production-style serving (optional):
 SATURDAY_PRODUCTION=1 python -m server.app   # waitress WSGI server
 ```
 
+### Linux install
+
+```bash
+git clone https://github.com/kayock/Saturday-Multiverse.git
+cd Saturday-Multiverse
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+SATURDAY_PRODUCTION=1 .venv/bin/python -m server.app
+```
+
+Campaigns, imported books, and certificates belong in a data directory
+outside the checkout, for example:
+
+```bash
+export SATURDAY_DATA_DIR="$HOME/.local/share/saturday-multiverse"
+```
+
+To start it with the user session, copy
+`deploy/saturday-multiverse.service.example` to
+`~/.config/systemd/user/saturday-multiverse.service`, replace the
+placeholders, then `systemctl --user enable --now saturday-multiverse.service`.
+Keep real addresses and paths in that local unit. Do not commit them.
+
+Optional Game Master routing, still local:
+
+```bash
+SATURDAY_GM_AUTO=1
+SATURDAY_GM_STATION_URL=http://127.0.0.1:11434/v1
+SATURDAY_GM_PORTABLE_URL=http://192.168.1.20:11434/v1
+SATURDAY_GM_PRIMARY=your-lightweight-model
+SATURDAY_GM_FALLBACK=your-other-lightweight-model
+```
+
+Leave the portable URL empty on a one-computer install. The game remains
+playable with the Offline Storyteller when neither model answers.
+
 ## 2. LAN play over plain HTTP
 
 Other devices on the same network reach the same game when the server binds

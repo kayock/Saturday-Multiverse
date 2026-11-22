@@ -24,7 +24,23 @@ itself owns every rule, every die, and every consequence.
 - **Extensible toward multiplayer.** The schema and API are already host-authoritative;
   Milestones 3–4 add invitations, synchronization, and cross-server guest portals.
 
-### v0.4.0-hotfix5 — Final Release Hotfix (newest)
+### v0.5.0 — Campaign Forge can use a stronger model
+
+Play stays on the lightweight Game Master. In the Forge, choose
+**Automatic local**, a specific local model, or an optional online
+provider. Online conversion sends manuscript text only after you approve
+that one conversion. A local failure never switches to a paid service.
+See [docs/AI_PROVIDERS.md](docs/AI_PROVIDERS.md) and
+[docs/LIBRARY.md](docs/LIBRARY.md).
+
+Two home machines can share the lightweight Game Master: Portable narrates
+when it is free, and Station narrates when Portable is busy or offline.
+The Offline Storyteller still takes over, and says so, when no model
+returns a valid reply. A generic user-service example is in
+`deploy/saturday-multiverse.service.example`. Linux setup is in
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+### v0.4.0-hotfix5 — Final Release Hotfix
 
 - **Recaps remember only what a character genuinely knows.** The recap now
   uses the same specific-memory entitlement as the campfire sharing engine:

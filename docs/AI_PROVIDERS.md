@@ -68,6 +68,40 @@ Prompt assembly: pack lore (trimmed), GM style, character sheet, tide/weather, s
 brief + directive, item catalog, NPC list, open quests, known facts, last 8 transcript
 messages. The omen card in play is passed as atmosphere only.
 
+## Campaign Forge uses its own model
+
+The endpoint in Settings → Model narrates the game. Campaign Forge does not
+have to use it.
+
+On **Forge a campaign**, Conversion AI offers:
+
+| Choice | What it does |
+|---|---|
+| Automatic local | Uses the configured local model. If a larger local model is already running, Forge may use that instead. It will not start one, and it will not send the book to a public endpoint. |
+| Select local model | Uses one model discovered on a local or LAN server. A large model is used only while it is already running. |
+| Online provider | Any OpenAI-compatible hosted API. You name the provider, endpoint, and model, and you may store an optional key. |
+
+Before an online conversion, the screen states that the manuscript will
+leave the local network. The server refuses the job until that conversion
+is approved. Approving a connection test does not approve sending the book.
+The key is stored only in the local database and is not written into the
+job, the draft, or an export.
+
+If you enter a price per million input tokens and a price per million
+output tokens, Forge shows a rough cost from a character count (about four
+characters per token). That number is your estimate, not a provider quote.
+With no prices entered, Forge shows no cost.
+
+Changing the conversion model does not change the Game Master used in play.
+
+## Two machines on a home LAN
+
+Optional environment variables let ordinary turns prefer one Ollama host
+and fall back to another. See `deploy/saturday-multiverse.service.example`.
+Manual mode, the default unless `SATURDAY_GM_AUTO=1`, keeps using the
+single endpoint from Settings. The router never sends a turn to a public
+provider on its own.
+
 ## Voice narration (planned)
 
 The same adapter pattern will feed a text-to-speech pass for GM narration
