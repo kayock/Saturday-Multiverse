@@ -52,12 +52,33 @@ The pipeline, in order:
 6. **Approve** — only a draft that validates can install. Approved packs
    appear immediately as doors on the shore and in creation.
 
-Modes: **faithful** (the book's events stand; players may still fail or
-deviate) and **alternate** (same world, marked [DIVERGENCE] points where
-players change the story).
+Modes:
 
-The Forge needs an AI model configured in Settings — it never fakes
-content and says so plainly if no model is available.
+- **Faithful Adaptation** — the book's events stand; players may still fail
+  or choose how they move through them.
+- **Alternate History** (`rewrite` on a conversion job, `alternate` on an
+  older draft) — the same world, with marked points where players change
+  what the book decided.
+- **Expanded Universe** — the book supplies the setting, cast, motives, and
+  secrets. The generated adventures are new, and the book's ending is left
+  as it is.
+
+The Forge reads the whole document in bounded windows. The window stays at
+least 9,000 characters. A model that advertises a larger context may receive
+a wider window, up to 24,000 characters. Each window is extracted, the cast
+is consolidated, a world bible is built, and then the adventure is drafted.
+Failed windows are listed. A scan that has walked every character is not
+described as a successful extraction while any window failed. **Retry failed
+sections** repeats only those windows. **Retry** resumes a failed job from
+the last completed stage.
+
+Choose the conversion model on the Forge screen. It is independent of the
+Game Master used during play. Automatic and selected local models stay on
+the local network. An online provider is contacted only after you approve
+sending that manuscript. See [AI_PROVIDERS.md](AI_PROVIDERS.md).
+
+The Forge never invents a finished campaign when no model is available —
+it says so plainly.
 
 ## Roanoke (private manuscripts)
 

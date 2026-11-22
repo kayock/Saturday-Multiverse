@@ -13,7 +13,7 @@ from unittest import mock
 
 import pytest
 
-from server import combat, continuity, director, db, forge, gm, library, mp, rules_dnd, worldpacks
+from server import ai, combat, continuity, director, db, forge, gm, library, mp, rules_dnd, worldpacks
 from server.app import create_app
 
 
@@ -148,6 +148,7 @@ def test_replay_survives_501_invisible_events(api):
 def test_interrupted_job_recovers_after_restart(api):
     book = "\n".join(f"# C{i}\n\nSallow. Door. Chapter {i}.\n" for i in range(30))
     doc = library.import_document(book.encode(), "b.md")
+    ai.set_ai_config({"enabled": True, "model": "m", "base_url": "http://mock/v1"})
     job = forge.create_job(doc["id"], "faithful", "short")
     jid = job["id"]
     # simulate an interrupted worker mid-analysis: running lease, dead heartbeat

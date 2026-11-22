@@ -198,6 +198,12 @@ def generate(local_ips: list[str] | None = None, hostname: str | None = None,
             .not_valid_before(now - datetime.timedelta(days=1))
             .not_valid_after(now + datetime.timedelta(days=ca_days))
             .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+            .add_extension(x509.SubjectKeyIdentifier.from_public_key(ca_key.public_key()),
+                           critical=False)
+            .add_extension(x509.KeyUsage(
+                digital_signature=False, key_encipherment=False, content_commitment=False,
+                data_encipherment=False, key_agreement=False, key_cert_sign=True,
+                crl_sign=True, encipher_only=False, decipher_only=False), critical=True)
             .sign(ca_key, hashes.SHA256())
         )
         ca_key_path.write_bytes(ca_key.private_bytes(
@@ -234,6 +240,10 @@ def generate(local_ips: list[str] | None = None, hostname: str | None = None,
         .not_valid_after(now + datetime.timedelta(days=days))
         .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
         .add_extension(x509.SubjectAlternativeName(san_names), critical=False)
+        .add_extension(x509.SubjectKeyIdentifier.from_public_key(server_key.public_key()),
+                       critical=False)
+        .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_key.public_key()),
+                       critical=False)
         .add_extension(x509.KeyUsage(
             digital_signature=True, key_encipherment=True, content_commitment=False,
             data_encipherment=False, key_agreement=False, key_cert_sign=False,

@@ -21,7 +21,7 @@ import re
 import shutil
 import time
 
-from . import ai, db, library
+from . import ai, db, forge_ai, library
 from .config import PACKS_DATA_DIR
 from .db import jdumps, jloads, new_id, utcnow
 
@@ -43,25 +43,26 @@ class ForgeError(ValueError):
 # Draft lifecycle
 # ==========================================================================
 
-def create_draft(doc_id: str, mode: str = "faithful", *, max_calls: int | None = None) -> dict:
+def create_draft(doc_id: str, mode: str = "faithful", *, max_calls: int | None = None,
+                 transmit_approved: bool = False) -> dict:
     """Run the extraction + synthesis pipeline for one library document."""
     doc = library.doc_view(doc_id)
-    if mode not in ("faithful", "alternate"):
-        raise ForgeError("mode must be faithful or alternate")
-    cfg = ai.get_ai_config()
-    if not cfg.get("enabled"):
-        raise ForgeError(
-            "the Forge needs an AI model — configure one in Model & Settings first")
+    if mode not in ("faithful", "alternate", "expanded"):
+        raise ForgeError("mode must be faithful, alternate, or expanded")
+    try:
+        cfg = forge_ai.resolve(transmit_approved=transmit_approved)
+    except forge_ai.ForgeAiError as exc:
+        raise ForgeError(str(exc)) from exc
     draft_id = new_id("fge")
     db.execute(
         "INSERT INTO forge_drafts (id, doc_id, mode, status, pack_json, profile_json,"
         " notes_json, created_at, updated_at) VALUES (?,?,?, 'drafting', '{}', '{}', '[]', ?, ?)",
         (draft_id, doc_id, mode, utcnow(), utcnow()),
     )
-    profile, notes = _extract(doc, max_calls)
+    profile, notes = _extract(doc, max_calls, cfg)
     db.execute("UPDATE forge_drafts SET profile_json=?, notes_json=? WHERE id=?",
                (jdumps(profile), jdumps(notes), draft_id))
-    pack = _synthesize(draft_id, doc, profile, mode, notes)
+    pack = _synthesize(draft_id, doc, profile, mode, notes, cfg)
     pack = _repair_pack(pack, doc)
     problems = validate_pack(pack)
     status = "draft" if not problems else "draft"
@@ -73,7 +74,7 @@ def create_draft(doc_id: str, mode: str = "faithful", *, max_calls: int | None =
     return draft_view(draft_id)
 
 
-def _extract(doc: dict, max_calls: int | None) -> tuple[dict, list[str]]:
+def _extract(doc: dict, max_calls: int | None, cfg: dict | None = None) -> tuple[dict, list[str]]:
     """Window-by-window extraction of raw story material."""
     n = doc["n_chunks"]
     window = WINDOW_CHUNKS
@@ -96,7 +97,7 @@ def _extract(doc: dict, max_calls: int | None) -> tuple[dict, list[str]]:
             {"role": "user", "content": f"SOURCE EXCERPT (part {si + 1}):\n\n{passage}"},
         ]
         try:
-            text, meta = ai.chat(messages, ai.get_ai_config())
+            text, meta = ai.chat(messages, cfg or forge_ai.resolve())
             data = ai.extract_json(text)
         except ai.AiError as exc:
             notes.append(f"window {si + 1}: model unavailable ({exc.detail}); skipped")
@@ -120,7 +121,9 @@ material as ONE JSON object (no markdown, no prose outside it):
  "items": [{"name":"", "desc":"<=25 words"}],
  "plot_points": ["one-line beat"],
  "secrets": ["hidden truth the GM knows but players must discover"]}
-Extract ONLY what the excerpt supports. No invented content. Every list may be empty."""
+Extract ONLY what the excerpt supports. Keep each person's name, motive, and place
+consistent with this excerpt. Record when an event happens if the excerpt says so.
+No invented content. Every list may be empty."""
 
 
 def _merge_profile(profile: dict, data: dict) -> None:
@@ -144,21 +147,31 @@ def _merge_profile(profile: dict, data: dict) -> None:
         profile[key] = profile[key][:40]
 
 
+def _mode_line(mode: str) -> str:
+    if mode == "faithful":
+        return ("FAITHFUL ADAPTATION: keep the source's names, events, and outcomes. "
+                "Players may still fail or deviate inside those events.")
+    if mode == "expanded":
+        return ("EXPANDED UNIVERSE: the book supplies the setting, cast, motives, and "
+                "hidden facts. Create new adventures around that world. Do not rewrite "
+                "the book's ending, and do not contradict established character motives.")
+    return ("ALTERNATE HISTORY: the setting and cast come from the source. Mark "
+            "[DIVERGENCE] where players can change an important event. NPC motives "
+            "stay consistent with the book until a player changes them.")
+
+
 def _synthesize(draft_id: str, doc: dict, profile: dict, mode: str,
-                notes: list[str]) -> dict:
+                notes: list[str], cfg: dict | None = None) -> dict:
     """Two bounded synthesis calls -> a draft pack in the exact schema."""
+    cfg = cfg or forge_ai.resolve()
     material = json.dumps(profile, ensure_ascii=False)[:14000]
-    mode_line = ("Adapt the source faithfully: keep names, events and outcomes the book "
-                 "establishes; players may still fail or deviate." if mode == "faithful"
-                 else "Build an alternate-story campaign: the setting and cast come from the "
-                 "source, but propose 2-3 divergence points where players can change the "
-                 "original narrative, and mark them in scene briefs with [DIVERGENCE].")
+    mode_line = _mode_line(mode)
     messages = [
         {"role": "system", "content": FORGE_WORLD_SYSTEM},
         {"role": "user", "content": f"SOURCE: {doc['title']} by {doc['author'] or 'unknown'}\n"
          f"MODE: {mode_line}\nEXTRACTED MATERIAL:\n{material}"},
     ]
-    text, meta = ai.chat(messages, ai.get_ai_config())
+    text, meta = ai.chat(messages, cfg)
     world = ai.extract_json(text)
     if not isinstance(world, dict):
         raise ForgeError("the model did not return the world JSON contract")
@@ -171,7 +184,7 @@ def _synthesize(draft_id: str, doc: dict, profile: dict, mode: str,
          f"MODE: {mode_line}\nMATERIAL PLOT:\n{json.dumps(profile.get('plot_points', [])[:20])}\n"
          f"SECRETS: {json.dumps(profile.get('secrets', [])[:12])}"},
     ]
-    text2, meta2 = ai.chat(adv_messages, ai.get_ai_config())
+    text2, meta2 = ai.chat(adv_messages, cfg)
     adventure = ai.extract_json(text2)
     if not isinstance(adventure, dict):
         raise ForgeError("the model did not return the adventure JSON contract")
@@ -561,27 +574,29 @@ def list_drafts() -> list[dict]:
     return out
 
 
-def regenerate_section(draft_id: str, section: str, notes_text: str = "") -> dict:
+def regenerate_section(draft_id: str, section: str, notes_text: str = "",
+                       transmit_approved: bool = False) -> dict:
     """Regenerate one pack section from the profile + the editor's notes."""
     draft = draft_view(draft_id)
     if draft["status"] == "approved":
         raise ForgeError("this draft is already approved — duplicate the pack to iterate")
-    cfg = ai.get_ai_config()
-    if not cfg.get("enabled"):
-        raise ForgeError("the Forge needs an AI model — configure one in Model & Settings")
+    try:
+        cfg = forge_ai.resolve(transmit_approved=transmit_approved)
+    except forge_ai.ForgeAiError as exc:
+        raise ForgeError(str(exc)) from exc
     pack = draft["pack"]
     doc = library.doc_view(draft["doc_id"])
     profile = draft["profile"]
     if section == "world":
         pack = _synthesize(draft_id, doc, profile, draft["mode"],
-                           draft["notes"] + [f"editor notes: {notes_text}"])
+                           draft["notes"] + [f"editor notes: {notes_text}"], cfg)
         pack = _repair_pack(pack, doc)
     elif section in ("adventure", "quests", "secrets"):
         adv_messages = [
             {"role": "system", "content": FORGE_ADVENTURE_SYSTEM +
              (f"\nEDITOR GUIDANCE (follow it): {notes_text[:400]}" if notes_text else "")},
             {"role": "user", "content": f"WORLD: {json.dumps(pack, ensure_ascii=False)[:8000]}\n"
-             f"MODE: {'faithful' if draft['mode'] == 'faithful' else 'alternate'}\n"
+             f"MODE: {_mode_line(draft['mode'])}\n"
              f"MATERIAL PLOT: {json.dumps(profile.get('plot_points', [])[:20])}\n"
              f"SECRETS: {json.dumps(profile.get('secrets', [])[:12])}"},
         ]
@@ -696,11 +711,16 @@ def list_jobs() -> list[dict]:
         " created_at, updated_at FROM forge_jobs ORDER BY updated_at DESC")]
 
 
-def create_job(doc_id: str, mode: str = "faithful", scope: str = "short") -> dict:
+def create_job(doc_id: str, mode: str = "faithful", scope: str = "short",
+               transmit_approved: bool = False) -> dict:
     """Queue a conversion. One running job per document (duplicate guard)."""
     doc = library.doc_view(doc_id)
-    if mode not in ("faithful", "rewrite"):
-        raise JobError("mode must be 'faithful' or 'rewrite'")
+    if mode not in ("faithful", "rewrite", "expanded"):
+        raise JobError("mode must be 'faithful', 'rewrite', or 'expanded'")
+    try:
+        target = forge_ai.resolve(transmit_approved=transmit_approved)
+    except forge_ai.ForgeAiError as exc:
+        raise JobError(str(exc)) from exc
     if scope not in SCOPES:
         raise JobError("scope must be short, multi_session or extended")
     running = db.query_one(
@@ -715,7 +735,9 @@ def create_job(doc_id: str, mode: str = "faithful", scope: str = "short") -> dic
         " created_at, updated_at) VALUES (?,?,?,?,'queued','queued',0,?,?)",
         (job_id, doc_id, mode, scope, now, now),
     )
-    db.log_event("library", "forge_job_queued", {"job_id": job_id, "doc_id": doc_id})
+    db.log_event("library", "forge_job_queued", {"job_id": job_id, "doc_id": doc_id,
+                                                "model": target.get("model") or ""})
+    forge_ai.pin_job(job_id, target)
     return job_view(job_id)
 
 
@@ -853,12 +875,14 @@ def _stage_extract(doc: dict, job_id: str, coverage: dict, notes: list[str],
                 "part": f"{i + 1}/{n_slices}",
                 "text": text[i * JOB_SLICE_CHARS:(i + 1) * JOB_SLICE_CHARS],
             })
-    # group slices into character-bounded windows
+    # group slices into character-bounded windows. A larger context may widen
+    # a window; it never goes below the existing 9,000-character bound.
+    window_limit = forge_ai.window_chars(cfg)
     windows: list[list[dict]] = []
     cur: list[dict] = []
     cur_chars = 0
     for s in slices:
-        if cur and cur_chars + len(s["text"]) > JOB_WINDOW_CHARS:
+        if cur and cur_chars + len(s["text"]) > window_limit:
             windows.append(cur)
             cur, cur_chars = [], 0
         cur.append(s)
@@ -872,6 +896,9 @@ def _stage_extract(doc: dict, job_id: str, coverage: dict, notes: list[str],
         "characters_processed": 0,
         "windows_planned": len(windows),
         "windows_failed": 0,
+        "failed_windows": [],
+        "window_chars": window_limit,
+        "extraction_successful": False,
         "sections_skipped": 0,
         "calls_made": 0,
         "errors": 0,
@@ -896,16 +923,17 @@ def _stage_extract(doc: dict, job_id: str, coverage: dict, notes: list[str],
                              f"{len(data.get('characters', []))}c/{len(data.get('locations', []))}l")
             else:
                 coverage["errors"] += 1
-                notes.append(f"window {wi}: model JSON contract missed; window kept raw")
+                reason = "model JSON contract missed; window kept raw"
+                notes.append(f"window {wi}: {reason}")
+                coverage["failed_windows"].append({"window": wi, "reason": reason})
         except Exception as exc:  # noqa: BLE001 — stage-level error reporting
             coverage["errors"] += 1
-            notes.append(f"window {wi}: model unavailable ({str(exc)[:90]})")
+            reason = f"model unavailable ({str(exc)[:90]})"
+            notes.append(f"window {wi}: {reason}")
+            coverage["failed_windows"].append({"window": wi, "reason": reason[:160]})
             # the analysis continues; partial coverage is reported honestly
         coverage["calls_made"] += 1
-        if ok:
-            coverage["windows_failed"] = coverage.get("windows_failed", 0)
-        else:
-            coverage["windows_failed"] = coverage.get("windows_failed", 0) + 1
+        coverage["windows_failed"] = len(coverage["failed_windows"])
         for s in win:
             processed_chars = len(s["text"])
             coverage["characters_processed"] = coverage.get("characters_processed", 0) + processed_chars
@@ -923,8 +951,98 @@ def _stage_extract(doc: dict, job_id: str, coverage: dict, notes: list[str],
     coverage["chapters"] = len(heading_chars)
     coverage["coverage_complete"] = (coverage["characters_processed"] >= total_chars
                                      and coverage["sections_skipped"] == 0)
+    # A finished scan is not a successful extraction. Failed windows stay listed.
+    coverage["extraction_successful"] = (coverage["windows_planned"] > 0
+                                         and coverage["windows_failed"] == 0)
     _job_update(job_id, coverage_json=jdumps(coverage))
     return profile
+
+
+def _windows_for(doc: dict, window_limit: int) -> list[list[dict]]:
+    rows = db.query(
+        "SELECT seq, heading, text FROM library_chunks WHERE doc_id=? ORDER BY seq",
+        (doc["id"],))
+    slices: list[dict] = []
+    for r in rows:
+        text = r["text"] or ""
+        if not text:
+            continue
+        heading = (r["heading"] or f"chunk {r['seq']}")[:120]
+        n_slices = max(1, -(-len(text) // JOB_SLICE_CHARS))
+        for i in range(n_slices):
+            slices.append({
+                "seq": r["seq"], "heading": heading,
+                "part": f"{i + 1}/{n_slices}",
+                "text": text[i * JOB_SLICE_CHARS:(i + 1) * JOB_SLICE_CHARS],
+            })
+    windows: list[list[dict]] = []
+    cur: list[dict] = []
+    cur_chars = 0
+    limit = max(JOB_WINDOW_CHARS, int(window_limit or JOB_WINDOW_CHARS))
+    for s in slices:
+        if cur and cur_chars + len(s["text"]) > limit:
+            windows.append(cur)
+            cur, cur_chars = [], 0
+        cur.append(s)
+        cur_chars += len(s["text"])
+    if cur:
+        windows.append(cur)
+    return windows
+
+
+def retry_failed_windows(job_id: str) -> dict:
+    """Re-run only the extraction windows that failed. Successful windows stay."""
+    job = job_view(job_id)
+    if not job.get("profile"):
+        raise JobError("there is no extracted profile yet — retry the whole job instead")
+    coverage = dict(job.get("coverage") or {})
+    failed = list(coverage.get("failed_windows") or [])
+    if not failed:
+        raise JobError("no failed extraction windows to retry")
+    try:
+        cfg = forge_ai.cfg_for_job(job_id)
+    except forge_ai.ForgeAiError as exc:
+        raise JobError(str(exc)) from exc
+    doc = library.doc_view(job["doc_id"])
+    windows = _windows_for(doc, int(coverage.get("window_chars") or JOB_WINDOW_CHARS))
+    profile = job["profile"]
+    for key in ("characters", "locations", "factions", "events", "items", "plot_points", "secrets"):
+        profile.setdefault(key, [])
+    notes = list(job.get("notes") or [])
+    still = []
+    for item in failed:
+        wi = int(item.get("window") or 0)
+        if wi < 1 or wi > len(windows):
+            still.append({"window": wi, "reason": "window index no longer matches the document"})
+            continue
+        win = windows[wi - 1]
+        passage = "\n".join(
+            f"[{s['heading']} (chunk {s['seq']}, part {s['part']})] {s['text']}" for s in win)
+        try:
+            text, _meta = ai.chat([
+                {"role": "system", "content": FORGE_EXTRACT_SYSTEM},
+                {"role": "user", "content": f"SOURCE EXCERPT (part {wi} of {len(windows)}):\n\n{passage}"},
+            ], cfg)
+            data = ai.extract_json(text)
+        except ai.AiError as exc:
+            still.append({"window": wi, "reason": str(exc)[:160]})
+            notes.append(f"retry window {wi}: still failed ({str(exc)[:80]})")
+            continue
+        if not isinstance(data, dict):
+            still.append({"window": wi, "reason": "model JSON contract missed"})
+            notes.append(f"retry window {wi}: model JSON contract missed")
+            continue
+        _merge_profile(profile, data)
+        notes.append(f"retry window {wi}: extracted")
+    coverage["failed_windows"] = still
+    coverage["windows_failed"] = len(still)
+    coverage["errors"] = len(still)
+    coverage["extraction_successful"] = (coverage.get("windows_planned", 0) > 0 and not still)
+    _job_update(job_id, coverage_json=jdumps(coverage), profile_json=jdumps(profile),
+                notes_json=jdumps(notes[-40:]),
+                stage=("extraction windows recovered" if not still
+                       else f"{len(still)} extraction window(s) still failed"))
+    return job_view(job_id)
 
 
 _ALIAS_STOP = {"the", "a", "an", "of", "mr", "mrs", "ms", "dr", "count", "lady", "sir"}
@@ -993,7 +1111,7 @@ def _stage_bible(doc: dict, job_id: str, profile: dict, mode: str,
     messages = [
         {"role": "system", "content": FORGE_BIBLE_SYSTEM},
         {"role": "user", "content": f"SOURCE: {doc['title']} by {doc['author'] or 'unknown'}\n"
-         f"MODE: {'faithful' if mode == 'faithful' else 'rewrite'}\n"
+         f"MODE: {_mode_line(mode)}\n"
          f"CONSOLIDATED MATERIAL:\n{material}"},
     ]
     text, meta = ai.chat(messages, cfg)
@@ -1042,6 +1160,10 @@ def _stage_generate(doc: dict, job_id: str, profile: dict, bible: dict,
         pack["forge_mode"] = "rewrite"
         pack["rewrite_note"] = ("The original story is the starting point; "
                                 "players' choices change its history.")
+    elif mode == "expanded":
+        pack["forge_mode"] = "expanded"
+        pack["expanded_note"] = ("The book supplies the world. The adventures are new, "
+                                 "and the source ending stays intact.")
     notes.append(f"generated '{pack.get('name')}' with "
                  f"{len(list(pack['adventures'][0]['scenes'].values()))} scenes")
     _job_update(job_id, notes_json=jdumps(notes[-40:]))
@@ -1089,10 +1211,7 @@ def _adventure_from_bible(bible: dict, profile: dict, mode: str, scope: str,
                           cfg: dict, job_id: str) -> dict:
     _check_cancel(job_id)
     sc = SCOPES[scope]
-    mode_line = ("FAITHFUL ADAPTATION: the source's events stand as written; players may "
-                 "act within them and fail." if mode == "faithful"
-                 else "REWRITE THE LEGEND: the source story is the starting point; players' "
-                 "choices must be able to change its history. Mark the points of divergence.")
+    mode_line = _mode_line(mode)
     messages = [
         {"role": "system", "content": FORGE_ADVENTURE_SYSTEM +
          f"\nSCOPE: {sc['scenes']} scenes in {sc['adventures']} adventure(s), {sc['quests']} quests, "
@@ -1159,10 +1278,10 @@ def _run_job_inner(job_id: str, worker: str = "manual") -> dict:
     from . import ai as _ai
     job = job_view(job_id)
     doc = library.doc_view(job["doc_id"])
-    cfg = _ai.get_ai_config()
-    if not cfg.get("enabled"):
-        _job_update(job_id, status="failed", stage="model unavailable",
-                    error="the Forge needs an AI model — configure one in Model & Settings")
+    try:
+        cfg = forge_ai.cfg_for_job(job_id)
+    except forge_ai.ForgeAiError as exc:
+        _job_update(job_id, status="failed", stage="model unavailable", error=str(exc)[:400])
         return job_view(job_id)
     notes = job["notes"]
     try:

@@ -25,9 +25,16 @@ def _init_db():
 
 @pytest.fixture(autouse=True)
 def _ai_disabled():
-    """Every test starts with the AI Game Master off — tests opt in."""
-    from server import ai
+    """Every test starts with the AI Game Master off — tests opt in.
+    Routing stays in manual mode so fleet discovery never runs during the suite.
+    """
+    from server import ai, db, routing
     ai.set_ai_config({"enabled": False})
+    routing.set_routing({"mode": "manual", "escalation": "off",
+                         "advanced_model": "", "advanced_base_url": ""})
+    routing.clear_state()
+    db.set_json_setting("forge_ai", {})
+    db.set_json_setting("forge_job_ai", {})
     yield
 
 

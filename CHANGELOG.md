@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.5.0-forge-ai — Campaign Forge model choice (2026-11-22)
+
+The Game Master that narrates play and the model that converts a book are
+now separate. A lightweight local model can keep running the game while
+Campaign Forge uses a chosen local model, an already-running larger local
+model, or an optional hosted OpenAI-compatible provider.
+
+- **Automatic local** uses the configured local Game Master endpoint
+  directly, or a larger local model that is already loaded. It does not
+  start a large model and it does not send a manuscript to the public
+  internet.
+- **Select local model** uses one discovered endpoint. A large model is
+  used only when it is already running.
+- **Online provider** is optional. The conversion is refused until the
+  operator approves sending that manuscript off the local network. A failed
+  local conversion never falls through to a paid service.
+- API keys stay in the local database, are not returned to the browser, and
+  are not stored on the conversion job.
+- Conversion modes are Faithful Adaptation, Alternate History, and Expanded
+  Universe. Extraction still walks the whole document in bounded windows.
+  A larger context may widen a window, never shrink the existing
+  9,000-character bound. Failed windows stay listed and can be retried
+  without repeating the windows that succeeded. A finished scan is not
+  reported as a successful extraction.
+- Gameplay routing between two home machines is unchanged. The gameplay
+  model is not rewritten when the Forge model changes.
+
 ## 0.4.0-living-worlds-hotfix5 — Final Release Hotfix (2026-11-22)
 
 Corrections release on top of hotfix4, addressing the independent review's

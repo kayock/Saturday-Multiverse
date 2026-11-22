@@ -105,9 +105,12 @@ export function forgeDocument(docId, docTitle) {
         You review before anything plays.</div>
       <label class="field-label">Adaptation mode</label>
       <div class="chip-row" id="forge-mode">
-        <span class="chip selected" data-mode="faithful">Faithful Adaptation — the book's events stand</span>
-        <span class="chip" data-mode="rewrite">Rewrite the Legend — players change its history</span>
+        <span class="chip selected" data-mode="faithful">Faithful Adaptation — follow the book, allow player choices</span>
+        <span class="chip" data-mode="rewrite">Alternate History — the world is the book's, and players can change events</span>
+        <span class="chip" data-mode="expanded">Expanded Universe — new adventures in the book's world</span>
       </div>
+      <label class="field-label">Conversion AI</label>
+      <div id="forge-ai-box" class="fact-line">Checking local models…</div>
       <label class="field-label">Campaign scope</label>
       <div class="chip-row" id="forge-scope">
         <span class="chip selected" data-scope="short">Short adventure</span>
@@ -131,13 +134,113 @@ export function forgeDocument(docId, docTitle) {
   const mode = pick("forge-mode", "mode");
   const scope = pick("forge-scope", "scope");
   $("btn-forge-back").addEventListener("click", () => showLibrary());
+  loadForgeAi(docId);
   $("btn-forge-go").addEventListener("click", async () => {
     try {
+      const approved = Boolean(document.getElementById("forge-approve")?.checked);
       const job = await apiSend("/api/forge/jobs", "POST",
-        { doc_id: docId, mode: mode(), scope: scope() });
+        { doc_id: docId, mode: mode(), scope: scope(), transmit_approved: approved });
       pollJob(job.id);
     } catch (e) { toast(e.message, "bad"); }
   });
+}
+
+async function loadForgeAi(docId) {
+  const box = document.getElementById("forge-ai-box");
+  if (!box) return;
+  try {
+    const data = await apiGet(`/api/forge/ai?doc_id=${encodeURIComponent(docId)}`);
+    const preview = data.preview || {};
+    const cat = data.catalog || {};
+    const forge = cat.forge || {};
+    const light = (cat.lightweight || []).map((m) =>
+      `<option value="${esc(m.base_url)}|${esc(m.model)}">Lightweight · ${esc(m.model)} on ${esc(m.host)}${m.loaded ? " (running)" : ""}</option>`).join("");
+    const advanced = (cat.advanced || []).map((m) =>
+      `<option value="${esc(m.base_url)}|${esc(m.model)}">Advanced · ${esc(m.model)} on ${esc(m.host)}${m.loaded ? " (running)" : " (not started)"}</option>`).join("");
+    const where = preview.locality === "online" ? "online" : (preview.locality === "blocked" ? "blocked — would leave the network" : "local");
+    const cost = preview.cost_estimate == null
+      ? esc(preview.note || "")
+      : `${esc(preview.currency || "USD")} ${preview.cost_estimate} — ${esc(preview.note || "")}`;
+    box.innerHTML = `
+      <div class="chip-row" id="forge-source">
+        <span class="chip ${forge.selection === "auto_local" || !forge.selection ? "selected" : ""}" data-selection="auto_local">Automatic local</span>
+        <span class="chip ${forge.selection === "local" ? "selected" : ""}" data-selection="local">Select local model</span>
+        <span class="chip ${forge.selection === "online" ? "selected" : ""}" data-selection="online">Online provider</span>
+      </div>
+      <div class="fact-line">Gameplay Game Master stays on ${esc(preview.gameplay_model || "its own setting")}. This choice is only for conversion.</div>
+      <div class="fact-line">Now: ${esc(preview.model || "none")} · ${esc(where)} · ${esc(preview.provider || "")}</div>
+      <div class="fact-line">Workload: about ${preview.windows || 0} windows and ${preview.calls || 0} model calls. ${cost}</div>
+      <div class="setting-row" id="forge-local-row" ${forge.selection === "local" ? "" : "hidden"}>
+        <select id="forge-local-model" class="input"><option value="">Choose a local model</option>${light}${advanced}</select>
+      </div>
+      <div id="forge-online-row" ${forge.selection === "online" ? "" : "hidden"}>
+        <div class="setting-row"><input id="forge-provider" class="input" placeholder="Provider name (OpenRouter, a hosted API, …)" value="${esc(forge.provider_name || "")}"></div>
+        <div class="setting-row"><input id="forge-url" class="input" placeholder="https://provider.example/v1" value="${esc(forge.base_url || "")}"></div>
+        <div class="setting-row"><input id="forge-model" class="input" placeholder="model id" value="${esc(forge.model || "")}"></div>
+        <div class="setting-row"><input id="forge-key" class="input" type="password" placeholder="${forge.has_key ? "key stored — type to replace" : "API key, if the provider requires one"}"></div>
+        <div class="setting-row"><input id="forge-price-in" class="input" type="number" min="0" step="0.01" placeholder="optional $ / million input tokens" value="${forge.price_input_per_million ?? ""}"></div>
+        <div class="setting-row"><input id="forge-price-out" class="input" type="number" min="0" step="0.01" placeholder="optional $ / million output tokens" value="${forge.price_output_per_million ?? ""}"></div>
+        <label class="fact-line"><input type="checkbox" id="forge-approve"> I approve sending this manuscript outside the local network for this conversion only.</label>
+      </div>
+      <div class="setting-row">
+        <button type="button" id="forge-ai-save" class="btn btn-small">Save conversion AI</button>
+        <button type="button" id="forge-ai-test" class="btn btn-small">Test connection</button>
+      </div>
+      <div id="forge-ai-status" class="fact-line"></div>`;
+    const pickSel = (id) => {
+      box.querySelectorAll("#forge-source .chip").forEach((c) => c.classList.remove("selected"));
+      box.querySelector(`[data-selection="${id}"]`)?.classList.add("selected");
+      document.getElementById("forge-local-row").hidden = id !== "local";
+      document.getElementById("forge-online-row").hidden = id !== "online";
+    };
+    box.querySelectorAll("#forge-source .chip").forEach((c) =>
+      c.addEventListener("click", () => pickSel(c.dataset.selection)));
+    document.getElementById("forge-ai-save")?.addEventListener("click", async () => {
+      try {
+        await apiSend("/api/settings", "PUT", { forge_ai: forgePayload() });
+        toast("Conversion model saved. The Game Master is unchanged.", "good");
+        loadForgeAi(docId);
+      } catch (e) { toast(e.message, "bad"); }
+    });
+    document.getElementById("forge-ai-test")?.addEventListener("click", async () => {
+      const st = document.getElementById("forge-ai-status");
+      st.textContent = "Testing the conversion endpoint…";
+      try {
+        const res = await apiSend("/api/forge/ai/test", "POST", {
+          forge_ai: forgePayload(),
+          transmit_approved: Boolean(document.getElementById("forge-approve")?.checked),
+        });
+        st.textContent = res.ok ? `Connected (${res.model || "model"}, ${res.latency_ms} ms). No manuscript was sent.`
+          : (res.detail || "Could not connect.");
+      } catch (e) { st.textContent = e.message; }
+    });
+  } catch (e) {
+    box.textContent = e.message;
+  }
+}
+
+function forgePayload() {
+  const selected = document.querySelector("#forge-source .chip.selected")?.dataset.selection || "auto_local";
+  const payload = { selection: selected };
+  if (selected === "local") {
+    const raw = document.getElementById("forge-local-model")?.value || "";
+    const cut = raw.indexOf("|");
+    payload.base_url = cut >= 0 ? raw.slice(0, cut) : "";
+    payload.model = cut >= 0 ? raw.slice(cut + 1) : "";
+    payload.provider_name = "local";
+  }
+  if (selected === "online") {
+    payload.provider_name = document.getElementById("forge-provider")?.value || "";
+    payload.base_url = document.getElementById("forge-url")?.value || "";
+    payload.model = document.getElementById("forge-model")?.value || "";
+    const key = document.getElementById("forge-key")?.value || "";
+    if (key) payload.api_key = key;
+    const pin = document.getElementById("forge-price-in")?.value;
+    const pout = document.getElementById("forge-price-out")?.value;
+    payload.price_input_per_million = pin === "" ? null : Number(pin);
+    payload.price_output_per_million = pout === "" ? null : Number(pout);
+  }
+  return payload;
 }
 
 async function pollJob(jobId) {
@@ -160,15 +263,18 @@ function renderJob(job, timer) {
     <div class="sect"><h4>Conversion ${esc(job.status.toUpperCase())} — ${pct}%</h4>
       <div class="bar bar-vigor" style="width:100%"><i style="width:${pct}%"></i></div>
       <div class="fact-line">${esc(job.stage || "")}</div>
-      ${cov.total_chunks ? `<div class="fact-line">source coverage: ${cov.chunks_processed || 0}/${cov.total_chunks} chunks ·
+      ${cov.total_chunks ? `<div class="fact-line">source scan: ${cov.chunks_visited || 0}/${cov.total_chunks} chunks ·
         ${cov.chapters || 0} chapters · ${cov.windows_planned || 0} windows · ${cov.calls_made || 0} model calls ·
-        ${cov.errors || 0} errors ${cov.coverage_complete ? "· COMPLETE" : "· partial"}</div>` : ""}
+        ${cov.windows_failed || 0} failed windows
+        ${cov.extraction_successful ? "· extraction complete" : (cov.coverage_complete ? "· scan finished, extraction incomplete" : "· partial")}</div>
+        ${(cov.failed_windows || []).map((w) => `<div class="fact-line">failed window ${esc(String(w.window))}: ${esc(w.reason || "")}</div>`).join("")}` : ""}
       ${job.error ? `<div class="fact-line" style="color:#e08">error: ${esc(job.error)}</div>` : ""}
       ${notes}
       <div class="setting-row">
         ${job.status === "review" ? `<button id="btn-job-open" class="btn btn-primary">Open in the editor</button>` : ""}
         ${["queued","analyzing","bible","generating","validating"].includes(job.status)
           ? `<button id="btn-job-cancel" class="btn btn-ghost">Cancel</button>` : ""}
+        ${(cov.failed_windows || []).length ? `<button id="btn-job-windows" class="btn btn-small">Retry failed sections</button>` : ""}
         ${["failed","cancelled"].includes(job.status) ? `<button id="btn-job-retry" class="btn btn-primary">Retry</button>` : ""}
       </div>
     </div>`;
@@ -182,6 +288,12 @@ function renderJob(job, timer) {
   $("btn-job-retry")?.addEventListener("click", async () => {
     await apiSend(`/api/forge/jobs/${job.id}/retry`, "POST", {});
     pollJob(job.id);
+  });
+  $("btn-job-windows")?.addEventListener("click", async () => {
+    try {
+      const next = await apiSend(`/api/forge/jobs/${job.id}/retry-windows`, "POST", {});
+      renderJob(next, timer);
+    } catch (e) { toast(e.message, "bad"); }
   });
 }
 

@@ -11,7 +11,7 @@ import os
 from pathlib import Path
 
 APP_NAME = "Saturday Multiverse"
-APP_VERSION = "0.4.0-living-worlds"
+APP_VERSION = "0.5.0-forge-ai"
 SCHEMA_VERSION = "saturday.core.v8"
 
 # Repository root: server/config.py -> server/ -> project root

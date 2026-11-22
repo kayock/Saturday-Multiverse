@@ -57,6 +57,23 @@ Hidden story information is stored in the `facts` table with `scope='hidden'` an
 **never** placed in the model prompt nor sent to the client view; it exists for the
 host and for long-arc continuity.
 
+## Who chooses the model
+
+`server/routing.py` chooses the Game Master for an ordinary turn. Manual
+mode leaves the Settings endpoint alone. Automatic mode prefers a free
+lightweight model on a second machine and uses the first machine when that
+host is offline or busy. The application classifies the call. A model
+response cannot switch endpoints.
+
+`server/forge_ai.py` chooses the Campaign Forge model separately and marks
+the call direct, so gameplay routing cannot replace it. Automatic and
+selected local conversions stay on loopback or a private address. A larger
+local model is used only when it is already loaded. An online provider is
+used only when that provider was selected and the operator approved sending
+the manuscript. The choice is pinned to the conversion job without the API
+key. If the local model fails, the job fails. It is not retried against a
+hosted API.
+
 ## State model
 
 `campaigns` is the anchor row (pack id, location, beat, drift, state JSON with flags).

@@ -766,9 +766,9 @@ function settingsHTML() {
     becomes rules authority: dice, state and consequences stay in the engine.</div>
     <div class="chip-row" id="gm-style-row">
       ${["classic", "grimdark", "cosmic", "noir", "whimsical", "mythic", "custom"].map((s) => `
-        <span class="chip ${v.gm_style?.id === s ? "selected" : ""}" data-style="${s}">${s}</span>`).join("")}
+        <span class="chip ${v?.gm_style?.id === s ? "selected" : ""}" data-style="${s}">${s}</span>`).join("")}
     </div>
-    <div class="setting-row" id="gm-custom-row" ${v.gm_style?.id === "custom" ? "" : "hidden"}>
+    <div class="setting-row" id="gm-custom-row" ${v?.gm_style?.id === "custom" ? "" : "hidden"}>
       <input id="gm-custom-text" class="input" maxlength="400" placeholder="Describe the tone you want…"
              value="${esc(window.__gmCustomText || "")}">
     </div>
@@ -789,6 +789,24 @@ function settingsHTML() {
       <button id="ai-test" class="btn btn-small">Test connection</button>
     </div>
     <div id="ai-status" class="ai-status" hidden></div>
+  </div>
+
+  <div class="setting-block">
+    <h4>AI mode</h4>
+    <div class="fact-line">Automatic uses one lightweight Game Master. Portable narrates when it is free; Station narrates when Portable is busy or offline. The next turn picks up a change — no restart.</div>
+    <div class="chip-row" id="gm-mode-row">
+      ${[["auto", "Automatic"], ["prefer_station", "Prefer Station"], ["prefer_portable", "Prefer Portable"], ["manual", "Manual"]].map(([id, label]) => `
+        <label class="chip ${((window.__routing?.mode) || "manual") === id ? "selected" : ""}">
+          <input type="radio" name="gm-mode" value="${id}" ${((window.__routing?.mode) || "manual") === id ? "checked" : ""} hidden> ${label}
+        </label>`).join("")}
+    </div>
+    <h4>Game Master</h4>
+    <div id="gm-route-status" class="fact-line">Checking hosts…</div>
+    <h4>Advanced AI</h4>
+    <div class="fact-line">Ordinary turns stay on the lightweight Game Master. Campaign Forge has its own conversion model, chosen in the Forge, and does not change this one. Nothing here starts a large model.</div>
+    <div class="setting-row"><label><input type="checkbox" id="ai-escalate" ${(window.__routing?.escalation || "on") === "on" ? "checked" : ""}> enable escalation</label></div>
+    <div class="setting-row"><label>Advanced model</label><select id="ai-advanced" class="input"><option value="|">None — lightweight Game Master only</option></select></div>
+    <div class="setting-row"><button type="button" id="ai-fleet-refresh" class="btn btn-small">Refresh status</button></div>
   </div>
 
   <div class="setting-block">
@@ -861,13 +879,35 @@ function wireSettings() {
     };
     const key = $("#ai-key").value;
     if (key) patch.api_key = key;
+    const advRaw = $("#ai-advanced")?.value || "|";
+    const advCut = advRaw.indexOf("|");
+    const routing = {
+      mode: settingsBody.querySelector("input[name=gm-mode]:checked")?.value || "manual",
+      escalation: $("#ai-escalate")?.checked ? "on" : "off",
+      advanced_base_url: advCut >= 0 ? advRaw.slice(0, advCut) : "",
+      advanced_model: advCut >= 0 ? advRaw.slice(advCut + 1) : "",
+    };
     try {
-      const res = await apiSend("/api/settings", "PUT", { ai: patch });
+      const res = await apiSend("/api/settings", "PUT", { ai: patch, routing });
       window.__aiCfg = res.ai;
+      window.__routing = res.routing || {};
+      window.__route = res.route || {};
       window.__toast?.("Model settings saved.", "good");
       window.__refreshAIBadge?.();
+      refreshFleet();
     } catch (e) { window.__toast?.(e.message, "bad"); }
   });
+
+  settingsBody.querySelectorAll("#gm-mode-row .chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      settingsBody.querySelectorAll("#gm-mode-row .chip").forEach((c) => c.classList.remove("selected"));
+      chip.classList.add("selected");
+      const input = chip.querySelector("input");
+      if (input) input.checked = true;
+    });
+  });
+  $("#ai-fleet-refresh")?.addEventListener("click", () => refreshFleet());
+  refreshFleet();
 
   $("#ai-test")?.addEventListener("click", async () => {
     const st = $("#ai-status");
@@ -919,6 +959,60 @@ function wireSettings() {
       window.__refreshCampaignList?.();
     } catch (err) { window.__toast?.(`Import failed: ${err.message}`, "bad"); }
   });
+}
+
+function fleetHostLine(id, info) {
+  const x = info || {};
+  const label = id === "station" ? "Station" : "Portable";
+  if (!x.ok) return `${label}: offline${x.error ? ` (${x.error})` : ""}`;
+  if (x.busy) return `${label}: busy — another model is loaded, so this host will not take gameplay`;
+  const models = [x.has_primary ? "primary" : "", x.has_fallback ? "fallback" : ""].filter(Boolean).join(" and ") || "no Game Master installed";
+  return `${label}: available (${models})`;
+}
+
+function renderFleet(fleet) {
+  const mode = fleet?.routing?.mode || "manual";
+  const plan = fleet?.plan;
+  const last = fleet?.last || {};
+  let who = "Manual mode uses the endpoint above.";
+  if (mode !== "manual") {
+    who = plan
+      ? `Next gameplay turn: ${plan.model} on ${plan.host}${plan.note ? ` — ${plan.note}` : ""}`
+      : "No lightweight model is reachable. The endpoint above is tried next, then the Offline Storyteller.";
+  }
+  const lat = last.latency_ms != null ? `${last.latency_ms} ms (${last.model || "model"}${last.host ? " on " + last.host : ""})` : "no request yet";
+  const advanced = fleet?.escalation_ready
+    ? "Advanced model is running and will be used for Campaign Forge only."
+    : "Advanced model is not running. Campaign Forge stays on the lightweight Game Master.";
+  return [who, fleetHostLine("station", fleet?.hosts?.station), fleetHostLine("portable", fleet?.hosts?.portable),
+    `Last response: ${lat}`, advanced].map((line) => esc(line)).join("<br>");
+}
+
+function fillAdvanced(fleet) {
+  const sel = settingsBody.querySelector("#ai-advanced");
+  if (!sel) return;
+  const current = `${window.__routing?.advanced_base_url || ""}|${window.__routing?.advanced_model || ""}`;
+  const options = [`<option value="|">None — lightweight Game Master only</option>`];
+  for (const o of fleet?.advanced_options || []) {
+    const value = `${o.base_url}|${o.model}`;
+    const state = o.loaded ? "running" : "installed, not started";
+    options.push(`<option value="${esc(value)}">${esc(`${o.model} on ${o.host} (${state})`)}</option>`);
+  }
+  sel.innerHTML = options.join("");
+  if ([...sel.options].some((o) => o.value === current)) sel.value = current;
+}
+
+async function refreshFleet() {
+  const box = settingsBody.querySelector("#gm-route-status");
+  if (!box) return;
+  try {
+    const fleet = await apiGet("/api/ai/fleet");
+    window.__fleet = fleet;
+    box.innerHTML = renderFleet(fleet);
+    fillAdvanced(fleet);
+  } catch (e) {
+    box.textContent = e.message || "Could not check hosts.";
+  }
 }
 
 async function refreshBackups() {
