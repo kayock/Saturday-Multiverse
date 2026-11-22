@@ -450,8 +450,7 @@ def test_private_content_separation(api):
     text = ("# Roanoke\n\nThe author's private manuscript text would live here when supplied.\n" * 12)
     doc = _doc(api, text, "roanoke.md", title="Roanoke — private", license="Private", private=True)
     assert doc["private"] == 1
-    assert doc["original_path"].split("/")[-2] == "library"
-    # the pack dir stays separate from redistributables
+    # Assert the path structure portably on Linux and Windows.
     import pathlib
     assert pathlib.Path(doc["original_path"]).parent.name == "library"
 
