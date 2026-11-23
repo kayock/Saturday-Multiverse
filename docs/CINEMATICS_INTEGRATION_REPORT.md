@@ -2,7 +2,8 @@
 
 **Date:** 2026-11-22  
 **Branch:** `cinematic-integration-v1`  
-**Baseline (pre-integration HEAD):** `84f5a75` (`cinematic-integration-v1-baseline` tag intent)  
+**Baseline (pre-integration HEAD):** `84f5a75` (tag `cinematic-integration-v1-baseline`)
+**Integration commit:** `61dde9e`  
 **Game version lineage:** 0.5.0-forge-ai → changelog entry **0.5.1-cinematics**
 
 ## Baseline checkpoint
