@@ -76,3 +76,11 @@ See [CINEMATICS_PRODUCTION.md](CINEMATICS_PRODUCTION.md) for the OpenFilm pack
 report (artwork generation, renders, QC). Artwork attribution: Juggernaut XL
 stills produced for this pack; synthesized AAC beds documented in
 `client/assets/cinematics/meta/AUDIO_LICENSING.md`.
+
+## Fantasy Asset Pack + batch-2 loops (0.5.2)
+
+- Stills: `client/assets/fantasy/` (100 images, `asset-manifest.json`, Art Library UI).
+- New loops: `fantasy-*-loop-*.mp4` in `client/assets/cinematics/videos/` (Git LFS).
+- OpenFilm projects (Portable): `/run/media/kayock/KAYOCK-1TB/openfilm/cinematic-packs/saturday-multiverse-fantasy-v1/projects/`
+- Method: Ken Burns + canvas overlays. Salt & Lantern / Living Shore plates unchanged.
+- Priority: video → still → canvas. See `docs/FANTASY_ASSETS.md`.

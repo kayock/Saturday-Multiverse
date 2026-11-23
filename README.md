@@ -272,6 +272,10 @@ turn is honestly labeled *offline storyteller*.
    See [docs/CINEMATICS.md](docs/CINEMATICS.md). After clone, run `git lfs pull`
    so the MP4s download (Git LFS).
 
+7. **Fantasy Art Library** — 100 stills under `client/assets/fantasy/` plus four
+   optional OpenFilm loops. Open **Fantasy Art Library** from the title screen
+   or the in-game **Art** panel. See [docs/FANTASY_ASSETS.md](docs/FANTASY_ASSETS.md).
+
 Optional: print QR cards (`python scripts/make_qr_cards.py`) and scan them with any
 USB keyboard-wedge scanner to open panels, inspect artifacts, or trigger approved
 events. Scans are data-only and strictly allowlisted.

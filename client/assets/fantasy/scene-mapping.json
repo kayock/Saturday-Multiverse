@@ -1,0 +1,44 @@
+{
+  "version": "1.0.0",
+  "notes": [
+    "Living Shore hub locations keep established photoreal cinematics as primary video.",
+    "Fantasy stills are supplemental — never substitute unrelated biomes for Tide Gate / Salt & Lantern / Living Shore plates.",
+    "TWN-002 Copper Kettle is Art Library / custom-campaign only; it does not replace the Salt & Lantern tavern."
+  ],
+  "locations": {
+    "wreck": {
+      "still_id": "ENV-010",
+      "video": "fantasy-shattered-coast-loop-18s.mp4",
+      "note": "Shattered Coast plate for the Marrow Bell wreck — coastal, not a Living Shore replacement."
+    },
+    "seacave": {
+      "still_id": "ENV-004",
+      "note": "Sunken Meridian still only — no dedicated fantasy video in batch 1."
+    },
+    "door_roots_preview": {
+      "still_id": "MAG-001",
+      "note": "Gate of Worlds still available for portal-adjacent presentation."
+    }
+  },
+  "portals": {
+    "door_unstable": {
+      "still_id": "MAG-007",
+      "video": "fantasy-sky-rift-loop-16s.mp4",
+      "note": "Sky Rift complements existing unstable portal activation; does not remove photoreal portal clips."
+    },
+    "default_gate": {
+      "still_id": "MAG-001",
+      "video": "fantasy-gate-of-worlds-loop-16s.mp4",
+      "note": "Gate of Worlds atmospheric loop for generic portal ambience after travel."
+    }
+  },
+  "art_library_only": {
+    "TWN-002": "Copper Kettle Tavern — do not map over Salt & Lantern (tavern)."
+  },
+  "animations": {
+    "MAG-001": "fantasy-gate-of-worlds-loop-16s.mp4",
+    "ENV-010": "fantasy-shattered-coast-loop-18s.mp4",
+    "TWN-002": "fantasy-copper-kettle-loop-16s.mp4",
+    "MAG-007": "fantasy-sky-rift-loop-16s.mp4"
+  }
+}

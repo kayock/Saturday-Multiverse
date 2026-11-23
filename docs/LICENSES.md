@@ -54,3 +54,10 @@ Image Hub at runtime.
 Documents imported with the private flag (e.g., Eric Z. Fox's *Roanoke*)
 remain the property of their authors: stored locally, never distributed,
 never shipped with any package, and never fabricated by this project.
+
+## Fantasy Asset Pack (0.5.2)
+
+100 AI-generated fantasy stills under `client/assets/fantasy/` with preserved
+asset IDs (`ENV-` / `TWN-` / `NPC-` / `MON-` / `MAG-` / `ITM-`). Attribution:
+`client/assets/fantasy/ATTRIBUTION.md`. OpenFilm loops derived from four stills
+use Ken Burns + canvas overlays (not generative video).

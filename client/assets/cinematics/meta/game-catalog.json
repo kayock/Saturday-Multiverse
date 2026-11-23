@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "base": "assets/cinematics",
   "videos_dir": "assets/cinematics/videos",
   "stills_dir": "assets/cinematics/stills",
@@ -16,12 +16,14 @@
             "clear": "photoreal-living-shore-loop-18s.mp4"
           }
         },
-        "enter_once": "sm-beam-tidegate-establishing-40s.mp4"
+        "enter_once": "sm-beam-tidegate-establishing-40s.mp4",
+        "still": "shore-primary.png"
       },
       "camp": {
         "ambient": {
           "default": "sm-campfire-driftwood-loop-16s.mp4"
-        }
+        },
+        "still": "campfire-primary.png"
       },
       "tavern": {
         "ambient": {
@@ -32,7 +34,8 @@
           },
           "supernatural": "sm-tavern-supernatural-loop-16s.mp4"
         },
-        "enter_once": "photoreal-tavern-establishing-40s.mp4"
+        "enter_once": "photoreal-tavern-establishing-40s.mp4",
+        "still": "tavern-primary.png"
       },
       "lighthouse": {
         "ambient": {
@@ -42,13 +45,21 @@
             "mist": "sm-shore-mist-loop-18s.mp4",
             "fogbank": "sm-shore-mist-loop-18s.mp4"
           }
-        }
+        },
+        "still": "shore-primary.png"
       },
       "saltgrave_gate": {
         "ambient": {
           "default": "sm-saltgrave-intro-12s.mp4"
         },
-        "enter_once": "sm-saltgrave-intro-12s.mp4"
+        "enter_once": "sm-saltgrave-intro-12s.mp4",
+        "still": "saltgrave-primary.png"
+      },
+      "wreck": {
+        "ambient": {
+          "default": "fantasy-shattered-coast-loop-18s.mp4"
+        },
+        "still": "fantasy-shattered-coast.png"
       }
     },
     "shore_exterior": {
@@ -68,11 +79,36 @@
       "door_ash": "sm-portal-ash-activation-8s.mp4",
       "door_unstable": "sm-portal-unstable-loop-16s.mp4",
       "default": "photoreal-portal-activation-8s.mp4",
-      "loop_default": "photoreal-portal-loop-16s.mp4"
+      "loop_default": "photoreal-portal-loop-16s.mp4",
+      "stills": {
+        "door_unstable": "fantasy-sky-rift.png",
+        "default": "portal-primary.png",
+        "fantasy_gate": "fantasy-gate-of-worlds.png"
+      },
+      "fantasy_gate_loop": "fantasy-gate-of-worlds-loop-16s.mp4",
+      "fantasy_rift_loop": "fantasy-sky-rift-loop-16s.mp4"
     },
     "adventures": {
       "salt_grave_signal": {
         "intro": "sm-saltgrave-intro-12s.mp4"
+      }
+    },
+    "art_library": {
+      "TWN-002": {
+        "video": "fantasy-copper-kettle-loop-16s.mp4",
+        "still": "fantasy-copper-kettle.png"
+      },
+      "MAG-001": {
+        "video": "fantasy-gate-of-worlds-loop-16s.mp4",
+        "still": "fantasy-gate-of-worlds.png"
+      },
+      "ENV-010": {
+        "video": "fantasy-shattered-coast-loop-18s.mp4",
+        "still": "fantasy-shattered-coast.png"
+      },
+      "MAG-007": {
+        "video": "fantasy-sky-rift-loop-16s.mp4",
+        "still": "fantasy-sky-rift.png"
       }
     }
   },
@@ -246,6 +282,54 @@
       "game_location": "saltgrave_gate / The Drowned Bay",
       "event": "salt_grave_signal",
       "status": "ready"
+    },
+    {
+      "id": "fantasy-gate-of-worlds-loop-16s",
+      "title": "Gate of Worlds \u2014 Atmospheric Loop",
+      "file": "fantasy-gate-of-worlds-loop-16s.mp4",
+      "duration_s": 16,
+      "loopable": true,
+      "game_location": "portals / Gate of Worlds (MAG-001)",
+      "event": null,
+      "status": "ready",
+      "source_still": "MAG-001",
+      "method": "ken_burns_canvas_overlay"
+    },
+    {
+      "id": "fantasy-shattered-coast-loop-18s",
+      "title": "The Shattered Coast \u2014 Atmospheric Loop",
+      "file": "fantasy-shattered-coast-loop-18s.mp4",
+      "duration_s": 18,
+      "loopable": true,
+      "game_location": "wreck / Shattered Coast (ENV-010)",
+      "event": null,
+      "status": "ready",
+      "source_still": "ENV-010",
+      "method": "ken_burns_canvas_overlay"
+    },
+    {
+      "id": "fantasy-copper-kettle-loop-16s",
+      "title": "Copper Kettle Tavern \u2014 Atmospheric Loop",
+      "file": "fantasy-copper-kettle-loop-16s.mp4",
+      "duration_s": 16,
+      "loopable": true,
+      "game_location": "art library / TWN-002 (not Salt & Lantern)",
+      "event": null,
+      "status": "ready",
+      "source_still": "TWN-002",
+      "method": "ken_burns_canvas_overlay"
+    },
+    {
+      "id": "fantasy-sky-rift-loop-16s",
+      "title": "The Sky Rift Tear \u2014 Atmospheric Loop",
+      "file": "fantasy-sky-rift-loop-16s.mp4",
+      "duration_s": 16,
+      "loopable": true,
+      "game_location": "portals / Sky Rift (MAG-007)",
+      "event": null,
+      "status": "ready",
+      "source_still": "MAG-007",
+      "method": "ken_burns_canvas_overlay"
     }
   ],
   "stills": {
@@ -253,6 +337,10 @@
     "shore": "shore-primary.png",
     "portal": "portal-primary.png",
     "campfire": "campfire-primary.png",
-    "saltgrave": "saltgrave-primary.png"
+    "saltgrave": "saltgrave-primary.png",
+    "wreck": "fantasy-shattered-coast.png",
+    "gate_of_worlds": "fantasy-gate-of-worlds.png",
+    "sky_rift": "fantasy-sky-rift.png",
+    "copper_kettle": "fantasy-copper-kettle.png"
   }
 }
