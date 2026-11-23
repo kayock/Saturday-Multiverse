@@ -174,14 +174,49 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 600; letter-spacing: 0.02em
   position: absolute; inset: 0; width: 100%; height: 100%;
   object-fit: cover; display: block;
 }
-.cine-ambient { opacity: 0.92; }
-.cine-once { opacity: 1; z-index: 2; }
+.cine-still {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; display: block; z-index: 1;
+}
+.cine-ambient { opacity: 0.92; z-index: 2; }
+.cine-once { opacity: 1; z-index: 3; }
 body.cine-active #shore-canvas,
 body.cine-active #vignette-layer { opacity: 0; transition: opacity 0.35s ease; }
-body.reduced-motion.cine-active #shore-canvas,
-body.reduced-motion.cine-active #vignette-layer,
+/* Still-only (calm / reduced-motion): hide canvas but keep hotspots via pointer-events on canvas */
+body.cine-still-active #shore-canvas { opacity: 0; }
+body.cine-still-active #vignette-layer { opacity: 1; }
+body.reduced-motion.cine-active:not(.cine-still-active) #shore-canvas,
+body.reduced-motion.cine-active:not(.cine-still-active) #vignette-layer,
 body:not(.cine-active) #shore-canvas,
 body:not(.cine-active) #vignette-layer { opacity: 1; }
+
+/* Fantasy Art Library */
+.artlib { display: flex; flex-direction: column; gap: 0.75rem; min-height: 40vh; }
+.artlib-toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.artlib-cat { max-width: 14rem; }
+.artlib-count { font-size: 0.8rem; color: var(--dim, #9aa3b5); }
+.artlib-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.65rem; max-height: 55vh; overflow: auto; padding-right: 0.25rem;
+}
+.artlib-card {
+  display: flex; flex-direction: column; gap: 0.25rem; text-align: left;
+  background: rgba(8,10,18,0.55); border: 1px solid var(--line, #2a3144);
+  border-radius: 10px; padding: 0.35rem; cursor: pointer; color: inherit;
+}
+.artlib-card:hover, .artlib-card:focus-visible { border-color: var(--teal, #5ce8db); }
+.artlib-card img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 6px; background: #111; }
+.artlib-card-id { font-size: 0.7rem; color: var(--gold, #e8b84b); font-family: ui-monospace, monospace; }
+.artlib-card-title { font-size: 0.78rem; line-height: 1.25; }
+.artlib-preview {
+  position: sticky; bottom: 0; background: rgba(6,8,14,0.94);
+  border: 1px solid var(--line, #2a3144); border-radius: 12px; padding: 0.75rem;
+  display: grid; gap: 0.5rem;
+}
+.artlib-preview img { width: 100%; max-height: 42vh; object-fit: contain; border-radius: 8px; }
+.artlib-preview-meta { font-size: 0.85rem; color: var(--dim, #9aa3b5); }
+.artlib-preview-meta strong { color: var(--text, #e7ecf1); display: block; margin-bottom: 0.25rem; }
+.artlib-footnote { font-size: 0.75rem; color: var(--faint, #7a8499); margin: 0; }
 .cine-chrome {
   position: absolute; right: 12px; bottom: 12px; z-index: 6;
   display: flex; gap: 0.45em; align-items: center; flex-wrap: wrap;

@@ -13,7 +13,7 @@ import { openPanel, openSettings, closeSettings, initPanelChrome,
          openSeedGate, openTalk, showEchoOffers, openEchoShelf } from "./ui.js?v=34";
 import * as mpui from "./mp.js?v=30";
 import * as libui from "./library.js?v=33";
-import { cinematics } from "./cinematics.js?v=1";
+import { cinematics } from "./cinematics.js?v=2";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -795,6 +795,7 @@ function wireMultiplayer() {
 function wireMultiplayerScreens() {
   $("btn-mp-host").addEventListener("click", () => { audio.ensure(); mpui.showHostScreen(); });
   $("btn-library").addEventListener("click", () => { audio.ensure(); libui.showLibrary(); });
+  $("btn-art-library")?.addEventListener("click", () => { audio.ensure(); openPanel("art"); });
   $("btn-library-back").addEventListener("click", () => libui.leaveLibrary());
   $("btn-library-import").addEventListener("click", () => libui.showImport());
   $("btn-import-go").addEventListener("click", () => libui.doImport());

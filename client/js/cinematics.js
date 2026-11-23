@@ -50,12 +50,21 @@ function videoUrl(file) {
   return `assets/cinematics/videos/${encodeURIComponent(file)}`;
 }
 
+function stillUrl(file) {
+  return `assets/cinematics/stills/${encodeURIComponent(file)}`;
+}
+
+function isCalm() {
+  return document.body.classList.contains("calm") || localStorage.getItem("sm_calm") === "1";
+}
+
 class CinematicPlayer {
   constructor() {
     this.prefs = loadPrefs();
     this.catalog = null;
     this._ready = false;
     this._ambientFile = null;
+    this._stillFile = null;
     this._oncePlaying = false;
     this._prevLocationId = null;
     this._els = {};
@@ -85,6 +94,7 @@ class CinematicPlayer {
     layer.className = "cine-layer";
     layer.hidden = true;
     layer.innerHTML = `
+      <img id="cine-still" class="cine-still" alt="" hidden>
       <video id="cine-ambient" class="cine-video cine-ambient" muted loop playsinline preload="none"></video>
       <video id="cine-once" class="cine-video cine-once" playsinline preload="none"></video>
       <div id="cine-chrome" class="cine-chrome">
@@ -117,6 +127,7 @@ class CinematicPlayer {
   _cacheEls() {
     this._els = {
       layer: document.getElementById("cine-layer"),
+      still: document.getElementById("cine-still"),
       ambient: document.getElementById("cine-ambient"),
       once: document.getElementById("cine-once"),
       skip: document.getElementById("cine-skip"),
@@ -136,7 +147,7 @@ class CinematicPlayer {
     this.prefs = { ...this.prefs, ...patch };
     savePrefs(this.prefs);
     this._applyPrefsToUi();
-    if (!this.prefs.enabled || prefersReducedMotion()) this.stopAll();
+    if (!this.prefs.enabled) this.stopAll();
     else this._syncAudioBuses();
   }
 
@@ -144,8 +155,14 @@ class CinematicPlayer {
     return { ...this.prefs };
   }
 
+  /** Presentation layer allowed (stills and/or video). */
   enabled() {
-    return !!(this.prefs.enabled && this.catalog && !prefersReducedMotion());
+    return !!(this.prefs.enabled && this.catalog);
+  }
+
+  /** Motion video allowed — suppressed by reduced-motion and calm mode. */
+  videoEnabled() {
+    return this.enabled() && !prefersReducedMotion() && !isCalm();
   }
 
   _fileExistsInCatalog(file) {
@@ -161,7 +178,7 @@ class CinematicPlayer {
   }
 
   selectAmbient(view) {
-    if (!this.enabled() || !view) return null;
+    if (!this.videoEnabled() || !view) return null;
     const locId = view.location?.id;
     const weather = view.weather?.key || "mist";
     const locs = this.catalog.selection?.locations || {};
@@ -189,8 +206,23 @@ class CinematicPlayer {
     return null;
   }
 
-  selectEnterOnce(view, prevLocationId) {
+  /** Still image path for location — used when video unavailable / reduced-motion / calm. */
+  selectStill(view) {
     if (!this.enabled() || !view) return null;
+    const locId = view.location?.id;
+    const locs = this.catalog.selection?.locations || {};
+    const stills = this.catalog.stills || {};
+    if (locId && locs[locId]?.still) return locs[locId].still;
+    if (locId === "wreck" && stills.wreck) return stills.wreck;
+    if (locId === "tavern" && stills.tavern) return stills.tavern;
+    if (locId === "camp" && stills.campfire) return stills.campfire;
+    if (locId === "saltgrave_gate" && stills.saltgrave) return stills.saltgrave;
+    if ((locId === "tidegate" || locId === "lighthouse" || !locId) && stills.shore) return stills.shore;
+    return null;
+  }
+
+  selectEnterOnce(view, prevLocationId) {
+    if (!this.videoEnabled() || !view) return null;
     const locId = view.location?.id;
     if (!locId || locId === prevLocationId) return null;
     const entry = this.catalog.selection?.locations?.[locId]?.enter_once;
@@ -205,14 +237,14 @@ class CinematicPlayer {
   }
 
   selectPortal(portalId) {
-    if (!this.enabled()) return null;
+    if (!this.videoEnabled()) return null;
     const portals = this.catalog.selection?.portals || {};
     const file = (portalId && portals[portalId]) || portals.default;
     return this._fileExistsInCatalog(file) ? file : null;
   }
 
   selectAdventureIntro(view) {
-    if (!this.enabled() || !view) return null;
+    if (!this.videoEnabled() || !view) return null;
     const advId = view.scene?.adventure_id || view.location?.adventure;
     if (!advId) return null;
     const intro = this.catalog.selection?.adventures?.[advId]?.intro;
@@ -232,13 +264,14 @@ class CinematicPlayer {
     await this.init();
     const amb = this._els.ambient;
     const layer = this._els.layer;
-    if (!this.enabled() || !file || !amb) {
-      this.clearAmbient();
+    if (!this.videoEnabled() || !file || !amb) {
+      this.clearAmbientVideo();
       return;
     }
     if (this._ambientFile === file && !amb.error) {
       layer.hidden = false;
       document.body.classList.add("cine-active");
+      this.clearStill();
       return;
     }
     this._ambientFile = file;
@@ -249,6 +282,7 @@ class CinematicPlayer {
     layer.hidden = false;
     document.body.classList.add("cine-active");
     if (this._els.note) this._els.note.hidden = true;
+    this.clearStill();
     try {
       await amb.play();
     } catch {
@@ -258,7 +292,37 @@ class CinematicPlayer {
     }
   }
 
-  clearAmbient() {
+  setStill(file) {
+    const img = this._els.still;
+    const layer = this._els.layer;
+    if (!this.enabled() || !file || !img) {
+      this.clearStill();
+      return;
+    }
+    if (this._stillFile === file) {
+      layer.hidden = false;
+      document.body.classList.add("cine-active", "cine-still-active");
+      return;
+    }
+    this._stillFile = file;
+    img.src = stillUrl(file);
+    img.hidden = false;
+    layer.hidden = false;
+    document.body.classList.add("cine-active", "cine-still-active");
+    if (this._els.note) this._els.note.hidden = true;
+  }
+
+  clearStill() {
+    const img = this._els.still;
+    if (img) {
+      img.hidden = true;
+      img.removeAttribute("src");
+    }
+    this._stillFile = null;
+    document.body.classList.remove("cine-still-active");
+  }
+
+  clearAmbientVideo() {
     const amb = this._els.ambient;
     if (amb) {
       amb.pause();
@@ -266,6 +330,11 @@ class CinematicPlayer {
       amb.load();
     }
     this._ambientFile = null;
+  }
+
+  clearAmbient() {
+    this.clearAmbientVideo();
+    this.clearStill();
     if (!this._oncePlaying) {
       if (this._els.layer) this._els.layer.hidden = true;
       document.body.classList.remove("cine-active");
@@ -273,8 +342,15 @@ class CinematicPlayer {
   }
 
   _ambientFailed() {
-    if (this._els.note) this._els.note.hidden = false;
-    this.clearAmbient();
+    this.clearAmbientVideo();
+    // Prefer still over blank canvas when ambient video fails
+    const still = this._pendingStill;
+    if (still) this.setStill(still);
+    else if (this._els.note) this._els.note.hidden = false;
+    if (!this._stillFile && !this._oncePlaying) {
+      if (this._els.layer) this._els.layer.hidden = true;
+      document.body.classList.remove("cine-active");
+    }
   }
 
   _syncAudioBuses() {
@@ -292,7 +368,7 @@ class CinematicPlayer {
 
   async playOnce(file, { portal = false } = {}) {
     await this.init();
-    if (!this.enabled() || !file) return;
+    if (!this.videoEnabled() || !file) return;
     const once = this._els.once;
     const layer = this._els.layer;
     if (!once || !layer) return;
@@ -358,23 +434,39 @@ class CinematicPlayer {
     }
     const prev = opts.prevLocationId ?? this._prevLocationId;
     const portalId = opts.portalId || null;
+    const still = this.selectStill(view);
+    this._pendingStill = still;
 
-    // Portal oneshot — fire-and-forget; does not block travel
-    if (portalId) {
-      const pfile = this.selectPortal(portalId);
-      if (pfile) this.playOnce(pfile, { portal: true });
+    // Priority: matching video → matching still → canvas/SVG fallback
+    if (this.videoEnabled()) {
+      // Portal oneshot — fire-and-forget; does not block travel
+      if (portalId) {
+        const pfile = this.selectPortal(portalId);
+        if (pfile) this.playOnce(pfile, { portal: true });
+      } else {
+        const enter = this.selectEnterOnce(view, prev);
+        const adv = this.selectAdventureIntro(view);
+        const once = enter || adv;
+        if (once) this.playOnce(once);
+      }
+
+      const ambient = this.selectAmbient(view);
+      if (ambient) {
+        await this.setAmbient(ambient);
+      } else if (still) {
+        this.clearAmbientVideo();
+        this.setStill(still);
+      } else {
+        this.clearAmbient();
+      }
+    } else if (still) {
+      // Reduced-motion / calm: static plate only
+      this.clearAmbientVideo();
+      this._endOnce();
+      this.setStill(still);
     } else {
-      // Enter-once establishing / adventure intro
-      const enter = this.selectEnterOnce(view, prev);
-      const adv = this.selectAdventureIntro(view);
-      const once = enter || adv;
-      // Avoid double-playing saltgrave enter + adventure intro (same file)
-      if (once) this.playOnce(once);
+      this.stopAll();
     }
-
-    const ambient = this.selectAmbient(view);
-    if (ambient) await this.setAmbient(ambient);
-    else this.clearAmbient();
 
     this._prevLocationId = view?.location?.id || null;
   }

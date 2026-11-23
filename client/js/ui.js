@@ -3,6 +3,7 @@ import { apiGet, apiSend } from "./api.js?v=30";
 import { state, emit } from "./state.js?v=30";
 import { portraitSVG } from "./portraits.js?v=30";
 import { audio } from "./audio.js?v=30";
+import { artLibrary } from "./art-library.js?v=1";
 
 const root = document.getElementById("panel-root");
 const settingsRoot = document.getElementById("settings-root");
@@ -18,15 +19,20 @@ export function openPanel(name) {
     quests: "Quests & Mysteries", dice: "Dice Log", character: "Character",
     ledger: "The Memory Ledger", omens: "The Omen Deck", shore: "The Growing Shore",
     worlds: "Known Worlds", party: "The Party", combat: "Combat",
-    director: "The Living Director", trace: "Engine Trace" }[name] || "Panel";
+    director: "The Living Director", trace: "Engine Trace",
+    art: "Fantasy Art Library" }[name] || "Panel";
   panelBody.innerHTML = { map: panelMap, journal: panelJournal, inventory: panelInventory,
     quests: panelQuests, dice: panelDice, character: panelCharacter,
     ledger: panelLedger, omens: panelOmens, shore: panelShore, worlds: panelWorlds,
-    party: panelParty, combat: panelCombat, director: panelDirector, trace: panelTrace
+    party: panelParty, combat: panelCombat, director: panelDirector, trace: panelTrace,
+    art: () => artLibrary.renderArtLibraryHTML()
   }[name]?.() || "";
   wirePanel(name);
   root.hidden = false;
   audio.ui();
+  if (name === "art") {
+    void artLibrary.ensureLoaded().then(() => artLibrary.bindArtLibrary(panelBody));
+  }
   if (name === "ledger" || name === "shore" || name === "party") refreshPanelExtras(name);
   if (name === "ledger") {
     refreshCheckpoints?.();
