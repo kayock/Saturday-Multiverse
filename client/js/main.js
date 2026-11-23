@@ -10,9 +10,10 @@ import { portraitSVG } from "./portraits.js?v=30";
 import { audio } from "./audio.js?v=30";
 import { attachScanner } from "./qr.js?v=30";
 import { openPanel, openSettings, closeSettings, initPanelChrome,
-         openSeedGate, openTalk, showEchoOffers, openEchoShelf } from "./ui.js?v=33";
+         openSeedGate, openTalk, showEchoOffers, openEchoShelf } from "./ui.js?v=34";
 import * as mpui from "./mp.js?v=30";
 import * as libui from "./library.js?v=33";
+import { cinematics } from "./cinematics.js?v=2";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -284,10 +285,17 @@ let hub = null;
 function ensureHub() {
   if (hub) return hub;
   hub = new ShoreScene($("shore-canvas"), {
-    onTravel: (locId) => { if (locId) doTravel(locId); else openSeedGate(); },
+    onTravel: (locId, meta) => { if (locId) doTravel(locId, meta || {}); else openSeedGate(); },
     onHotspot: (hotspotId) => showHotspot(hotspotId),
     onSealed: (p) => { toast(p.hint || "Sealed for now.", ""); audio.ui(); },
-    onSeed: () => openSeedGate(),
+    onSeed: () => {
+      // Non-blocking unstable-door flash; seed UI opens immediately
+      void cinematics.init().then(() => {
+        const f = cinematics.selectPortal("door_unstable");
+        if (f) cinematics.playOnce(f);
+      });
+      openSeedGate();
+    },
     onWash: async () => {
       try {
         const res = await apiSend(`/api/campaigns/${state.view.id}/washashore`, "POST", {});
@@ -314,6 +322,7 @@ function ensureHub() {
 function enterGame(view, shared = false) {
   showScreen("screen-game");
   ensureHub();
+  void cinematics.init();
   setView(view);
   window.__campaignId = view.id;
   window.__refreshCombatPanel?.();
@@ -396,6 +405,7 @@ function applyAccessibility() {
   const prefs = JSON.parse(localStorage.getItem("sm_a11y") || "{}");
   document.body.classList.toggle("reduced-motion", !!prefs.reduced_motion);
   document.body.classList.toggle("high-contrast", !!prefs.high_contrast);
+  if (prefs.reduced_motion) cinematics.stopAll();
 }
 window.__applyAccessibility = applyAccessibility;
 
@@ -491,6 +501,9 @@ function renderGame() {
   // audio scene
   const amb = v.location?.id === "camp" ? "camp" : v.location?.id === "tavern" ? "tavern" : "shore";
   audio.setScene(amb, v.weather?.key || "mist", v.tide);
+  // Pre-rendered cinematics (presentation only; never blocks GM / travel / MP)
+  cinematics.updateForView(v, { prevLocationId: renderGame._prevLoc || null });
+  renderGame._prevLoc = v.location?.id || null;
 }
 window.__refreshAIBadge = refreshAIBadge;
 
@@ -622,10 +635,18 @@ async function doChoose(choiceId) {
   finally { busy = false; }
 }
 
-async function doTravel(locId) {
+async function doTravel(locId, meta = {}) {
   if (busy) return;
   busy = true;
   audio.steps();
+  // Fire portal cinematic without awaiting — never delay travel / shared state
+  const portalId = meta.portalId || cinematics.portalIdForTarget(state.view, locId);
+  if (portalId) {
+    void cinematics.init().then(() => {
+      const pfile = cinematics.selectPortal(portalId);
+      if (pfile) cinematics.playOnce(pfile, { portal: true });
+    });
+  }
   try {
     const res = await apiSend(`/api/campaigns/${state.view.id}/travel`, "POST", { location_id: locId });
     lastNarration = res.narration;
@@ -774,6 +795,7 @@ function wireMultiplayer() {
 function wireMultiplayerScreens() {
   $("btn-mp-host").addEventListener("click", () => { audio.ensure(); mpui.showHostScreen(); });
   $("btn-library").addEventListener("click", () => { audio.ensure(); libui.showLibrary(); });
+  $("btn-art-library")?.addEventListener("click", () => { audio.ensure(); openPanel("art"); });
   $("btn-library-back").addEventListener("click", () => libui.leaveLibrary());
   $("btn-library-import").addEventListener("click", () => libui.showImport());
   $("btn-import-go").addEventListener("click", () => libui.doImport());

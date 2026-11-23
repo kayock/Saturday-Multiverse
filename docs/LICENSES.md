@@ -34,8 +34,30 @@ Vampire Spawn (Dracula), Morlock (The Time Machine) and the Great Ape
 public-domain novels' descriptions. They are **not** SRD content and carry
 `"source": "literature"` in the bestiary.
 
+## Cinematic asset pack v1
+
+Pre-rendered MP4s and stills under `client/assets/cinematics/`:
+
+- **Gameplay code and integration:** Saturday Multiverse project license.
+- **Juggernaut XL stills** (tavern, living shore, portal, campfire, Salt-Grave
+  drowned bay): generated for this project’s asset pack; keep with the game for
+  offline play. Generation parameters are recorded in the pack metadata.
+- **Audio beds** in the videos: synthesized locally (ffmpeg noise/tones); see
+  `client/assets/cinematics/meta/AUDIO_LICENSING.md`.
+- Upstream production notes: `docs/CINEMATICS_PRODUCTION.md`.
+
+Cinematics are optional presentation media. The game never requires OpenFilm or
+Image Hub at runtime.
+
 ## Private manuscripts
 
 Documents imported with the private flag (e.g., Eric Z. Fox's *Roanoke*)
 remain the property of their authors: stored locally, never distributed,
 never shipped with any package, and never fabricated by this project.
+
+## Fantasy Asset Pack (0.5.2)
+
+100 AI-generated fantasy stills under `client/assets/fantasy/` with preserved
+asset IDs (`ENV-` / `TWN-` / `NPC-` / `MON-` / `MAG-` / `ITM-`). Attribution:
+`client/assets/fantasy/ATTRIBUTION.md`. OpenFilm loops derived from four stills
+use Ken Burns + canvas overlays (not generative video).

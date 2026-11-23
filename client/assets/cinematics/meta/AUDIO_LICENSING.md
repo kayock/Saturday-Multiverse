@@ -1,0 +1,1 @@
+# Audio licensing\n\nSynthesized locally with ffmpeg (noise + tones + loudnorm). No third-party commercial samples.\nNot from Saturday Multiverse game audio.\n

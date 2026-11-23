@@ -1,0 +1,346 @@
+{
+  "version": "1.1.0",
+  "base": "assets/cinematics",
+  "videos_dir": "assets/cinematics/videos",
+  "stills_dir": "assets/cinematics/stills",
+  "selection": {
+    "locations": {
+      "tidegate": {
+        "ambient": {
+          "default": "sm-beam-tidegate-loop-18s.mp4",
+          "by_weather": {
+            "mist": "sm-beam-tidegate-loop-18s.mp4",
+            "fogbank": "sm-shore-mist-loop-18s.mp4",
+            "storm": "sm-shore-storm-loop-18s.mp4",
+            "drizzle": "sm-shore-mist-loop-18s.mp4",
+            "clear": "photoreal-living-shore-loop-18s.mp4"
+          }
+        },
+        "enter_once": "sm-beam-tidegate-establishing-40s.mp4",
+        "still": "shore-primary.png"
+      },
+      "camp": {
+        "ambient": {
+          "default": "sm-campfire-driftwood-loop-16s.mp4"
+        },
+        "still": "campfire-primary.png"
+      },
+      "tavern": {
+        "ambient": {
+          "default": "photoreal-tavern-loop-16s.mp4",
+          "by_weather": {
+            "storm": "sm-tavern-storm-loop-16s.mp4",
+            "drizzle": "sm-tavern-storm-loop-16s.mp4"
+          },
+          "supernatural": "sm-tavern-supernatural-loop-16s.mp4"
+        },
+        "enter_once": "photoreal-tavern-establishing-40s.mp4",
+        "still": "tavern-primary.png"
+      },
+      "lighthouse": {
+        "ambient": {
+          "default": "photoreal-living-shore-loop-18s.mp4",
+          "by_weather": {
+            "storm": "sm-shore-storm-loop-18s.mp4",
+            "mist": "sm-shore-mist-loop-18s.mp4",
+            "fogbank": "sm-shore-mist-loop-18s.mp4"
+          }
+        },
+        "still": "shore-primary.png"
+      },
+      "saltgrave_gate": {
+        "ambient": {
+          "default": "sm-saltgrave-intro-12s.mp4"
+        },
+        "enter_once": "sm-saltgrave-intro-12s.mp4",
+        "still": "saltgrave-primary.png"
+      },
+      "wreck": {
+        "ambient": {
+          "default": "fantasy-shattered-coast-loop-18s.mp4"
+        },
+        "still": "fantasy-shattered-coast.png"
+      }
+    },
+    "shore_exterior": {
+      "ambient": {
+        "default": "photoreal-living-shore-loop-18s.mp4",
+        "by_weather": {
+          "mist": "sm-shore-mist-loop-18s.mp4",
+          "fogbank": "sm-shore-mist-loop-18s.mp4",
+          "storm": "sm-shore-storm-loop-18s.mp4",
+          "drizzle": "sm-shore-mist-loop-18s.mp4",
+          "clear": "photoreal-living-shore-loop-18s.mp4"
+        }
+      }
+    },
+    "portals": {
+      "door_salt": "sm-portal-salt-activation-8s.mp4",
+      "door_ash": "sm-portal-ash-activation-8s.mp4",
+      "door_unstable": "sm-portal-unstable-loop-16s.mp4",
+      "default": "photoreal-portal-activation-8s.mp4",
+      "loop_default": "photoreal-portal-loop-16s.mp4",
+      "stills": {
+        "door_unstable": "fantasy-sky-rift.png",
+        "default": "portal-primary.png",
+        "fantasy_gate": "fantasy-gate-of-worlds.png"
+      },
+      "fantasy_gate_loop": "fantasy-gate-of-worlds-loop-16s.mp4",
+      "fantasy_rift_loop": "fantasy-sky-rift-loop-16s.mp4"
+    },
+    "adventures": {
+      "salt_grave_signal": {
+        "intro": "sm-saltgrave-intro-12s.mp4"
+      }
+    },
+    "art_library": {
+      "TWN-002": {
+        "video": "fantasy-copper-kettle-loop-16s.mp4",
+        "still": "fantasy-copper-kettle.png"
+      },
+      "MAG-001": {
+        "video": "fantasy-gate-of-worlds-loop-16s.mp4",
+        "still": "fantasy-gate-of-worlds.png"
+      },
+      "ENV-010": {
+        "video": "fantasy-shattered-coast-loop-18s.mp4",
+        "still": "fantasy-shattered-coast.png"
+      },
+      "MAG-007": {
+        "video": "fantasy-sky-rift-loop-16s.mp4",
+        "still": "fantasy-sky-rift.png"
+      }
+    }
+  },
+  "assets": [
+    {
+      "id": "photoreal-tavern-loop-16s",
+      "title": "Salt & Lantern \u2014 Night Loop",
+      "file": "photoreal-tavern-loop-16s.mp4",
+      "duration_s": 16,
+      "loopable": true,
+      "game_location": "tavern / The Salt & Lantern",
+      "event": null,
+      "status": "ready"
+    },
+    {
+      "id": "photoreal-tavern-establishing-40s",
+      "title": "Salt & Lantern \u2014 Establishing",
+      "file": "photoreal-tavern-establishing-40s.mp4",
+      "duration_s": 40,
+      "loopable": false,
+      "game_location": "tavern / The Salt & Lantern",
+      "event": null,
+      "status": "ready"
+    },
+    {
+      "id": "photoreal-living-shore-loop-18s",
+      "title": "Living Shore \u2014 Calm Night Loop",
+      "file": "photoreal-living-shore-loop-18s.mp4",
+      "duration_s": 18,
+      "loopable": true,
+      "game_location": "living shore / Skyless Light exterior",
+      "event": null,
+      "status": "ready"
+    },
+    {
+      "id": "photoreal-living-shore-establishing-40s",
+      "title": "Living Shore \u2014 Establishing",
+      "file": "photoreal-living-shore-establishing-40s.mp4",
+      "duration_s": 40,
+      "loopable": false,
+      "game_location": "living shore",
+      "event": null,
+      "status": "ready"
+    },
+    {
+      "id": "photoreal-portal-activation-8s",
+      "title": "Portal \u2014 Violet Activation",
+      "file": "photoreal-portal-activation-8s.mp4",
+      "duration_s": 8,
+      "loopable": false,
+      "game_location": "portals / Beam doors (generic)",
+      "event": null,
+      "status": "ready"
+    },
+    {
+      "id": "photoreal-portal-loop-16s",
+      "title": "Portal \u2014 Violet Atmospheric Loop",
+      "file": "photoreal-portal-loop-16s.mp4",
+      "duration_s": 16,
+      "loopable": true,
+      "game_location": "portals / Beam doors (generic)",
+      "event": null,
+      "status": "ready"
+    },
+    {
+      "id": "sm-beam-tidegate-loop-18s",
+      "title": "The Beam / Tide Gate Loop",
+      "file": "sm-beam-tidegate-loop-18s.mp4",
+      "duration_s": 18,
+      "loopable": true,
+      "game_location": "tidegate / The Beam",
+      "event": null,
+      "status": "ready"
+    },
+    {
+      "id": "sm-beam-tidegate-establishing-40s",
+      "title": "The Beam / Tide Gate Establishing",
+      "file": "sm-beam-tidegate-establishing-40s.mp4",
+      "duration_s": 40,
+      "loopable": false,
+      "game_location": "tidegate / The Beam",
+      "event": null,
+      "status": "ready"
+    },
+    {
+      "id": "sm-campfire-driftwood-loop-16s",
+      "title": "Driftwood Campfire Loop",
+      "file": "sm-campfire-driftwood-loop-16s.mp4",
+      "duration_s": 16,
+      "loopable": true,
+      "game_location": "camp / Driftwood Camp",
+      "event": null,
+      "status": "ready"
+    },
+    {
+      "id": "sm-tavern-storm-loop-16s",
+      "title": "Salt & Lantern \u2014 Storm Night",
+      "file": "sm-tavern-storm-loop-16s.mp4",
+      "duration_s": 16,
+      "loopable": true,
+      "game_location": "tavern",
+      "event": null,
+      "status": "ready"
+    },
+    {
+      "id": "sm-tavern-supernatural-loop-16s",
+      "title": "Salt & Lantern \u2014 Supernatural Disturbance",
+      "file": "sm-tavern-supernatural-loop-16s.mp4",
+      "duration_s": 16,
+      "loopable": true,
+      "game_location": "tavern",
+      "event": null,
+      "status": "ready"
+    },
+    {
+      "id": "sm-shore-mist-loop-18s",
+      "title": "Living Shore \u2014 Mist",
+      "file": "sm-shore-mist-loop-18s.mp4",
+      "duration_s": 18,
+      "loopable": true,
+      "game_location": "living_shore",
+      "event": null,
+      "status": "ready"
+    },
+    {
+      "id": "sm-shore-storm-loop-18s",
+      "title": "Living Shore \u2014 Storm / Skyless Light emphasis",
+      "file": "sm-shore-storm-loop-18s.mp4",
+      "duration_s": 18,
+      "loopable": true,
+      "game_location": "living_shore / lighthouse",
+      "event": null,
+      "status": "ready"
+    },
+    {
+      "id": "sm-portal-salt-activation-8s",
+      "title": "Door of Salt \u2014 Activation",
+      "file": "sm-portal-salt-activation-8s.mp4",
+      "duration_s": 8,
+      "loopable": false,
+      "game_location": "portals / door_salt",
+      "event": "salt_grave_signal",
+      "status": "ready"
+    },
+    {
+      "id": "sm-portal-ash-activation-8s",
+      "title": "Door of Ash \u2014 Activation",
+      "file": "sm-portal-ash-activation-8s.mp4",
+      "duration_s": 8,
+      "loopable": false,
+      "game_location": "portals / door_ash",
+      "event": "umbral_market",
+      "status": "ready"
+    },
+    {
+      "id": "sm-portal-unstable-loop-16s",
+      "title": "Unstable Door \u2014 Atmospheric Loop",
+      "file": "sm-portal-unstable-loop-16s.mp4",
+      "duration_s": 16,
+      "loopable": true,
+      "game_location": "portals / door_unstable",
+      "event": null,
+      "status": "ready"
+    },
+    {
+      "id": "sm-saltgrave-intro-12s",
+      "title": "The Salt-Grave Signal \u2014 Intro",
+      "file": "sm-saltgrave-intro-12s.mp4",
+      "duration_s": 12,
+      "loopable": false,
+      "game_location": "saltgrave_gate / The Drowned Bay",
+      "event": "salt_grave_signal",
+      "status": "ready"
+    },
+    {
+      "id": "fantasy-gate-of-worlds-loop-16s",
+      "title": "Gate of Worlds \u2014 Atmospheric Loop",
+      "file": "fantasy-gate-of-worlds-loop-16s.mp4",
+      "duration_s": 16,
+      "loopable": true,
+      "game_location": "portals / Gate of Worlds (MAG-001)",
+      "event": null,
+      "status": "ready",
+      "source_still": "MAG-001",
+      "method": "ken_burns_canvas_overlay"
+    },
+    {
+      "id": "fantasy-shattered-coast-loop-18s",
+      "title": "The Shattered Coast \u2014 Atmospheric Loop",
+      "file": "fantasy-shattered-coast-loop-18s.mp4",
+      "duration_s": 18,
+      "loopable": true,
+      "game_location": "wreck / Shattered Coast (ENV-010)",
+      "event": null,
+      "status": "ready",
+      "source_still": "ENV-010",
+      "method": "ken_burns_canvas_overlay"
+    },
+    {
+      "id": "fantasy-copper-kettle-loop-16s",
+      "title": "Copper Kettle Tavern \u2014 Atmospheric Loop",
+      "file": "fantasy-copper-kettle-loop-16s.mp4",
+      "duration_s": 16,
+      "loopable": true,
+      "game_location": "art library / TWN-002 (not Salt & Lantern)",
+      "event": null,
+      "status": "ready",
+      "source_still": "TWN-002",
+      "method": "ken_burns_canvas_overlay"
+    },
+    {
+      "id": "fantasy-sky-rift-loop-16s",
+      "title": "The Sky Rift Tear \u2014 Atmospheric Loop",
+      "file": "fantasy-sky-rift-loop-16s.mp4",
+      "duration_s": 16,
+      "loopable": true,
+      "game_location": "portals / Sky Rift (MAG-007)",
+      "event": null,
+      "status": "ready",
+      "source_still": "MAG-007",
+      "method": "ken_burns_canvas_overlay"
+    }
+  ],
+  "stills": {
+    "tavern": "tavern-primary.png",
+    "shore": "shore-primary.png",
+    "portal": "portal-primary.png",
+    "campfire": "campfire-primary.png",
+    "saltgrave": "saltgrave-primary.png",
+    "wreck": "fantasy-shattered-coast.png",
+    "gate_of_worlds": "fantasy-gate-of-worlds.png",
+    "sky_rift": "fantasy-sky-rift.png",
+    "copper_kettle": "fantasy-copper-kettle.png"
+  }
+}

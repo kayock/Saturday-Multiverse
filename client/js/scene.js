@@ -140,7 +140,10 @@ export class ShoreScene {
   _onClick(e) {
     const hit = this._hitAt(this._locate(e));
     if (!hit) return;
-    if (hit.kind === "travel") this.handlers.onTravel?.(hit.target);
+    if (hit.kind === "travel") {
+      const meta = (hit.id && String(hit.id).startsWith("door_")) ? { portalId: hit.id } : {};
+      this.handlers.onTravel?.(hit.target, meta);
+    }
     else if (hit.kind === "seed") this.handlers.onSeed?.();
     else if (hit.kind === "wash") this.handlers.onWash?.();
     else if (hit.kind === "sealed") this.handlers.onSealed?.(hit);

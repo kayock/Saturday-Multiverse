@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.5.2-fantasy-assets — Fantasy Art Library + 4 OpenFilm loops (2026-11-23)
+
+- Import Multiverse Fantasy Asset Pack (100 stills + manifest) under `client/assets/fantasy/`.
+- Fantasy Art Library panel (title screen + HUD): browse, search, categories, previews.
+- Four new OpenFilm atmospheric loops (Ken Burns + canvas overlays, not generative video):
+  Gate of Worlds, Shattered Coast, Copper Kettle, Sky Rift Tear.
+- Playback priority: matching video → matching still → canvas/SVG fallback.
+- Calm mode and reduced-motion prefer stills; existing Living Shore cinematics preserved.
+- Copper Kettle is Art Library only — does **not** replace Salt & Lantern.
+- Shattered Coast maps to the wreck location when unlocked; portal activation videos unchanged.
+- MP4s continue via Git LFS. No OpenFilm/AI work during gameplay.
+
+
+## 0.5.1-cinematics — Living Shore cinematic integration (2026-11-22)
+
+Pre-rendered atmospheric videos from the OpenFilm Saturday Multiverse
+Cinematic Asset Pack v1 play as an optional presentation layer.
+
+- Location ambience for Tide Gate / Beam, shore weather variants, Driftwood
+  Camp, Salt & Lantern (including storm / supernatural variants), and the
+  Skyless Light emphasis loop.
+- Non-blocking portal activations for Door of Salt, Door of Ash, Unstable
+  Door, and a default violet activation.
+- One-time Salt-Grave / Drowned Bay introduction per campaign.
+- Settings: enable/disable, volume, ambient vs one-shot audio, skip / replay.
+- Respects calm mode and `prefers-reduced-motion`; canvas and SVG vignettes
+  remain the fallback.
+- Assets live under `client/assets/cinematics/` (MP4s via Git LFS). No
+  OpenFilm, Juggernaut, or AI video work runs during gameplay.
+- Multiplayer unchanged: each client plays locally; skipping never mutates
+  shared state.
+
 ## 0.5.0-forge-ai — Campaign Forge model choice (2026-11-22)
 
 The Game Master that narrates play and the model that converts a book are
