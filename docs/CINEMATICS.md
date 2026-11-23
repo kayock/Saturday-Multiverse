@@ -11,7 +11,7 @@ always safe.
 
 ```text
 client/assets/cinematics/
-  videos/          # 17 MP4s (Git LFS)
+  videos/          # 21 MP4s (Git LFS; 17 Living Shore + 4 fantasy)
   stills/          # Juggernaut / reused source stills
   thumbnails/      # optional previews
   meta/
@@ -80,7 +80,7 @@ stills produced for this pack; synthesized AAC beds documented in
 ## Fantasy Asset Pack + batch-2 loops (0.5.2)
 
 - Stills: `client/assets/fantasy/` (100 images, `asset-manifest.json`, Art Library UI).
-- New loops: `fantasy-*-loop-*.mp4` in `client/assets/cinematics/videos/` (Git LFS).
+- Loops: 21 MP4s in `client/assets/cinematics/videos/` including `fantasy-*-loop-*.mp4` (Git LFS).
 - OpenFilm projects (Portable): `/run/media/kayock/KAYOCK-1TB/openfilm/cinematic-packs/saturday-multiverse-fantasy-v1/projects/`
 - Method: Ken Burns + canvas overlays. Salt & Lantern / Living Shore plates unchanged.
 - Priority: video → still → canvas. See `docs/FANTASY_ASSETS.md`.
