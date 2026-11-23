@@ -266,6 +266,11 @@ turn is honestly labeled *offline storyteller*.
 5. **Journal / Pack / Quests / Dice** panels keep your story organized; **Map** shows
    the shore; tide and weather change what the shore reveals (the sea cave and the
    wreck only surface at low tide).
+6. **Cinematics (optional)** — pre-rendered atmosphere for the Beam, shore, tavern,
+   campfire, portals and the Salt-Grave intro. Toggle, mute, skip or replay in
+   Settings. Mechanics and multiplayer are unchanged if videos are missing or off.
+   See [docs/CINEMATICS.md](docs/CINEMATICS.md). After clone, run `git lfs pull`
+   so the MP4s download (Git LFS).
 
 Optional: print QR cards (`python scripts/make_qr_cards.py`) and scan them with any
 USB keyboard-wedge scanner to open panels, inspect artifacts, or trigger approved

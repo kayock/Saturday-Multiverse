@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.5.1-cinematics — Living Shore cinematic integration (2026-11-22)
+
+Pre-rendered atmospheric videos from the OpenFilm Saturday Multiverse
+Cinematic Asset Pack v1 play as an optional presentation layer.
+
+- Location ambience for Tide Gate / Beam, shore weather variants, Driftwood
+  Camp, Salt & Lantern (including storm / supernatural variants), and the
+  Skyless Light emphasis loop.
+- Non-blocking portal activations for Door of Salt, Door of Ash, Unstable
+  Door, and a default violet activation.
+- One-time Salt-Grave / Drowned Bay introduction per campaign.
+- Settings: enable/disable, volume, ambient vs one-shot audio, skip / replay.
+- Respects calm mode and `prefers-reduced-motion`; canvas and SVG vignettes
+  remain the fallback.
+- Assets live under `client/assets/cinematics/` (MP4s via Git LFS). No
+  OpenFilm, Juggernaut, or AI video work runs during gameplay.
+- Multiplayer unchanged: each client plays locally; skipping never mutates
+  shared state.
+
 ## 0.5.0-forge-ai — Campaign Forge model choice (2026-11-22)
 
 The Game Master that narrates play and the model that converts a book are

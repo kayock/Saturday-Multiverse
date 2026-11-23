@@ -816,6 +816,18 @@ function settingsHTML() {
     <div class="slider-row"><label>Effects</label><input type="range" id="vol-sfx" min="0" max="1" step="0.05" value="${audio.prefs.sfx}"></div>
     <div class="setting-row"><label><input type="checkbox" id="vol-mute" ${audio.prefs.muted ? "checked" : ""}> mute everything</label></div>
     <div class="setting-row"><label><input type="checkbox" id="calm-mode" ${localStorage.getItem("sm_calm") === "1" ? "checked" : ""}> calm mode (gentler animation, no rain)</label></div>
+    <h4>Cinematics</h4>
+    <div class="fact-line">Pre-rendered atmosphere videos for the shore, tavern, camp, Beam and portals.
+    They are presentation only — skipping or disabling them never changes game state or multiplayer turns.
+    The canvas and SVG vignettes remain as fallbacks.</div>
+    <div class="setting-row"><label><input type="checkbox" id="cine-enabled" ${(window.__cinematics?.getPrefs?.().enabled ?? true) ? "checked" : ""}> enable location cinematics</label></div>
+    <div class="slider-row"><label>Cine volume</label><input type="range" id="cine-vol" min="0" max="1" step="0.05" value="${esc(window.__cinematics?.getPrefs?.().volume ?? 0.45)}"></div>
+    <div class="setting-row"><label><input type="checkbox" id="cine-ambient-audio" ${window.__cinematics?.getPrefs?.().ambient_audio ? "checked" : ""}> play audio on ambient loops</label></div>
+    <div class="setting-row"><label><input type="checkbox" id="cine-oneshot-audio" ${(window.__cinematics?.getPrefs?.().oneshot_audio ?? true) ? "checked" : ""}> play audio on portal / intro clips</label></div>
+    <div class="setting-row">
+      <button type="button" id="cine-skip-now" class="btn btn-small">Skip current clip</button>
+      <button type="button" id="cine-replay-now" class="btn btn-small btn-ghost">Replay last clip</button>
+    </div>
   </div>
 
   <div class="setting-block">
@@ -938,6 +950,17 @@ function wireSettings() {
     window.__hub?.setCalm(e.target.checked);
     window.__toast?.(e.target.checked ? "Calm mode on — the shore moves gently." : "Calm mode off.", "good");
   });
+  const cine = window.__cinematics;
+  $("#cine-enabled")?.addEventListener("change", (e) => {
+    cine?.setPrefs({ enabled: e.target.checked });
+    window.__toast?.(e.target.checked ? "Cinematics on." : "Cinematics off — canvas fallback.", "good");
+    window.__refreshView?.();
+  });
+  $("#cine-vol")?.addEventListener("input", (e) => cine?.setPrefs({ volume: parseFloat(e.target.value) }));
+  $("#cine-ambient-audio")?.addEventListener("change", (e) => cine?.setPrefs({ ambient_audio: e.target.checked }));
+  $("#cine-oneshot-audio")?.addEventListener("change", (e) => cine?.setPrefs({ oneshot_audio: e.target.checked }));
+  $("#cine-skip-now")?.addEventListener("click", () => cine?.skipOnce());
+  $("#cine-replay-now")?.addEventListener("click", () => cine?.replayLastOnce());
 
   $("#btn-backup")?.addEventListener("click", async () => {
     try {
